@@ -257,9 +257,13 @@ endfunction
 
 function! himalaya#domain#email#move(folder) abort
   let id = stridx(bufname('%'), 'Himalaya envelopes') == 0 ? s:get_email_id_under_cursor() : s:id
-  let choice = input(printf('Are you sure you want to move the email %s? (y/N) ', id))
-  redraw | echo
-  if choice != 'y' | return | endif
+
+  if get(g:, 'himalaya_always_confirm', 1) != 0
+    let choice = input(printf('Are you sure you want to move the email %s? (y/N) ', id))
+    redraw | echo
+    if choice != 'y' | return | endif
+  endif
+
   let account = himalaya#domain#account#current()
   let folder = himalaya#domain#folder#current()
   call himalaya#request#plain({
@@ -272,9 +276,13 @@ endfunction
 
 function! himalaya#domain#email#delete() abort range
   let ids = stridx(bufname('%'), 'Himalaya envelopes') == 0 ? s:get_email_id_under_cursors(a:firstline, a:lastline) : s:id
-  let choice = input(printf('Are you sure you want to delete email(s) %s? (y/N) ', ids))
-  redraw | echo
-  if choice != 'y' | return | endif
+
+  if get(g:, 'himalaya_always_confirm', 1) != 0
+    let choice = input(printf('Are you sure you want to delete email(s) %s? (y/N) ', ids))
+    redraw | echo
+    if choice != 'y' | return | endif
+  endif
+
   let account = himalaya#domain#account#current()
   let folder = himalaya#domain#folder#current()
   call himalaya#request#plain({

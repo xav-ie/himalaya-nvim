@@ -14,12 +14,13 @@
 
 - [Installation](#installation)
 - [Configuration](#configuration)
-  - [`g:himalaya_executable`](#ghimalaya_executable)
-  - [`g:himalaya_config_path`](#ghimalaya_config_path)
-  - [`g:himalaya_folder_picker`](#ghimalaya_folder_picker)
-  - [`g:himalaya_folder_picker_telescope_preview`](#ghimalaya_folder_picker_telescope_preview)
+  - [`g:himalaya_always_confirm`](#ghimalaya_always_confirm)
   - [`g:himalaya_complete_contact_cmd`](#ghimalaya_complete_contact_cmd)
+  - [`g:himalaya_config_path`](#ghimalaya_config_path)
   - [`g:himalaya_custom_email_flags`](#ghimalaya_custom_email_flags)
+  - [`g:himalaya_executable`](#ghimalaya_executable)
+  - [`g:himalaya_folder_picker_telescope_preview`](#ghimalaya_folder_picker_telescope_preview)
+  - [`g:himalaya_folder_picker`](#ghimalaya_folder_picker)
 - [Usage](#usage)
   - [List folders](#list-folders)
   - [List, filter and sort envelopes](#list-filter-and-sort-envelopes)
@@ -61,13 +62,44 @@ filetype plugin on
 set hidden
 ```
 
-### `g:himalaya_executable`
+### `g:himalaya_always_confirm`
 
-Defines a custom path for the himalaya binary. Defaults to `himalaya`.
+Defines whenever Himalaya Vim should always ask before moving or deleting a message. Defaults to `1`.
+
+### `g:himalaya_complete_contact_cmd`
+
+Defines the command to use for contact completion. When this is set, `completefunc` will be set when composing emails so that contacts can be completed with `<C-x><C-u>`.
+
+The command must print each possible result on its own line. Each line must contain tab-separated fields; the first must be the email address, and the second, if present, must be the name. `%s` in the command will be replaced with the search query.
+
+```vim
+let g:himalaya_complete_contact_cmd = '<your completion command>'
+```
 
 ### `g:himalaya_config_path`
 
 Override the default TOML configuration file.
+
+### `g:himalaya_custom_email_flags`
+
+Defines the list of additional custom flags that himalaya-vim should be aware
+of. They should be specified as a list of strings:
+
+```vim
+let g:himalaya_custom_email_flags = ['custom1', 'custom2']
+```
+
+### `g:himalaya_executable`
+
+Defines a custom path for the himalaya binary. Defaults to `himalaya`.
+
+### `g:himalaya_folder_picker_telescope_preview`
+
+Enables folder preview when picking a folder with the `telescope.nvim` provider.
+
+```vim
+let g:himalaya_folder_picker_telescope_preview = 1
+```
 
 ### `g:himalaya_folder_picker`
 
@@ -82,32 +114,6 @@ If no value given, the first loaded (and available) provider will be used (teles
 
 ```vim
 let g:himalaya_folder_picker = 'native' | 'fzf' | 'fzflua' | 'telescope'
-```
-
-### `g:himalaya_folder_picker_telescope_preview`
-
-Enables folder preview when picking a folder with the `telescope.nvim` provider.
-
-```vim
-let g:himalaya_folder_picker_telescope_preview = 1
-```
-
-### `g:himalaya_complete_contact_cmd`
-
-Defines the command to use for contact completion. When this is set, `completefunc` will be set when composing emails so that contacts can be completed with `<C-x><C-u>`.
-
-The command must print each possible result on its own line. Each line must contain tab-separated fields; the first must be the email address, and the second, if present, must be the name. `%s` in the command will be replaced with the search query.
-
-```vim
-let g:himalaya_complete_contact_cmd = '<your completion command>'
-```
-
-### `g:himalaya_custom_email_flags`
-Defines the list of additional custom flags that himalaya-vim should be aware
-of. They should be specified as a list of strings:
-
-```vim
-let g:himalaya_custom_email_flags = ['custom1', 'custom2']
 ```
 
 ## Usage
