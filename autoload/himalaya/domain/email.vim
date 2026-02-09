@@ -186,6 +186,8 @@ endfunction
 function! himalaya#domain#email#process_draft() abort
   try
     let account = himalaya#domain#account#current()
+    let folder = himalaya#domain#folder#current()
+
     while 1
       let choice = input('(s)end, (d)raft, (q)uit or (c)ancel? ')
       let choice = tolower(choice)[0]
@@ -194,10 +196,18 @@ function! himalaya#domain#email#process_draft() abort
       if choice == 's'
         let draft = tempname()
 	call writefile(getline(1, '$'), draft)
-        return himalaya#request#plain({
+
+        call himalaya#request#plain({
         \ 'cmd': 'template send --account %s < %s',
         \ 'args': [shellescape(account), shellescape(draft)],
         \ 'msg': 'Sending email',
+        \ 'on_data': {-> delete(s:draft)},
+        \})
+
+        return himalaya#request#plain({
+        \ 'cmd': 'flag add --account %s --folder %s answered %s',
+        \ 'args': [shellescape(account), shellescape(folder), shellescape(s:id)],
+        \ 'msg': 'Adding answered flag',
         \ 'on_data': {-> delete(draft)},
         \})
       elseif choice == 'd'
