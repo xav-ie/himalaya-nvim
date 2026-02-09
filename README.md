@@ -8,6 +8,7 @@
     <a href="https://matrix.to/#/#pimalaya:matrix.org"><img alt="Matrix" src="https://img.shields.io/badge/chat-%23pimalaya-blue?style=flat&logo=matrix&logoColor=white"/></a>
     <a href="https://fosstodon.org/@pimalaya"><img alt="Mastodon" src="https://img.shields.io/badge/news-%40pimalaya-blue?style=flat&logo=mastodon&logoColor=white"/></a>
   </p>
+  <p><em>We are looking for new maintainer(s), feel free to contact us! (https://github.com/pimalaya/himalaya-vim/issues/28)</em></p>
 </div>
 
 ## Table of contents
