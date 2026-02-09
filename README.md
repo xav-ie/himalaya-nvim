@@ -1,21 +1,37 @@
 <div align="center">
   <img src="./logo.svg" alt="Logo" width="128" height="128" />
   <h1>📫 Himalaya Vim</h1>
-  <p>
-    <strong>Vim front-end</strong> for the email client <a href="https://github.com/pimalaya/himalaya">Himalaya CLI</a>
-  </p>
+  <p>Vim front-end for the email client <a href="https://github.com/pimalaya/himalaya">Himalaya CLI</a></p>
   <p>
     <a href="https://github.com/pimalaya/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/pimalaya/himalaya?color=success"/></a>
- <a href="https://repology.org/project/himalaya/versions"><img alt="Repology" src="https://img.shields.io/repology/repositories/himalaya?color=success"></a>
-    <a href="https://matrix.to/#/#pimalaya:matrix.org"><img alt="Matrix" src="https://img.shields.io/matrix/pimalaya:matrix.org?color=success&label=chat"/></a>
+    <a href="https://repology.org/project/himalaya/versions"><img alt="Repology" src="https://img.shields.io/repology/repositories/himalaya?color=success"></a>
+    <a href="https://matrix.to/#/#pimalaya:matrix.org"><img alt="Matrix" src="https://img.shields.io/badge/chat-%23pimalaya-blue?style=flat&logo=matrix&logoColor=white"/></a>
+    <a href="https://fosstodon.org/@pimalaya"><img alt="Mastodon" src="https://img.shields.io/badge/news-%40pimalaya-blue?style=flat&logo=mastodon&logoColor=white"/></a>
   </p>
 </div>
+
+## Table of contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [`g:himalaya_executable`](#ghimalaya_executable)
+  - [`g:himalaya_config_path`](#ghimalaya_config_path)
+  - [`g:himalaya_folder_picker`](#ghimalaya_folder_picker)
+  - [`g:himalaya_folder_picker_telescope_preview`](#ghimalaya_folder_picker_telescope_preview)
+  - [`g:himalaya_complete_contact_cmd`](#ghimalaya_complete_contact_cmd)
+  - [`g:himalaya_custom_email_flags`](#ghimalaya_custom_email_flags)
+- [Usage](#usage)
+  - [List folders](#list-folders)
+  - [List, filter and sort envelopes](#list-filter-and-sort-envelopes)
+  - [Read message](#read-message)
+  - [Write message](#write-message)
+- [Sponsoring](#sponsoring)
 
 ## Installation
 
 First you need to install and configure the [Himalaya CLI](https://github.com/pimalaya/himalaya). Then you can install this plugin with your favorite plugin manager:
 
-### Using [packer](https://github.com/wbthomason/packer.nvim)
+### [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
 use "https://github.com/pimalaya/himalaya-vim"
@@ -25,7 +41,7 @@ use "https://github.com/pimalaya/himalaya-vim"
 :PackerSync
 ```
 
-### Using [vim-plug](https://github.com/junegunn/vim-plug)
+### [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
 Plug 'https://github.com/pimalaya/himalaya-vim'
@@ -94,18 +110,15 @@ of. They should be specified as a list of strings:
 let g:himalaya_custom_email_flags = ['custom1', 'custom2']
 ```
 
-
 ## Usage
 
-### Folder listing
+### List folders
 
 With the native picker (default):
 
 ![screenshot](https://user-images.githubusercontent.com/10437171/113631817-51eb3180-966a-11eb-8b13-cd1f1f2539ab.jpeg)
 
-With the
-[telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-picker:
+With the [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) picker:
 
 ![screenshot](https://user-images.githubusercontent.com/10437171/113631294-86122280-9669-11eb-8074-1c43c36b65a9.jpeg)
 
@@ -113,7 +126,7 @@ With the [fzf.vim](https://github.com/junegunn/fzf.vim) picker:
 
 ![screenshot](https://user-images.githubusercontent.com/10437171/113631382-acd05900-9669-11eb-817d-c28fd5d9574c.jpeg)
 
-### Envelope listing, filtering and sorting
+### List, filter and sort envelopes
 
 ```vim
 :Himalaya
@@ -157,9 +170,9 @@ nmap gFr  <plug>(himalaya-email-flag-remove)
 nmap g/   <plug>(himalaya-set-list-envelopes-query)
 ```
 
-*Note: see the [documentation](https://pimalaya.org/himalaya/cli/latest/usage/advanced/envelope/list.html#query) for more detailed information about the query API.*
+*See `himalaya envelopes list --help` for more detailed information about the query API.*
 
-### Message reading
+### Read message
 
 | Function                       | Keybind |
 |--------------------------------|---------|
@@ -187,7 +200,7 @@ nmap gD <plug>(himalaya-email-delete)
 nmap go <plug>(himalaya-email-open-browser)
 ```
 
-### Message writing
+### Write message
 
 | Function       | Keybind |
 |----------------|---------|
@@ -206,29 +219,15 @@ When you exit this special buffer, you will be prompted 4 choices:
 - `quit`: quits the buffer without saving
 - `cancel`: goes back to the email edition
 
-## Development
-
-The development environment is managed by [Nix](https://nixos.org/download.html). Running `nix-shell` will spawn a shell with everything you need to get started with this plugin:
-
-```sh
-# starts a nix shell
-$ nix-shell
-
-# starts Vim and the :Himalaya command
-$ vim +Himalaya
-
-# starts Neovim and the :Himalaya command
-$ nvim +Himalaya
-```
-
 ## Sponsoring
 
-[![nlnet](https://nlnet.nl/logo/banner-160x60.png)](https://nlnet.nl/project/Himalaya/index.html)
+[![nlnet](https://nlnet.nl/logo/banner-160x60.png)](https://nlnet.nl/)
 
-Special thanks to the [NLnet foundation](https://nlnet.nl/project/Himalaya/index.html) and the [European Commission](https://www.ngi.eu/) that helped the project to receive financial support from:
+Special thanks to the [NLnet foundation](https://nlnet.nl/) and the [European Commission](https://www.ngi.eu/) that have been financially supporting the project for years:
 
-- [NGI Assure](https://nlnet.nl/assure/) in 2022
-- [NGI Zero Entrust](https://nlnet.nl/entrust/) in 2023
+- 2022: [NGI Assure](https://nlnet.nl/project/Himalaya/)
+- 2023: [NGI Zero Entrust](https://nlnet.nl/project/Pimalaya/)
+- 2024: [NGI Zero Core](https://nlnet.nl/project/Pimalaya-PIM/) *(still ongoing in 2026)*
 
 If you appreciate the project, feel free to donate using one of the following providers:
 
