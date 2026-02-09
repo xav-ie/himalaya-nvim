@@ -171,6 +171,7 @@ nmap g/   <plug>(himalaya-set-list-envelopes-query)
 | Copy the email                 | `gC`    |
 | Move the email                 | `gM`    |
 | Delete the email               | `gD`    |
+| Open the mail in the browser   | `go`    |
 
 Keybinds can be customized:
 
@@ -183,6 +184,7 @@ nmap ga <plug>(himalaya-email-download-attachments)
 nmap gC <plug>(himalaya-email-copy)
 nmap gM <plug>(himalaya-email-move)
 nmap gD <plug>(himalaya-email-delete)
+nmap go <plug>(himalaya-email-open-browser)
 ```
 
 ### Message writing

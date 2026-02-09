@@ -317,6 +317,17 @@ function! himalaya#domain#email#flag_remove() abort range
   \})
 endfunction
 
+function! himalaya#domain#email#open_browser() abort
+  let account = himalaya#domain#account#current()
+  let folder = himalaya#domain#folder#current()
+  call himalaya#request#plain({
+  \ 'cmd': 'message export --account %s --folder %s --open %s',
+  \ 'args': [shellescape(account), shellescape(folder), s:id],
+  \ 'msg': 'Opening message in the browser',
+  \ 'on_data': {data -> himalaya#log#info(data)},
+  \})
+endfunction
+
 function! s:bufwidth() abort " https://newbedev.com/get-usable-window-width-in-vim-script
   let width = winwidth(0)
   let numberwidth = max([&numberwidth, strlen(line('$'))+1])
