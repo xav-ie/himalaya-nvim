@@ -25,8 +25,6 @@
             packadd! himalaya
 
             " native, fzf or telescope
-            let g:himalaya_executable = '/nix/store/w21m119i0ild3wlb4i72s9xdqdcrj4hz-user-environment/bin/himalaya'
-            let g:himalaya_config_path = '/home/soywod/.himalaya.config.toml'
             let g:himalaya_folder_picker = 'telescope'
             let g:himalaya_folder_picker_telescope_preview = v:false
             let g:himalaya_complete_contact_cmd = 'echo test@localhost'
