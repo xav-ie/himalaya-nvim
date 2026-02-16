@@ -2,7 +2,7 @@
   description = "Vim front-end for the email client Himalaya CLI";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -32,7 +32,7 @@
         in
         rec {
           # nix build
-          packages.default = pkgs.vimUtils.buildVimPluginFrom2Nix {
+          packages.default = pkgs.vimUtils.buildVimPlugin {
             name = "himalaya";
             namePrefix = "";
             src = self;
@@ -49,7 +49,7 @@
             nativeBuildInputs = with pkgs; [
 
               # Nix LSP + formatter
-              rnix-lsp
+              nixd
               nixpkgs-fmt
 
               # Vim LSP
@@ -57,13 +57,13 @@
               nodePackages.vim-language-server
 
               # Lua LSP
-              lua52Packages.lua-lsp
+              lua-language-server
 
               # FZF
               fzf
 
               # Editors
-              ((vim_configurable.override { }).customize {
+              ((vim-full.override { }).customize {
                 name = "vim";
                 vimrcConfig = {
                   inherit customRC;
@@ -77,7 +77,7 @@
                 configure = {
                   inherit customRC;
                   packages.myPlugins = {
-                    start = plugins [ "telescope-nvim" "fzf-vim" ];
+                    start = plugins [ "telescope-nvim" "fzf-vim" "plenary-nvim" ];
                     opt = [ self.packages.${system}.default ];
                   };
                 };
