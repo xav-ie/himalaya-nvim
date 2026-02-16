@@ -1,5 +1,0 @@
-describe('test harness', function()
-  it('can run tests', function()
-    assert.is_true(true)
-  end)
-end)
