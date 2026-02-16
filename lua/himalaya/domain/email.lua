@@ -49,7 +49,7 @@ function M._bufwidth()
   local width = vim.fn.winwidth(0)
   local numberwidth = math.max(vim.wo.numberwidth, #tostring(vim.fn.line('$')) + 1)
   local numwidth = (vim.wo.number or vim.wo.relativenumber) and numberwidth or 0
-  local foldwidth = vim.wo.foldcolumn
+  local foldwidth = tonumber(vim.wo.foldcolumn) or 0
 
   local signwidth = 0
   if vim.wo.signcolumn == 'yes' then
