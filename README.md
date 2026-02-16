@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./logo.svg" alt="Logo" width="128" height="128" />
-  <h1>📫 Himalaya Vim</h1>
-  <p>Vim front-end for the email client <a href="https://github.com/pimalaya/himalaya">Himalaya CLI</a></p>
+  <h1>Himalaya Vim</h1>
+  <p>Neovim front-end for the email client <a href="https://github.com/pimalaya/himalaya">Himalaya CLI</a></p>
   <p>
     <a href="https://github.com/pimalaya/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/pimalaya/himalaya?color=success"/></a>
     <a href="https://repology.org/project/himalaya/versions"><img alt="Repology" src="https://img.shields.io/repology/repositories/himalaya?color=success"></a>
@@ -13,15 +13,16 @@
 
 ## Table of contents
 
+- [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
-  - [`g:himalaya_always_confirm`](#ghimalaya_always_confirm)
-  - [`g:himalaya_complete_contact_cmd`](#ghimalaya_complete_contact_cmd)
-  - [`g:himalaya_config_path`](#ghimalaya_config_path)
-  - [`g:himalaya_custom_email_flags`](#ghimalaya_custom_email_flags)
-  - [`g:himalaya_executable`](#ghimalaya_executable)
-  - [`g:himalaya_folder_picker_telescope_preview`](#ghimalaya_folder_picker_telescope_preview)
-  - [`g:himalaya_folder_picker`](#ghimalaya_folder_picker)
+  - [`executable`](#executable)
+  - [`config_path`](#config_path)
+  - [`folder_picker`](#folder_picker)
+  - [`telescope_preview`](#telescope_preview)
+  - [`complete_contact_cmd`](#complete_contact_cmd)
+  - [`custom_flags`](#custom_flags)
+  - [`always_confirm`](#always_confirm)
 - [Usage](#usage)
   - [List folders](#list-folders)
   - [List, filter and sort envelopes](#list-filter-and-sort-envelopes)
@@ -29,93 +30,116 @@
   - [Write message](#write-message)
 - [Sponsoring](#sponsoring)
 
+## Requirements
+
+- **Neovim >= 0.10** (Vim 8 is no longer supported)
+- [Himalaya CLI](https://pimalaya.org/himalaya/cli/latest/installation/) installed and configured
+
 ## Installation
 
-First you need to install and configure the [Himalaya CLI](https://github.com/pimalaya/himalaya). Then you can install this plugin with your favorite plugin manager:
+First install and configure the [Himalaya CLI](https://github.com/pimalaya/himalaya). Then install this plugin with your favorite plugin manager.
+
+### [lazy.nvim](https://github.com/folke/lazy.nvim)
+
+```lua
+{
+  'pimalaya/himalaya-vim',
+  config = function()
+    require('himalaya').setup()
+  end,
+}
+```
 
 ### [packer.nvim](https://github.com/wbthomason/packer.nvim)
 
 ```lua
-use "https://github.com/pimalaya/himalaya-vim"
-```
-
-```vim
-:PackerSync
+use {
+  'pimalaya/himalaya-vim',
+  config = function()
+    require('himalaya').setup()
+  end,
+}
 ```
 
 ### [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'https://github.com/pimalaya/himalaya-vim'
+Plug 'pimalaya/himalaya-vim'
 ```
 
-```vim
-:PlugInstall
+Then add to your `init.lua`:
+
+```lua
+require('himalaya').setup()
 ```
+
+> **Note:** Calling `require('himalaya').setup()` is required. It validates
+> that the Himalaya CLI binary is available and applies your configuration.
 
 ## Configuration
 
-It is highly recommanded to have those Vim options on:
+Pass a table to `setup()` to override defaults:
 
-```vim
-syntax on
-filetype plugin on
-set hidden
+```lua
+require('himalaya').setup({
+  executable = 'himalaya',
+  config_path = nil,
+  folder_picker = nil,
+  telescope_preview = false,
+  complete_contact_cmd = nil,
+  custom_flags = {},
+  always_confirm = true,
+})
 ```
 
-### `g:himalaya_always_confirm`
+### `executable`
 
-Defines whenever Himalaya Vim should always ask before moving or deleting a message. Defaults to `1`.
+Path to the Himalaya CLI binary. Defaults to `'himalaya'`.
 
-### `g:himalaya_complete_contact_cmd`
+### `config_path`
 
-Defines the command to use for contact completion. When this is set, `completefunc` will be set when composing emails so that contacts can be completed with `<C-x><C-u>`.
+Override the default TOML configuration file path used by Himalaya CLI. Defaults to `nil` (CLI uses its own default).
 
-The command must print each possible result on its own line. Each line must contain tab-separated fields; the first must be the email address, and the second, if present, must be the name. `%s` in the command will be replaced with the search query.
-
-```vim
-let g:himalaya_complete_contact_cmd = '<your completion command>'
-```
-
-### `g:himalaya_config_path`
-
-Override the default TOML configuration file.
-
-### `g:himalaya_custom_email_flags`
-
-Defines the list of additional custom flags that himalaya-vim should be aware
-of. They should be specified as a list of strings:
-
-```vim
-let g:himalaya_custom_email_flags = ['custom1', 'custom2']
-```
-
-### `g:himalaya_executable`
-
-Defines a custom path for the himalaya binary. Defaults to `himalaya`.
-
-### `g:himalaya_folder_picker_telescope_preview`
-
-Enables folder preview when picking a folder with the `telescope.nvim` provider.
-
-```vim
-let g:himalaya_folder_picker_telescope_preview = 1
-```
-
-### `g:himalaya_folder_picker`
+### `folder_picker`
 
 Defines the provider used for selecting folders (default keybind: `gm`):
 
-- `native` (default): a vim native input
-- `fzf`: <https://github.com/junegunn/fzf.vim>
-- `fzflua`: <https://github.com/ibhagwan/fzf-lua>
-- `telescope`: <https://github.com/nvim-telescope/telescope.nvim>
+- `'native'` -- `vim.ui.select` (always available)
+- `'fzf'` -- [fzf.vim](https://github.com/junegunn/fzf.vim)
+- `'fzflua'` -- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- `'telescope'` -- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
 
-If no value given, the first loaded (and available) provider will be used (telescope > fzf > native).
+When `nil` (default), the first available provider is auto-detected in this order: telescope > fzf-lua > fzf > native.
 
-```vim
-let g:himalaya_folder_picker = 'native' | 'fzf' | 'fzflua' | 'telescope'
+### `telescope_preview`
+
+Enable folder preview when using the telescope.nvim picker. Defaults to `false`.
+
+### `complete_contact_cmd`
+
+External command used for contact completion. When set, `completefunc` is configured in email writing buffers so contacts can be completed with `<C-x><C-u>`.
+
+The command must print each result on its own line with tab-separated fields. The first field is the email address; the second (optional) is the display name. `%s` is replaced with the search query.
+
+```lua
+require('himalaya').setup({
+  complete_contact_cmd = 'khard email --parsable --search-in-source-files %s',
+})
 ```
+
+### `custom_flags`
+
+Additional custom email flags for flag completion. Standard flags (`answered`, `draft`, `flagged`, `seen`) are always included.
+
+```lua
+require('himalaya').setup({
+  custom_flags = { 'urgent', 'reviewed' },
+})
+```
+
+### `always_confirm`
+
+When `true` (default), himalaya-vim prompts for confirmation before moving or deleting messages.
 
 ## Usage
 
@@ -157,24 +181,24 @@ With the [fzf.vim](https://github.com/junegunn/fzf.vim) picker:
 | Remove the specified flag from the selected email(s)   | `gFr`     |
 | Filter and sort envelopes according to the given query | `g/`      |
 
-Keybinds can be customized:
+Keybinds can be customized via `<Plug>` mappings. For example, in your `init.lua`:
 
-```vim
-nmap gm   <plug>(himalaya-folder-select)
-nmap gp   <plug>(himalaya-folder-select-previous-page)
-nmap gn   <plug>(himalaya-folder-select-next-page)
-nmap <cr> <plug>(himalaya-email-read)
-nmap gw   <plug>(himalaya-email-write)
-nmap gr   <plug>(himalaya-email-reply)
-nmap gR   <plug>(himalaya-email-reply-all)
-nmap gf   <plug>(himalaya-email-forward)
-nmap ga   <plug>(himalaya-email-download-attachments)
-nmap gC   <plug>(himalaya-email-copy)
-nmap gM   <plug>(himalaya-email-move)
-nmap gD   <plug>(himalaya-email-delete)
-nmap gFa  <plug>(himalaya-email-flag-add)
-nmap gFr  <plug>(himalaya-email-flag-remove)
-nmap g/   <plug>(himalaya-set-list-envelopes-query)
+```lua
+vim.keymap.set('n', 'gm', '<Plug>(himalaya-folder-select)')
+vim.keymap.set('n', 'gp', '<Plug>(himalaya-folder-select-previous-page)')
+vim.keymap.set('n', 'gn', '<Plug>(himalaya-folder-select-next-page)')
+vim.keymap.set('n', '<CR>', '<Plug>(himalaya-email-read)')
+vim.keymap.set('n', 'gw', '<Plug>(himalaya-email-write)')
+vim.keymap.set('n', 'gr', '<Plug>(himalaya-email-reply)')
+vim.keymap.set('n', 'gR', '<Plug>(himalaya-email-reply-all)')
+vim.keymap.set('n', 'gf', '<Plug>(himalaya-email-forward)')
+vim.keymap.set('n', 'ga', '<Plug>(himalaya-email-download-attachments)')
+vim.keymap.set('n', 'gC', '<Plug>(himalaya-email-select-folder-then-copy)')
+vim.keymap.set('n', 'gM', '<Plug>(himalaya-email-select-folder-then-move)')
+vim.keymap.set('n', 'gD', '<Plug>(himalaya-email-delete)')
+vim.keymap.set('n', 'gFa', '<Plug>(himalaya-email-flag-add)')
+vim.keymap.set('n', 'gFr', '<Plug>(himalaya-email-flag-remove)')
+vim.keymap.set('n', 'g/', '<Plug>(himalaya-email-set-list-envelopes-query)')
 ```
 
 *See `himalaya envelopes list --help` for more detailed information about the query API.*
@@ -195,29 +219,19 @@ nmap g/   <plug>(himalaya-set-list-envelopes-query)
 
 Keybinds can be customized:
 
-```vim
-nmap gw <plug>(himalaya-email-write)
-nmap gr <plug>(himalaya-email-reply)
-nmap gR <plug>(himalaya-email-reply-all)
-nmap gf <plug>(himalaya-email-forward)
-nmap ga <plug>(himalaya-email-download-attachments)
-nmap gC <plug>(himalaya-email-copy)
-nmap gM <plug>(himalaya-email-move)
-nmap gD <plug>(himalaya-email-delete)
-nmap go <plug>(himalaya-email-open-browser)
+```lua
+vim.keymap.set('n', 'gw', '<Plug>(himalaya-email-write)')
+vim.keymap.set('n', 'gr', '<Plug>(himalaya-email-reply)')
+vim.keymap.set('n', 'gR', '<Plug>(himalaya-email-reply-all)')
+vim.keymap.set('n', 'gf', '<Plug>(himalaya-email-forward)')
+vim.keymap.set('n', 'ga', '<Plug>(himalaya-email-download-attachments)')
+vim.keymap.set('n', 'gC', '<Plug>(himalaya-email-select-folder-then-copy)')
+vim.keymap.set('n', 'gM', '<Plug>(himalaya-email-select-folder-then-move)')
+vim.keymap.set('n', 'gD', '<Plug>(himalaya-email-delete)')
+vim.keymap.set('n', 'go', '<Plug>(himalaya-email-open-browser)')
 ```
 
 ### Write message
-
-| Function       | Keybind |
-|----------------|---------|
-| Add attachment | `ga`    |
-
-Keybinds can be customized:
-
-```vim
-nmap ga <plug>(himalaya-email-add-attachment)
-```
 
 When you exit this special buffer, you will be prompted 4 choices:
 
@@ -225,6 +239,8 @@ When you exit this special buffer, you will be prompted 4 choices:
 - `draft`: saves the email locally
 - `quit`: quits the buffer without saving
 - `cancel`: goes back to the email edition
+
+If `complete_contact_cmd` is set, contacts can be completed with `<C-x><C-u>` in the To/Cc/Bcc header fields.
 
 ## Sponsoring
 
