@@ -23,18 +23,17 @@ end
 
 function M.set(folder)
   folder_state.set(folder)
-  -- Bridge to VimScript until email domain is migrated (Task 17)
-  vim.fn['himalaya#domain#email#list']()
+  require('himalaya.domain.email').list()
 end
 
 function M.select_next_page()
   folder_state.next_page()
-  vim.fn['himalaya#domain#email#list']()
+  require('himalaya.domain.email').list()
 end
 
 function M.select_previous_page()
   folder_state.previous_page()
-  vim.fn['himalaya#domain#email#list']()
+  require('himalaya.domain.email').list()
 end
 
 return M

@@ -32,11 +32,11 @@ function M.select(callback, folders)
         display = entry.name,
         ordinal = entry.name,
         preview_command = function(e, bufnr)
-          -- Bridge to VimScript for now; will be updated to call Lua email.list_with after Task 17
           vim.api.nvim_buf_call(bufnr, function()
             local account_mod = require('himalaya.state.account')
+            local email_mod = require('himalaya.domain.email')
             local account = account_mod.current()
-            local ok, output = pcall(vim.fn['himalaya#domain#email#list_with'], account, e.value, 0, '')
+            local ok, output = pcall(email_mod.list_with, account, e.value, 0, '')
             if not ok then
               vim.cmd('redraw')
               vim.bo.modifiable = true
