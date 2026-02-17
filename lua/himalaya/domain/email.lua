@@ -555,6 +555,56 @@ function M.flag_remove(first_line, last_line)
   })
 end
 
+--- Mark email(s) as seen. Supports visual range via first_line/last_line.
+--- @param first_line? number
+--- @param last_line? number
+function M.mark_seen(first_line, last_line)
+  local ids
+  if in_listing_buffer() and first_line and last_line then
+    ids = get_email_id_under_cursors(first_line, last_line)
+  elseif in_listing_buffer() then
+    ids = get_email_id_under_cursor()
+  else
+    ids = current_id
+  end
+
+  local account = account_state.current()
+  local folder = folder_state.current()
+  request.plain({
+    cmd = 'flag add %s --folder %s Seen %s',
+    args = { account_flag(account), folder, ids },
+    msg = 'Marking as seen',
+    on_data = function()
+      M.list_with(account, folder, folder_state.current_page(), query)
+    end,
+  })
+end
+
+--- Mark email(s) as unseen. Supports visual range via first_line/last_line.
+--- @param first_line? number
+--- @param last_line? number
+function M.mark_unseen(first_line, last_line)
+  local ids
+  if in_listing_buffer() and first_line and last_line then
+    ids = get_email_id_under_cursors(first_line, last_line)
+  elseif in_listing_buffer() then
+    ids = get_email_id_under_cursor()
+  else
+    ids = current_id
+  end
+
+  local account = account_state.current()
+  local folder = folder_state.current()
+  request.plain({
+    cmd = 'flag remove %s --folder %s Seen %s',
+    args = { account_flag(account), folder, ids },
+    msg = 'Marking as unseen',
+    on_data = function()
+      M.list_with(account, folder, folder_state.current_page(), query)
+    end,
+  })
+end
+
 --- Download attachments for current email.
 function M.download_attachments()
   local account = account_state.current()

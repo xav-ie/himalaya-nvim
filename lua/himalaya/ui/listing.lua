@@ -91,6 +91,20 @@ function M.setup(bufnr)
       if first > last then first, last = last, first end
       email.delete(first, last)
     end, 'email-delete-visual' },
+    { 'n', 'gs',   email.mark_seen,                     'email-mark-seen' },
+    { 'v', 'gs',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.mark_seen(first, last)
+    end, 'email-mark-seen-visual' },
+    { 'n', 'gS',   email.mark_unseen,                   'email-mark-unseen' },
+    { 'v', 'gS',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.mark_unseen(first, last)
+    end, 'email-mark-unseen-visual' },
     { 'n', 'gFa',  email.flag_add,                     'email-flag-add' },
     { 'v', 'gFa',  function()
       local first = vim.fn.line('v')

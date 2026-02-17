@@ -2,7 +2,7 @@ local config = require('himalaya.config')
 
 local M = {}
 
-local default_flags = { 'seen', 'answered', 'flagged', 'deleted', 'drafts' }
+local default_flags = { 'Seen', 'Answered', 'Flagged', 'Deleted', 'Drafts' }
 
 function M.complete_list()
   local cfg = config.get()
