@@ -127,12 +127,12 @@ local BOX_H = "\xe2\x94\x80" -- ─
 local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 
 --- Render envelopes into box-drawn display lines.
---- Returns {header_line, separator_line, data_line_1, ...}
+--- Returns { header = string, separator = string, lines = string[] }
 --- Fixed widths: ID=6, FLAGS=6|8, DATE=19
 --- Remaining space split 60/40 between SUBJECT and FROM
 --- @param envelopes table[]
 --- @param total_width number
---- @return string[]
+--- @return table
 function M.render(envelopes, total_width)
 	local cfg_flags = config.get().flags
 	local id_w = 2 -- minimum: fits "ID" header
@@ -167,8 +167,6 @@ function M.render(envelopes, total_width)
 	local leading = gutters and " " or ""
 	local row_fmt = leading .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s"
 
-	local lines = {}
-
 	local header = string.format(
 		row_fmt,
 		M.fit("ID", id_w),
@@ -177,7 +175,6 @@ function M.render(envelopes, total_width)
 		M.fit("FROM", from_w),
 		M.fit("DATE", date_w)
 	)
-	table.insert(lines, header)
 
 	-- Horizontal separator under header
 	local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
@@ -191,8 +188,8 @@ function M.render(envelopes, total_width)
 		.. string.rep(BOX_H, from_w)
 		.. cross_sep
 		.. string.rep(BOX_H, date_w)
-	table.insert(lines, separator)
 
+	local lines = {}
 	for _, env in ipairs(envelopes) do
 		local id = tostring(env.id or "")
 		local flags = M.format_flags(env)
@@ -218,7 +215,7 @@ function M.render(envelopes, total_width)
 		table.insert(lines, line)
 	end
 
-	return lines
+	return { header = header, separator = separator, lines = lines }
 end
 
 return M

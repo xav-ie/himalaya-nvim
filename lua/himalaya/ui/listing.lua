@@ -6,6 +6,7 @@ local account
 local M = {}
 
 local ns = vim.api.nvim_create_namespace('himalaya_seen')
+local ns_header = vim.api.nvim_create_namespace('himalaya_header')
 
 --- Define highlight groups for the email listing view.
 function M.define_highlights()
@@ -31,9 +32,23 @@ function M.apply_syntax(bufnr)
       syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                                     contains=HimalayaId,HimalayaFlags,HimalayaSeparator
       syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
       syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
-      syntax match HimalayaHead      /\%1l.*\|\%2l.*/                                                            contains=HimalayaSeparator
     ]])
   end)
+end
+
+--- Set header and separator as virtual text above the first buffer line.
+--- @param bufnr number
+--- @param header string
+--- @param separator string
+function M.apply_header(bufnr, header, separator)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns_header, 0, -1)
+  vim.api.nvim_buf_set_extmark(bufnr, ns_header, 0, 0, {
+    virt_lines_above = true,
+    virt_lines = {
+      {{ header, 'HimalayaHead' }},
+      {{ separator, 'HimalayaSeparator' }},
+    },
+  })
 end
 
 --- Apply extmark-based highlights to dim seen (read) envelope lines.
@@ -49,7 +64,7 @@ function M.apply_seen_highlights(bufnr, envelopes)
       if f == 'Seen' then seen = true; break end
     end
     if seen then
-      local line = i + 1  -- 0-based: (i-1) + 2 header lines
+      local line = i - 1  -- 0-based, no header offset
       vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
         end_row = line,
         end_col = #vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1],

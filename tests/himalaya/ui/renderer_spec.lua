@@ -98,20 +98,20 @@ describe('himalaya.ui.renderer', function()
           date = '2024-01-15 09:30:00',
         },
       }
-      local lines = renderer.render(envelopes, 80)
-      assert.are.equal(3, #lines)
+      local result = renderer.render(envelopes, 80)
+      assert.are.equal(1, #result.lines)
       -- Header contains column names
-      assert.is_truthy(lines[1]:find('ID'))
-      assert.is_truthy(lines[1]:find('FLGS'))
-      assert.is_truthy(lines[1]:find('SUBJECT'))
-      assert.is_truthy(lines[1]:find('FROM'))
-      assert.is_truthy(lines[1]:find('DATE'))
+      assert.is_truthy(result.header:find('ID'))
+      assert.is_truthy(result.header:find('FLGS'))
+      assert.is_truthy(result.header:find('SUBJECT'))
+      assert.is_truthy(result.header:find('FROM'))
+      assert.is_truthy(result.header:find('DATE'))
       -- Separator line contains box-drawing chars
-      assert.is_truthy(lines[2]:find('\xe2\x94\x80'))  -- ─
-      assert.is_truthy(lines[2]:find('\xe2\x94\xbc'))  -- ┼
+      assert.is_truthy(result.separator:find('\xe2\x94\x80'))  -- ─
+      assert.is_truthy(result.separator:find('\xe2\x94\xbc'))  -- ┼
       -- Data line contains the envelope data
-      assert.is_truthy(lines[3]:find('1'))
-      assert.is_truthy(lines[3]:find('Alice'))
+      assert.is_truthy(result.lines[1]:find('1'))
+      assert.is_truthy(result.lines[1]:find('Alice'))
     end)
 
     it('uses box-drawing separators', function()
@@ -124,11 +124,11 @@ describe('himalaya.ui.renderer', function()
           date = '2024-02-01 14:00:00',
         },
       }
-      local lines = renderer.render(envelopes, 80)
+      local result = renderer.render(envelopes, 80)
       -- Header and data lines use │ separators, no left/right borders
-      assert.is_truthy(lines[1]:find('\xe2\x94\x82'))  -- │
-      assert.is_truthy(lines[1]:match('^ '))  -- starts with space, not border
-      assert.is_truthy(lines[3]:find('\xe2\x94\x82'))
+      assert.is_truthy(result.header:find('\xe2\x94\x82'))  -- │
+      assert.is_truthy(result.header:match('^ '))  -- starts with space, not border
+      assert.is_truthy(result.lines[1]:find('\xe2\x94\x82'))
     end)
 
     it('handles from as array', function()
@@ -141,8 +141,8 @@ describe('himalaya.ui.renderer', function()
           date = '2024-03-01 10:00:00',
         },
       }
-      local lines = renderer.render(envelopes, 80)
-      assert.is_truthy(lines[3]:find('Carol'))
+      local result = renderer.render(envelopes, 80)
+      assert.is_truthy(result.lines[1]:find('Carol'))
     end)
 
     it('shows unseen flag as *', function()
@@ -155,8 +155,8 @@ describe('himalaya.ui.renderer', function()
           date = '2024-04-01 08:00:00',
         },
       }
-      local lines = renderer.render(envelopes, 80)
-      assert.is_truthy(lines[3]:find('%*'))
+      local result = renderer.render(envelopes, 80)
+      assert.is_truthy(result.lines[1]:find('%*'))
     end)
   end)
 
@@ -192,9 +192,9 @@ describe('himalaya.ui.renderer', function()
     end)
 
     it('uses custom header in render', function()
-      local lines = renderer.render({}, 80)
-      assert.are.equal(2, #lines) -- header + separator
-      assert.is_truthy(lines[1]:find('\xef\x80\xa4'))
+      local result = renderer.render({}, 80)
+      assert.are.equal(0, #result.lines)
+      assert.is_truthy(result.header:find('\xef\x80\xa4'))
     end)
   end)
 
