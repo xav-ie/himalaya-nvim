@@ -18,7 +18,7 @@ local function account_flag(account)
   if account == '' then
     return ''
   end
-  return '--account ' .. vim.fn.shellescape(account)
+  return '--account ' .. (account)
 end
 
 --- Extract numeric email ID from a listing line.
@@ -150,7 +150,7 @@ function M.list_with(account, folder, page, qry)
   request.plain({
     cmd = 'envelope list --folder %s %s --max-width %d --page-size %d --page %d %s',
     args = {
-      vim.fn.shellescape(folder),
+      folder,
       account_flag(account),
       M._bufwidth(),
       vim.fn.winheight(0) - 1,
@@ -174,7 +174,7 @@ function M.read()
   local folder = folder_state.current()
   request.plain({
     cmd = 'message read %s --folder %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), current_id },
+    args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
     on_data = function(data)
       close_open_buffers('Himalaya read email')
@@ -231,7 +231,7 @@ function M.reply()
   local id = context_email_id()
   request.plain({
     cmd = 'template reply %s --folder %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), id },
+    args = { account_flag(account), folder, id },
     msg = 'Fetching reply template',
     on_data = function(data)
       open_write_buffer(string.format('reply [%s]', id), data)
@@ -246,7 +246,7 @@ function M.reply_all()
   local id = context_email_id()
   request.plain({
     cmd = 'template reply %s --folder %s --all %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), id },
+    args = { account_flag(account), folder, id },
     msg = 'Fetching reply all template',
     on_data = function(data)
       open_write_buffer(string.format('reply all [%s]', id), data)
@@ -261,7 +261,7 @@ function M.forward()
   local id = context_email_id()
   request.plain({
     cmd = 'template forward %s --folder %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), id },
+    args = { account_flag(account), folder, id },
     msg = 'Fetching forward template',
     on_data = function(data)
       open_write_buffer(string.format('forward [%s]', id), data)
@@ -295,7 +295,7 @@ function M.delete(first_line, last_line)
   local folder = folder_state.current()
   request.plain({
     cmd = 'message delete %s --folder %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), ids },
+    args = { account_flag(account), folder, ids },
     msg = 'Deleting email',
     on_data = function()
       M.list_with(account, folder, folder_state.current_page(), query)
@@ -313,8 +313,8 @@ function M.copy(target_folder)
     cmd = 'message copy %s --folder %s %s %s',
     args = {
       account_flag(account),
-      vim.fn.shellescape(folder),
-      vim.fn.shellescape(target_folder),
+      folder,
+      target_folder,
       id,
     },
     msg = 'Copying email',
@@ -344,8 +344,8 @@ function M.move(target_folder)
     cmd = 'message move %s --folder %s %s %s',
     args = {
       account_flag(account),
-      vim.fn.shellescape(folder),
-      vim.fn.shellescape(target_folder),
+      folder,
+      target_folder,
       id,
     },
     msg = 'Moving email',
@@ -392,7 +392,7 @@ function M.flag_add(first_line, last_line)
   local folder = folder_state.current()
   request.plain({
     cmd = 'flag add %s --folder %s %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), flags, ids },
+    args = { account_flag(account), folder, flags, ids },
     msg = 'Adding flags: ' .. flags .. ' to email',
     on_data = function()
       M.list_with(account, folder, folder_state.current_page(), query)
@@ -425,7 +425,7 @@ function M.flag_remove(first_line, last_line)
   local folder = folder_state.current()
   request.plain({
     cmd = 'flag remove %s --folder %s %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), flags, ids },
+    args = { account_flag(account), folder, flags, ids },
     msg = 'Removing flags:' .. flags .. ' from email',
     on_data = function()
       M.list_with(account, folder, folder_state.current_page(), query)
@@ -440,7 +440,7 @@ function M.download_attachments()
   local id = context_email_id()
   request.plain({
     cmd = 'attachment download %s --folder %s %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), id },
+    args = { account_flag(account), folder, id },
     msg = 'Downloading attachments',
     on_data = function(data)
       log.info(data)
@@ -454,7 +454,7 @@ function M.open_browser()
   local folder = folder_state.current()
   request.plain({
     cmd = 'message export %s --folder %s --open %s',
-    args = { account_flag(account), vim.fn.shellescape(folder), current_id },
+    args = { account_flag(account), folder, current_id },
     msg = 'Opening message in the browser',
     on_data = function(data)
       log.info(data)
@@ -487,7 +487,7 @@ function M.process_draft()
 
         request.plain({
           cmd = 'template send %s < %s',
-          args = { account_flag(account), vim.fn.shellescape(draft_file) },
+          args = { account_flag(account), draft_file },
           msg = 'Sending email',
           on_data = function()
             vim.fn.delete(draft)
@@ -496,7 +496,7 @@ function M.process_draft()
 
         request.plain({
           cmd = 'flag add %s --folder %s answered %s',
-          args = { account_flag(account), vim.fn.shellescape(folder), vim.fn.shellescape(current_id) },
+          args = { account_flag(account), folder, current_id },
           msg = 'Adding answered flag',
           on_data = function()
             vim.fn.delete(draft_file)
@@ -508,7 +508,7 @@ function M.process_draft()
         vim.fn.writefile(vim.api.nvim_buf_get_lines(0, 0, -1, false), draft_file)
         request.plain({
           cmd = 'template save %s --folder drafts < %s',
-          args = { account_flag(account), vim.fn.shellescape(draft_file) },
+          args = { account_flag(account), draft_file },
           msg = 'Saving draft',
           on_data = function()
             vim.fn.delete(draft_file)

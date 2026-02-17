@@ -10,7 +10,7 @@ local function account_flag(account)
   if account == '' then
     return ''
   end
-  return '--account ' .. vim.fn.shellescape(account)
+  return '--account ' .. account
 end
 
 function M.open_picker(callback)
