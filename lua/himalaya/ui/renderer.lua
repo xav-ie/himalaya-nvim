@@ -41,17 +41,16 @@ function M.format_flags(envelope)
 		end
 	end
 
-	local use_nerd = config.get().use_nerd
 	local sp = " "
+	local gutter = config.get().gutters and " " or ""
 
-	-- Each slot: symbol + space (2 display cols)
 	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
-	local s = (flagged and sym.flagged or sp) .. sp
+	local s = (flagged and sym.flagged or sp) .. gutter
 	if config.get().show_unseen_flag then
-		s = s .. (not seen and sym.unseen or sp) .. sp
+		s = s .. (not seen and sym.unseen or sp) .. gutter
 	end
-	s = s .. (answered and sym.answered or sp) .. sp
-	s = s .. (envelope.has_attachment and sym.attachment or sp) .. sp
+	s = s .. (answered and sym.answered or sp) .. gutter
+	s = s .. (envelope.has_attachment and sym.attachment or sp) .. gutter
 	return s
 end
 
@@ -121,7 +120,8 @@ function M.render(envelopes, total_width)
 	local use_nerd = config.get().use_nerd
 	local id_w = 6
 	local num_slots = config.get().show_unseen_flag and 4 or 3
-	local flags_w = num_slots * 2
+	local gutters = config.get().gutters
+	local flags_w = gutters and (num_slots * 2) or num_slots
 	local date_w = 19
 	-- Format: " col │ col │ col │ col │ col"
 	-- Overhead: 1 (leading space) + 4x " │ " separators (4*3=12) = 13
