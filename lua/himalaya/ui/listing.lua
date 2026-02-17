@@ -48,8 +48,7 @@ function M.apply_seen_highlights(bufnr, envelopes)
       if f == 'Seen' then seen = true; break end
     end
     if seen then
-      -- Line index: i-1 (0-based) + 2 (header + separator)
-      local line = i + 1
+      local line = i + 1  -- 0-based: (i-1) + 2 header lines
       vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
         end_row = line,
         end_col = #vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1],

@@ -42,15 +42,15 @@ function M.format_flags(envelope)
 	end
 
 	local sp = " "
-	local gutter = config.get().gutters and " " or ""
 
+	-- Each slot: symbol + space (2 display cols)
 	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
-	local s = (flagged and sym.flagged or sp) .. gutter
+	local s = (flagged and sym.flagged or sp) .. sp
 	if config.get().show_unseen_flag then
-		s = s .. (not seen and sym.unseen or sp) .. gutter
+		s = s .. (not seen and sym.unseen or sp) .. sp
 	end
-	s = s .. (answered and sym.answered or sp) .. gutter
-	s = s .. (envelope.has_attachment and sym.attachment or sp) .. gutter
+	s = s .. (answered and sym.answered or sp) .. sp
+	s = s .. (envelope.has_attachment and sym.attachment or sp) .. sp
 	return s
 end
 
@@ -120,12 +120,12 @@ function M.render(envelopes, total_width)
 	local use_nerd = config.get().use_nerd
 	local id_w = 6
 	local num_slots = config.get().show_unseen_flag and 4 or 3
-	local gutters = config.get().gutters
-	local flags_w = gutters and (num_slots * 2) or num_slots
+	local flags_w = num_slots * 2
 	local date_w = 19
-	-- Format: " col │ col │ col │ col │ col"
-	-- Overhead: 1 (leading space) + 4x " │ " separators (4*3=12) = 13
-	local overhead = 13
+	local gutters = config.get().gutters
+	-- With gutters:    " col │ col │ col │ col │ col" → 1 + 4×3 = 13
+	-- Without gutters: "col│col│col│col│col"          → 4×1 = 4
+	local overhead = gutters and 13 or 4
 	local fixed = id_w + flags_w + date_w
 	local remaining = total_width - fixed - overhead
 	if remaining < 2 then
@@ -136,8 +136,9 @@ function M.render(envelopes, total_width)
 	local from_w = remaining - subject_w
 
 	local sym = use_nerd and nerd_symbols or ascii_symbols
-	local col_sep = " " .. BOX_V .. " "
-	local row_fmt = " %s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s"
+	local col_sep = gutters and (" " .. BOX_V .. " ") or BOX_V
+	local leading = gutters and " " or ""
+	local row_fmt = leading .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s"
 
 	local lines = {}
 
@@ -152,8 +153,9 @@ function M.render(envelopes, total_width)
 	table.insert(lines, header)
 
 	-- Horizontal separator under header
-	local cross_sep = BOX_H .. BOX_CROSS .. BOX_H
-	local separator = string.rep(BOX_H, 1 + id_w)
+	local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
+	local leading_h = gutters and string.rep(BOX_H, 1 + id_w) or string.rep(BOX_H, id_w)
+	local separator = leading_h
 		.. cross_sep
 		.. string.rep(BOX_H, flags_w)
 		.. cross_sep
