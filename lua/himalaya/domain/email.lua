@@ -412,10 +412,8 @@ function M.delete(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    vim.api.nvim_echo({{ string.format('Delete email(s) %s? (y/N) ', ids) }}, false, {})
-    local choice = vim.fn.getcharstr()
-    vim.cmd('redraw | echo')
-    if choice ~= 'y' then
+    local choice = vim.fn.confirm(string.format('Delete email(s) %s?', ids), '&Yes\n&No', 2)
+    if choice ~= 1 then
       return
     end
   end
@@ -461,10 +459,8 @@ function M.move(target_folder)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    vim.api.nvim_echo({{ string.format('Move email %s? (y/N) ', id) }}, false, {})
-    local choice = vim.fn.getcharstr()
-    vim.cmd('redraw | echo')
-    if choice ~= 'y' then
+    local choice = vim.fn.confirm(string.format('Move email %s?', id), '&Yes\n&No', 2)
+    if choice ~= 1 then
       return
     end
   end
