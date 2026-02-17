@@ -76,7 +76,7 @@ end
 --- Detect whether current buffer is an envelope listing buffer.
 --- @return boolean
 local function in_listing_buffer()
-  return vim.bo.filetype == 'himalaya-email-listing'
+  return vim.b.himalaya_buffer_type == 'listing'
 end
 
 --- Get the relevant email ID depending on context (listing vs read buffer).
@@ -122,6 +122,7 @@ local function on_list_with(folder, page, data)
   local display_query = query == '' and 'all' or query
   vim.cmd(string.format('silent! %s Himalaya envelopes [%s] [%s] [page %d]', buftype, folder, display_query, page))
   set_buffer_content(data)
+  vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
   vim.cmd('0')
