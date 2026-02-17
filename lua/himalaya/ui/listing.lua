@@ -89,8 +89,8 @@ function M.setup(bufnr)
     { 'n', 'gA',   email.download_attachments,         'email-download-attachments' },
     { 'n', 'gC',   email.select_folder_then_copy,      'email-select-folder-then-copy' },
     { 'n', 'gM',   email.select_folder_then_move,      'email-select-folder-then-move' },
-    { 'n', 'gD',   email.delete,                       'email-delete' },
-    { 'v', 'gD',   function()
+    { 'n', 'dd',   email.delete,                       'email-delete' },
+    { 'v', 'd',    function()
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
