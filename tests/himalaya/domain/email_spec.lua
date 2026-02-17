@@ -31,15 +31,16 @@ describe('himalaya.domain.email', function()
     assert.is_function(email.process_draft)
     assert.is_function(email.complete_contact)
     assert.is_function(email.set_list_envelopes_query)
+    assert.is_function(email.rerender_listing)
   end)
 
   describe('get_email_id_from_line', function()
     it('extracts numeric id from a listing line', function()
-      assert.are.equal('123', email._get_email_id_from_line('|123|*|Subject|Sender|2024-01-01|'))
+      assert.are.equal('123', email._get_email_id_from_line('| 123    | *   | Subject              | Sender               | 2024-01-01 00:00:00 |'))
     end)
 
     it('returns empty for header line', function()
-      assert.are.equal('', email._get_email_id_from_line('|ID|FLAGS|SUBJECT|FROM|DATE|'))
+      assert.are.equal('', email._get_email_id_from_line('| ID     | FLAGS | SUBJECT              | FROM                 | DATE                |'))
     end)
   end)
 

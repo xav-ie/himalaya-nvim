@@ -118,10 +118,14 @@ end
 
 --- Internal callback for list_with — populates the envelope listing buffer.
 local function on_list_with(folder, page, data)
+  local renderer = require('himalaya.ui.renderer')
   local buftype = in_listing_buffer() and 'file' or 'edit'
   local display_query = query == '' and 'all' or query
   vim.cmd(string.format('silent! %s Himalaya envelopes [%s] [%s] [page %d]', buftype, folder, display_query, page))
-  set_buffer_content(data)
+  vim.bo.modifiable = true
+  vim.b.himalaya_envelopes = data
+  local lines = renderer.render(data, M._bufwidth())
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
@@ -146,12 +150,11 @@ end
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
-  request.plain({
-    cmd = 'envelope list --folder %s %s --max-width %d --page-size %d --page %d %s',
+  request.json({
+    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
-      M._bufwidth(),
       vim.fn.winheight(0) - 1,
       page,
       qry,
@@ -582,6 +585,19 @@ function M._line_to_complete_item(line)
     name = string.format('"%s"', fields[2])
   end
   return name .. string.format('<%s>', email_addr)
+end
+
+--- Re-render the envelope listing with the current buffer width.
+--- Called on window resize to reflow columns.
+function M.rerender_listing()
+  if not in_listing_buffer() then return end
+  local envelopes = vim.b.himalaya_envelopes
+  if not envelopes then return end
+  local renderer = require('himalaya.ui.renderer')
+  local lines = renderer.render(envelopes, M._bufwidth())
+  vim.bo.modifiable = true
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  vim.bo.modifiable = false
 end
 
 --- Set the list envelopes query and refresh.

@@ -80,6 +80,25 @@ function M.setup(bufnr)
     end, 'email-flag-remove-visual' },
     { 'n', 'g/',   email.set_list_envelopes_query,     'email-set-list-envelopes-query' },
   })
+
+  local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
+  vim.api.nvim_create_autocmd('VimResized', {
+    group = augroup,
+    buffer = bufnr,
+    callback = function()
+      email.rerender_listing()
+      M.apply_syntax(bufnr)
+    end,
+  })
+  vim.api.nvim_create_autocmd('WinResized', {
+    group = augroup,
+    callback = function()
+      if vim.api.nvim_get_current_buf() == bufnr then
+        email.rerender_listing()
+        M.apply_syntax(bufnr)
+      end
+    end,
+  })
 end
 
 return M
