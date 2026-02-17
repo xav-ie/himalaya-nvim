@@ -11,28 +11,28 @@ describe('himalaya.ui.renderer', function()
   end)
 
   describe('format_flags', function()
-    it('puts * in slot 1 for unseen', function()
-      assert.are.equal('*       ', renderer.format_flags({ flags = {} }))
+    it('puts ! in slot 1 for flagged', function()
+      assert.are.equal('!       ', renderer.format_flags({ flags = { 'Seen', 'Flagged' } }))
     end)
 
-    it('returns all spaces for seen envelope', function()
-      assert.are.equal('        ', renderer.format_flags({ flags = { 'Seen' } }))
+    it('puts * in slot 2 for unseen', function()
+      assert.are.equal('  *     ', renderer.format_flags({ flags = {} }))
     end)
 
-    it('puts R in slot 2 for answered', function()
-      assert.are.equal('  R     ', renderer.format_flags({ flags = { 'Seen', 'Answered' } }))
-    end)
-
-    it('puts ! in slot 3 for flagged', function()
-      assert.are.equal('    !   ', renderer.format_flags({ flags = { 'Seen', 'Flagged' } }))
+    it('puts R in slot 3 for answered', function()
+      assert.are.equal('    R   ', renderer.format_flags({ flags = { 'Seen', 'Answered' } }))
     end)
 
     it('puts @ in slot 4 for attachment', function()
       assert.are.equal('      @ ', renderer.format_flags({ flags = { 'Seen' }, has_attachment = true }))
     end)
 
+    it('returns all spaces for seen envelope', function()
+      assert.are.equal('        ', renderer.format_flags({ flags = { 'Seen' } }))
+    end)
+
     it('fills all slots when all flags present', function()
-      assert.are.equal('* R ! @ ', renderer.format_flags({
+      assert.are.equal('! * R @ ', renderer.format_flags({
         flags = { 'Answered', 'Flagged' },
         has_attachment = true,
       }))

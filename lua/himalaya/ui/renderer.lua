@@ -45,9 +45,10 @@ function M.format_flags(envelope)
 	local sp = " "
 
 	-- Each slot: symbol + space (2 display cols × 4 = 8)
-	return (not seen and sym.unseen or sp) .. sp
+	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
+	return (flagged and sym.flagged or sp) .. sp
+		.. (not seen and sym.unseen or sp) .. sp
 		.. (answered and sym.answered or sp) .. sp
-		.. (flagged and sym.flagged or sp) .. sp
 		.. (envelope.has_attachment and sym.attachment or sp) .. sp
 end
 
