@@ -13,6 +13,7 @@ local query = ''
 local page_totals = {}
 local last_folder = nil
 local last_query = nil
+local saved_view = nil
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -194,7 +195,12 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
-  vim.cmd('0')
+  if saved_view then
+    vim.fn.winrestview(saved_view)
+    saved_view = nil
+  else
+    vim.cmd('0')
+  end
 
   if not page_totals[cache_key] then
     probe_page_count(account, folder, page_size, page + 1, qry, bufnr)
@@ -420,6 +426,7 @@ function M.delete(first_line, last_line)
     args = { account_flag(account), folder, ids },
     msg = 'Deleting email',
     on_data = function()
+      saved_view = vim.fn.winsaveview()
       M.list_with(account, folder, folder_state.current_page(), query)
     end,
   })
@@ -575,6 +582,7 @@ function M.mark_seen(first_line, last_line)
     args = { account_flag(account), folder, ids },
     msg = 'Marking as seen',
     on_data = function()
+      saved_view = vim.fn.winsaveview()
       M.list_with(account, folder, folder_state.current_page(), query)
     end,
   })
@@ -600,6 +608,7 @@ function M.mark_unseen(first_line, last_line)
     args = { account_flag(account), folder, ids },
     msg = 'Marking as unseen',
     on_data = function()
+      saved_view = vim.fn.winsaveview()
       M.list_with(account, folder, folder_state.current_page(), query)
     end,
   })
