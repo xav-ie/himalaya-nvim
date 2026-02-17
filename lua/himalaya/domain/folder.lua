@@ -5,11 +5,19 @@ local pickers = require('himalaya.pickers')
 
 local M = {}
 
+--- Return '--account <name>' when account is set, or '' to let CLI use its default.
+local function account_flag(account)
+  if account == '' then
+    return ''
+  end
+  return '--account ' .. vim.fn.shellescape(account)
+end
+
 function M.open_picker(callback)
   local account = account_state.current()
   request.json({
-    cmd = 'folder list --account %s',
-    args = { account },
+    cmd = 'folder list %s',
+    args = { account_flag(account) },
     msg = 'Listing folders',
     on_data = function(data)
       pickers.select(callback, data)
