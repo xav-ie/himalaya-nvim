@@ -118,7 +118,11 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 --- @return string[]
 function M.render(envelopes, total_width)
 	local use_nerd = config.get().use_nerd
-	local id_w = 6
+	local id_w = 2 -- minimum: fits "ID" header
+	for _, env in ipairs(envelopes) do
+		local len = #tostring(env.id or "")
+		if len > id_w then id_w = len end
+	end
 	local num_slots = config.get().show_unseen_flag and 4 or 3
 	local flags_w = num_slots * 2
 	local date_w = 19
