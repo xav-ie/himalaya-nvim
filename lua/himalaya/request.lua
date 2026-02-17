@@ -24,13 +24,13 @@ end
 
 local function on_exit(cmd, opts, parse_fn)
   return function(stdout, stderr, code)
-    log.debug(string.format('[himalaya] cmd: %s', table.concat(cmd, ' ')))
-    log.debug(string.format('[himalaya] exit code: %d', code))
+    log.warn(string.format('[himalaya] cmd: %s', table.concat(cmd, ' ')))
+    log.warn(string.format('[himalaya] exit code: %d', code))
     if stderr ~= '' then
-      log.debug(string.format('[himalaya] stderr: %s', stderr))
+      log.warn(string.format('[himalaya] stderr: %s', stderr))
     end
     if stdout ~= '' then
-      log.debug(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
+      log.warn(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
     end
 
     if code ~= 0 then
