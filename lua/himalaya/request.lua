@@ -22,6 +22,35 @@ function M._build_cmd(cmd_fmt, args, output_mode)
   return parts
 end
 
+local function on_exit(cmd, opts, parse_fn)
+  return function(stdout, stderr, code)
+    log.debug(string.format('[himalaya] cmd: %s', table.concat(cmd, ' ')))
+    log.debug(string.format('[himalaya] exit code: %d', code))
+    if stderr ~= '' then
+      log.debug(string.format('[himalaya] stderr: %s', stderr))
+    end
+    if stdout ~= '' then
+      log.debug(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
+    end
+
+    if code ~= 0 then
+      log.err(string.format('%s [FAIL] (exit code %d)', opts.msg, code))
+      if stderr ~= '' then
+        log.err(stderr)
+      end
+      return
+    end
+
+    local data = parse_fn(stdout)
+    if data == nil then
+      return
+    end
+    opts.on_data(data)
+    vim.cmd('redraw')
+    log.info(string.format('%s [OK]', opts.msg))
+  end
+end
+
 function M.json(opts)
   local args = opts.args or {}
   log.info(string.format('%s...', opts.msg))
@@ -29,20 +58,14 @@ function M.json(opts)
 
   job.run(cmd, {
     stdin = opts.stdin,
-    on_exit = function(stdout, stderr, code)
-      if code ~= 0 and stderr ~= '' then
-        log.err(stderr)
-        return
-      end
+    on_exit = on_exit(cmd, opts, function(stdout)
       local ok, data = pcall(vim.json.decode, stdout)
       if not ok then
         log.err('Failed to parse JSON: ' .. stdout)
-        return
+        return nil
       end
-      opts.on_data(data)
-      vim.cmd('redraw')
-      log.info(string.format('%s [OK]', opts.msg))
-    end,
+      return data
+    end),
   })
 end
 
@@ -53,15 +76,9 @@ function M.plain(opts)
 
   job.run(cmd, {
     stdin = opts.stdin,
-    on_exit = function(stdout, stderr, code)
-      if code ~= 0 and stderr ~= '' then
-        log.err(stderr)
-        return
-      end
-      opts.on_data(stdout)
-      vim.cmd('redraw')
-      log.info(string.format('%s [OK]', opts.msg))
-    end,
+    on_exit = on_exit(cmd, opts, function(stdout)
+      return stdout
+    end),
   })
 end
 

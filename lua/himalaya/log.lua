@@ -12,4 +12,8 @@ function M.err(msg)
   vim.notify(msg, vim.log.levels.ERROR)
 end
 
+function M.debug(msg)
+  vim.notify(msg, vim.log.levels.DEBUG)
+end
+
 return M
