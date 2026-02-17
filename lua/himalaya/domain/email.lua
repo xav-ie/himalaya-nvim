@@ -10,6 +10,9 @@ local M = {}
 local current_id = ''
 local draft = ''
 local query = ''
+local page_totals = {}
+local last_folder = nil
+local last_query = nil
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -116,15 +119,74 @@ local function set_buffer_content(content)
   end
 end
 
+--- Probe subsequent pages in the background to discover total page count.
+--- @param account string
+--- @param folder string
+--- @param page_size number
+--- @param probe_page number
+--- @param qry string
+--- @param bufnr number
+local function probe_page_count(account, folder, page_size, probe_page, qry, bufnr)
+  request.json({
+    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+    args = {
+      folder,
+      account_flag(account),
+      page_size,
+      probe_page,
+      qry,
+    },
+    msg = string.format('Probing page %d', probe_page),
+    on_data = function(data)
+      local cache_key = folder .. '\0' .. qry
+      if #data < page_size then
+        page_totals[cache_key] = tostring(probe_page)
+      elseif probe_page >= 10 then
+        page_totals[cache_key] = '10+'
+      else
+        probe_page_count(account, folder, page_size, probe_page + 1, qry, bufnr)
+        return
+      end
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        local ok, page = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page')
+        if ok then
+          local display_qry = qry == '' and 'all' or qry
+          vim.api.nvim_buf_set_name(bufnr,
+            string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, page_totals[cache_key]))
+          vim.cmd('redraw')
+        end
+      end
+    end,
+  })
+end
+
 --- Internal callback for list_with — populates the envelope listing buffer.
-local function on_list_with(folder, page, data)
+local function on_list_with(account, folder, page, page_size, qry, data)
+  if folder ~= last_folder or qry ~= last_query then
+    page_totals = {}
+    last_folder = folder
+    last_query = qry
+  end
+
+  local cache_key = folder .. '\0' .. qry
+  local total_str
+  if page_totals[cache_key] then
+    total_str = page_totals[cache_key]
+  elseif #data < page_size then
+    page_totals[cache_key] = tostring(page)
+    total_str = tostring(page)
+  else
+    total_str = '?'
+  end
+
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
   local buftype = in_listing_buffer() and 'file' or 'edit'
-  local display_query = query == '' and 'all' or query
-  vim.cmd(string.format('silent! %s Himalaya envelopes [%s] [%s] [page %d]', buftype, folder, display_query, page))
+  local display_query = qry == '' and 'all' or qry
+  vim.cmd(string.format('silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]', buftype, folder, display_query, page, total_str))
   vim.bo.modifiable = true
   vim.b.himalaya_envelopes = data
+  vim.b.himalaya_page = page
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = renderer.render(data, M._bufwidth())
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
@@ -133,6 +195,10 @@ local function on_list_with(folder, page, data)
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
   vim.cmd('0')
+
+  if not page_totals[cache_key] then
+    probe_page_count(account, folder, page_size, page + 1, qry, bufnr)
+  end
 end
 
 --- List envelopes, optionally switching account first.
@@ -153,18 +219,19 @@ end
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
+  local page_size = vim.fn.winheight(0) - 2
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
-      vim.fn.winheight(0) - 1,
+      page_size,
       page,
       qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
     on_data = function(data)
-      on_list_with(folder, page, data)
+      on_list_with(account, folder, page, page_size, qry, data)
     end,
   })
 end
@@ -182,8 +249,8 @@ function M.read()
     args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
     on_data = function(data)
-      close_open_buffers('Himalaya read email')
-      vim.cmd(string.format('silent! botright new Himalaya read email [%s]', current_id))
+      close_open_buffers('Himalaya/read email')
+      vim.cmd(string.format('silent! botright new Himalaya/read email [%s]', current_id))
       set_buffer_content(data)
       vim.bo.filetype = 'himalaya-email-reading'
       vim.bo.modified = false
@@ -196,7 +263,7 @@ end
 --- @param msg string buffer name suffix
 --- @param content string template content
 local function open_write_buffer(msg, content)
-  local bufname = string.format('Himalaya %s', msg)
+  local bufname = string.format('Himalaya/%s', msg)
   if msg == 'write' then
     vim.cmd(string.format('silent! botright new %s', bufname))
   end
