@@ -236,6 +236,55 @@ function M.list_with(account, folder, page, qry)
   })
 end
 
+--- Optimistically mark an envelope as Seen in the listing buffer.
+--- Updates the cached envelope data, re-renders the line, and re-applies highlights.
+--- @param email_id string
+local function mark_envelope_seen(email_id)
+  local listing_bufnr
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      local ok, bt = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_buffer_type')
+      if ok and bt == 'listing' then
+        listing_bufnr = bufnr
+        break
+      end
+    end
+  end
+  if not listing_bufnr then return end
+
+  local ok, envelopes = pcall(vim.api.nvim_buf_get_var, listing_bufnr, 'himalaya_envelopes')
+  if not (ok and envelopes) then return end
+
+  for _, env in ipairs(envelopes) do
+    if tostring(env.id) == tostring(email_id) then
+      local flags = env.flags or {}
+      for _, f in ipairs(flags) do
+        if f == 'Seen' then return end
+      end
+      table.insert(flags, 'Seen')
+      env.flags = flags
+      break
+    end
+  end
+
+  vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
+
+  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
+      vim.api.nvim_win_call(winid, function()
+        local renderer = require('himalaya.ui.renderer')
+        local listing = require('himalaya.ui.listing')
+        local lines = renderer.render(envelopes, M._bufwidth())
+        vim.bo[listing_bufnr].modifiable = true
+        vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, lines)
+        listing.apply_seen_highlights(listing_bufnr, envelopes)
+        vim.bo[listing_bufnr].modifiable = false
+      end)
+      break
+    end
+  end
+end
+
 --- Read email under cursor.
 function M.read()
   current_id = get_email_id_under_cursor()
@@ -255,6 +304,7 @@ function M.read()
       vim.bo.filetype = 'himalaya-email-reading'
       vim.bo.modified = false
       vim.cmd('0')
+      mark_envelope_seen(current_id)
     end,
   })
 end
