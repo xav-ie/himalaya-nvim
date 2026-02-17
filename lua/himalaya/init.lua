@@ -17,9 +17,22 @@ function M._register_commands()
   local email = require('himalaya.domain.email')
   local folder = require('himalaya.domain.folder')
 
+  local account_state = require('himalaya.state.account')
+
   vim.api.nvim_create_user_command('Himalaya', function(opts)
     email.list(opts.fargs[1])
-  end, { nargs = '*' })
+  end, {
+    nargs = '*',
+    complete = function(arg_lead)
+      local accounts = account_state.list()
+      if arg_lead == '' then
+        return accounts
+      end
+      return vim.tbl_filter(function(name)
+        return vim.startswith(name, arg_lead)
+      end, accounts)
+    end,
+  })
 
   vim.api.nvim_create_user_command('HimalayaCopy', function()
     email.select_folder_then_copy()
