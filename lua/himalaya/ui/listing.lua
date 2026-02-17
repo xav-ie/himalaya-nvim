@@ -4,6 +4,8 @@ local folder = require('himalaya.domain.folder')
 
 local M = {}
 
+local ns = vim.api.nvim_create_namespace('himalaya_seen')
+
 --- Define highlight groups for the email listing view.
 function M.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaSeparator', { default = true, link = 'VertSplit' })
@@ -13,6 +15,7 @@ function M.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaSender', { default = true, link = 'Structure' })
   vim.api.nvim_set_hl(0, 'HimalayaDate', { default = true, link = 'Constant' })
   vim.api.nvim_set_hl(0, 'HimalayaHead', { bold = true })
+  vim.api.nvim_set_hl(0, 'HimalayaSeen', { default = true, link = 'Normal' })
 end
 
 --- Apply syntax match rules to the given buffer.
@@ -27,10 +30,34 @@ function M.apply_syntax(bufnr)
       syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                                     contains=HimalayaId,HimalayaFlags,HimalayaSeparator
       syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
       syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
-      syntax match HimalayaSeen      /\(^.\{-}\%u2502\)\@>\(.\{3}\%(\*\|\%uf4f5\)\)\@!.\{-}$/                    contains=HimalayaSeparator
       syntax match HimalayaHead      /\%1l.*\|\%2l.*/                                                            contains=HimalayaSeparator
     ]])
   end)
+end
+
+--- Apply extmark-based highlights to dim seen (read) envelope lines.
+--- Unseen lines keep per-column syntax coloring; seen lines get reset to Normal.
+--- @param bufnr number
+--- @param envelopes table[]
+function M.apply_seen_highlights(bufnr, envelopes)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+  for i, env in ipairs(envelopes) do
+    local flags = env.flags or {}
+    local seen = false
+    for _, f in ipairs(flags) do
+      if f == 'Seen' then seen = true; break end
+    end
+    if seen then
+      -- Line index: i-1 (0-based) + 2 (header + separator)
+      local line = i + 1
+      vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
+        end_row = line,
+        end_col = #vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1],
+        hl_group = 'HimalayaSeen',
+        priority = 200,
+      })
+    end
+  end
 end
 
 --- Set up the listing buffer: options, highlights, syntax, and keybinds.

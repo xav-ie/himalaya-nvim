@@ -119,13 +119,16 @@ end
 --- Internal callback for list_with — populates the envelope listing buffer.
 local function on_list_with(folder, page, data)
   local renderer = require('himalaya.ui.renderer')
+  local listing = require('himalaya.ui.listing')
   local buftype = in_listing_buffer() and 'file' or 'edit'
   local display_query = query == '' and 'all' or query
   vim.cmd(string.format('silent! %s Himalaya envelopes [%s] [%s] [page %d]', buftype, folder, display_query, page))
   vim.bo.modifiable = true
   vim.b.himalaya_envelopes = data
+  local bufnr = vim.api.nvim_get_current_buf()
   local lines = renderer.render(data, M._bufwidth())
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  listing.apply_seen_highlights(bufnr, data)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
@@ -594,9 +597,12 @@ function M.rerender_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
   local renderer = require('himalaya.ui.renderer')
+  local listing = require('himalaya.ui.listing')
+  local bufnr = vim.api.nvim_get_current_buf()
   local lines = renderer.render(envelopes, M._bufwidth())
   vim.bo.modifiable = true
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  listing.apply_seen_highlights(bufnr, envelopes)
   vim.bo.modifiable = false
 end
 
