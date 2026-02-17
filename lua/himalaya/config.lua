@@ -9,6 +9,7 @@ local defaults = {
   custom_flags = {},
   always_confirm = true,
   use_nerd = false,
+  show_unseen_flag = true,
 }
 
 local current = vim.deepcopy(defaults)

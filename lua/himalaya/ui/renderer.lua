@@ -46,8 +46,9 @@ function M.format_flags(envelope)
 
 	-- Each slot: symbol + space (2 display cols × 4 = 8)
 	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
+	local show_unseen = config.get().show_unseen_flag
 	return (flagged and sym.flagged or sp) .. sp
-		.. (not seen and sym.unseen or sp) .. sp
+		.. (show_unseen and not seen and sym.unseen or sp) .. sp
 		.. (answered and sym.answered or sp) .. sp
 		.. (envelope.has_attachment and sym.attachment or sp) .. sp
 end
