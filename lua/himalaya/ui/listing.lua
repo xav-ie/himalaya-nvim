@@ -6,7 +6,6 @@ local account
 local M = {}
 
 local ns = vim.api.nvim_create_namespace('himalaya_seen')
-local ns_header = vim.api.nvim_create_namespace('himalaya_header')
 
 --- Define highlight groups for the email listing view.
 function M.define_highlights()
@@ -16,7 +15,7 @@ function M.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaSubject', { default = true, link = 'String' })
   vim.api.nvim_set_hl(0, 'HimalayaSender', { default = true, link = 'Structure' })
   vim.api.nvim_set_hl(0, 'HimalayaDate', { default = true, link = 'Constant' })
-  vim.api.nvim_set_hl(0, 'HimalayaHead', { bold = true })
+  vim.api.nvim_set_hl(0, 'HimalayaHead', { default = true, bold = true, underline = true })
   vim.api.nvim_set_hl(0, 'HimalayaSeen', { default = true, link = 'Normal' })
 end
 
@@ -36,19 +35,17 @@ function M.apply_syntax(bufnr)
   end)
 end
 
---- Set header and separator as virtual text above the first buffer line.
+--- Set the header as a sticky winbar at the top of the listing window.
 --- @param bufnr number
 --- @param header string
---- @param separator string
-function M.apply_header(bufnr, header, separator)
-  vim.api.nvim_buf_clear_namespace(bufnr, ns_header, 0, -1)
-  vim.api.nvim_buf_set_extmark(bufnr, ns_header, 0, 0, {
-    virt_lines_above = true,
-    virt_lines = {
-      {{ header, 'HimalayaHead' }},
-      {{ separator, 'HimalayaSeparator' }},
-    },
-  })
+function M.apply_header(bufnr, header)
+  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(winid) == bufnr then
+      -- Escape percent signs and other statusline special chars
+      local escaped = header:gsub('%%', '%%%%')
+      vim.wo[winid].winbar = '%#HimalayaHead#' .. escaped
+    end
+  end
 end
 
 --- Apply extmark-based highlights to dim seen (read) envelope lines.

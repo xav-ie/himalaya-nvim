@@ -191,7 +191,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_header(bufnr, result.header, result.separator)
+  listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, data)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
@@ -284,7 +284,7 @@ local function mark_envelope_seen(email_id)
         local result = renderer.render(envelopes, M._bufwidth())
         vim.bo[listing_bufnr].modifiable = true
         vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
-        listing.apply_header(listing_bufnr, result.header, result.separator)
+        listing.apply_header(listing_bufnr, result.header)
         listing.apply_seen_highlights(listing_bufnr, envelopes)
         vim.bo[listing_bufnr].modifiable = false
       end)
@@ -784,7 +784,7 @@ function M.rerender_listing()
   local result = renderer.render(envelopes, M._bufwidth())
   vim.bo.modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_header(bufnr, result.header, result.separator)
+  listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, envelopes)
   vim.bo.modifiable = false
 end
