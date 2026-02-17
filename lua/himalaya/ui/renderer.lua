@@ -44,13 +44,15 @@ function M.format_flags(envelope)
 	local use_nerd = config.get().use_nerd
 	local sp = " "
 
-	-- Each slot: symbol + space (2 display cols × 4 = 8)
+	-- Each slot: symbol + space (2 display cols)
 	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
-	local show_unseen = config.get().show_unseen_flag
-	return (flagged and sym.flagged or sp) .. sp
-		.. (show_unseen and not seen and sym.unseen or sp) .. sp
-		.. (answered and sym.answered or sp) .. sp
-		.. (envelope.has_attachment and sym.attachment or sp) .. sp
+	local s = (flagged and sym.flagged or sp) .. sp
+	if config.get().show_unseen_flag then
+		s = s .. (not seen and sym.unseen or sp) .. sp
+	end
+	s = s .. (answered and sym.answered or sp) .. sp
+	s = s .. (envelope.has_attachment and sym.attachment or sp) .. sp
+	return s
 end
 
 --- Prefer `.name`, fall back to `.addr`.
@@ -110,7 +112,7 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 
 --- Render envelopes into box-drawn display lines.
 --- Returns {header_line, separator_line, data_line_1, ...}
---- Fixed widths: ID=6, FLAGS=4|8, DATE=19
+--- Fixed widths: ID=6, FLAGS=6|8, DATE=19
 --- Remaining space split 60/40 between SUBJECT and FROM
 --- @param envelopes table[]
 --- @param total_width number
@@ -118,7 +120,8 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 function M.render(envelopes, total_width)
 	local use_nerd = config.get().use_nerd
 	local id_w = 6
-	local flags_w = 8
+	local num_slots = config.get().show_unseen_flag and 4 or 3
+	local flags_w = num_slots * 2
 	local date_w = 19
 	-- Format: " col │ col │ col │ col │ col"
 	-- Overhead: 1 (leading space) + 4x " │ " separators (4*3=12) = 13
