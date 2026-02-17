@@ -16,6 +16,7 @@ describe('himalaya.config', function()
     assert.is_nil(c.complete_contact_cmd)
     assert.are.same({}, c.custom_flags)
     assert.are.equal(true, c.always_confirm)
+    assert.are.equal(false, c.use_nerd)
   end)
 
   it('deep merges user overrides', function()

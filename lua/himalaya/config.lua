@@ -8,6 +8,7 @@ local defaults = {
   complete_contact_cmd = nil,
   custom_flags = {},
   always_confirm = true,
+  use_nerd = false,
 }
 
 local current = vim.deepcopy(defaults)

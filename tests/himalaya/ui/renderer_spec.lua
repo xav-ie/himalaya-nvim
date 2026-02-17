@@ -1,8 +1,12 @@
 describe('himalaya.ui.renderer', function()
   local renderer
+  local config
 
   before_each(function()
     package.loaded['himalaya.ui.renderer'] = nil
+    package.loaded['himalaya.config'] = nil
+    config = require('himalaya.config')
+    config._reset()
     renderer = require('himalaya.ui.renderer')
   end)
 
@@ -151,6 +155,37 @@ describe('himalaya.ui.renderer', function()
       }
       local lines = renderer.render(envelopes, 80)
       assert.is_truthy(lines[2]:find('%*'))
+    end)
+  end)
+
+  describe('nerd mode', function()
+    before_each(function()
+      config.setup({ use_nerd = true })
+    end)
+
+    it('uses nerd symbols for unseen', function()
+      local result = renderer.format_flags({ flags = {} })
+      assert.is_truthy(result:find('\xef\x93\xb5'))
+    end)
+
+    it('uses nerd symbols for answered', function()
+      local result = renderer.format_flags({ flags = { 'Seen', 'Answered' } })
+      assert.is_truthy(result:find('\xef\x84\x92'))
+    end)
+
+    it('uses nerd symbols for flagged', function()
+      local result = renderer.format_flags({ flags = { 'Seen', 'Flagged' } })
+      assert.is_truthy(result:find('󰈿'))
+    end)
+
+    it('uses nerd symbols for attachment', function()
+      local result = renderer.format_flags({ flags = { 'Seen' }, has_attachment = true })
+      assert.is_truthy(result:find('\xef\x83\x86'))
+    end)
+
+    it('uses nerd header in render', function()
+      local lines = renderer.render({}, 80)
+      assert.is_truthy(lines[1]:find('\xef\x80\xa4'))
     end)
   end)
 end)
