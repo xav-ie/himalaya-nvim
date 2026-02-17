@@ -70,6 +70,42 @@ function M.format_from(from)
 	return ""
 end
 
+--- Format a date string using the configured format.
+--- Parses ISO-ish dates from himalaya (e.g. "2026-02-17 13:18+00:00")
+--- and reformats using strftime-style tokens. Converts to local time.
+--- Returns the raw string when no date_format is configured.
+--- @param raw string
+--- @return string
+function M.format_date(raw)
+	local fmt = config.get().date_format
+	if not fmt or raw == "" then
+		return raw
+	end
+
+	-- Parse: "YYYY-MM-DD HH:MM:SS±HH:MM" or "YYYY-MM-DD HH:MM±HH:MM"
+	local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)%s+(%d+):(%d+):?(%d*)([%+%-].*)")
+	if not y then
+		return raw
+	end
+	s = (s ~= "") and tonumber(s) or 0
+
+	-- Parse timezone offset and convert to UTC epoch
+	local tz_sign, tz_h, tz_m = tz:match("^([%+%-])(%d+):(%d+)")
+	local tz_offset = 0
+	if tz_sign then
+		tz_offset = (tonumber(tz_h) * 3600 + tonumber(tz_m) * 60)
+		if tz_sign == "-" then tz_offset = -tz_offset end
+	end
+
+	local utc_epoch = os.time({
+		year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+		hour = tonumber(h), min = tonumber(mi), sec = s,
+	}) - tz_offset
+
+	-- Format in local time
+	return os.date(fmt, utc_epoch)
+end
+
 --- Pad or truncate a string to exactly `width` display columns.
 --- Uses vim.fn.strdisplaywidth and vim.fn.strcharpart for multi-byte safety.
 --- Truncated strings get a trailing `~`.
@@ -127,7 +163,7 @@ function M.render(envelopes, total_width)
 	local flags_w = num_slots * 2
 	local date_w = 4 -- minimum: fits "DATE" header
 	for _, env in ipairs(envelopes) do
-		local len = #tostring(env.date or "")
+		local len = #M.format_date(tostring(env.date or ""))
 		if len > date_w then date_w = len end
 	end
 	local gutters = config.get().gutters
@@ -186,7 +222,7 @@ function M.render(envelopes, total_width)
 				from = M.format_from(env.from[1])
 			end
 		end
-		local date = env.date or ""
+		local date = M.format_date(env.date or "")
 
 		local line = string.format(
 			row_fmt,

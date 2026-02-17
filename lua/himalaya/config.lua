@@ -11,6 +11,7 @@ local defaults = {
   use_nerd = false,
   show_unseen_flag = true,
   gutters = true,
+  date_format = '%Y-%m-%d %H:%M',
 }
 
 local current = vim.deepcopy(defaults)
