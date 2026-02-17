@@ -76,9 +76,7 @@ end
 --- Detect whether current buffer is an envelope listing buffer.
 --- @return boolean
 local function in_listing_buffer()
-  local bufname = vim.api.nvim_buf_get_name(0)
-  return bufname:find('Himalaya envelopes', 1, true) == 1
-      or vim.fn.bufname('%'):find('Himalaya envelopes', 1, true) == 1
+  return vim.bo.filetype == 'himalaya-email-listing'
 end
 
 --- Get the relevant email ID depending on context (listing vs read buffer).
