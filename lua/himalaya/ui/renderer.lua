@@ -125,7 +125,11 @@ function M.render(envelopes, total_width)
 	end
 	local num_slots = config.get().show_unseen_flag and 4 or 3
 	local flags_w = num_slots * 2
-	local date_w = 19
+	local date_w = 4 -- minimum: fits "DATE" header
+	for _, env in ipairs(envelopes) do
+		local len = #tostring(env.date or "")
+		if len > date_w then date_w = len end
+	end
 	local gutters = config.get().gutters
 	-- With gutters:    " col │ col │ col │ col │ col" → 1 + 4×3 = 13
 	-- Without gutters: "col│col│col│col│col"          → 4×1 = 4
