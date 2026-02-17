@@ -35,15 +35,39 @@ function M.apply_syntax(bufnr)
   end)
 end
 
+--- Compute the gutter width (number column, fold column, sign column) for a window.
+--- @param winid number
+--- @param bufnr number
+--- @return number
+local function gutter_width(winid, bufnr)
+  local wo = vim.wo[winid]
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  local numberwidth = math.max(wo.numberwidth, #tostring(line_count) + 1)
+  local numwidth = (wo.number or wo.relativenumber) and numberwidth or 0
+  local foldwidth = tonumber(wo.foldcolumn) or 0
+
+  local signwidth = 0
+  if wo.signcolumn == 'yes' then
+    signwidth = 2
+  elseif wo.signcolumn == 'auto' then
+    local signs = vim.fn.execute(string.format('sign place buffer=%d', bufnr))
+    local sign_lines = vim.split(signs, '\n')
+    signwidth = #sign_lines > 2 and 2 or 0
+  end
+
+  return numwidth + foldwidth + signwidth
+end
+
 --- Set the header as a sticky winbar at the top of the listing window.
 --- @param bufnr number
 --- @param header string
 function M.apply_header(bufnr, header)
   for _, winid in ipairs(vim.api.nvim_list_wins()) do
     if vim.api.nvim_win_get_buf(winid) == bufnr then
+      local pad = string.rep(' ', gutter_width(winid, bufnr))
       -- Escape percent signs and other statusline special chars
       local escaped = header:gsub('%%', '%%%%')
-      vim.wo[winid].winbar = '%#HimalayaHead#' .. escaped
+      vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
     end
   end
 end
