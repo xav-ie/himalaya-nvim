@@ -96,9 +96,9 @@ describe('himalaya.ui.renderer', function()
       }
       local lines = renderer.render(envelopes, 80)
       assert.are.equal(2, #lines)
-      -- Header contains column names (FLAGS truncated to FLA~ at width 4)
+      -- Header contains column names
       assert.is_truthy(lines[1]:find('ID'))
-      assert.is_truthy(lines[1]:find('FLA'))
+      assert.is_truthy(lines[1]:find('FLGS'))
       assert.is_truthy(lines[1]:find('SUBJECT'))
       assert.is_truthy(lines[1]:find('FROM'))
       assert.is_truthy(lines[1]:find('DATE'))

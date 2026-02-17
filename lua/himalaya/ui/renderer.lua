@@ -30,8 +30,8 @@ end
 --- @return string
 function M.format_from(from)
   if not from then return '' end
-  if from.name and from.name ~= '' then return from.name end
-  if from.addr and from.addr ~= '' then return from.addr end
+  if from.name and from.name ~= vim.NIL and from.name ~= '' then return from.name end
+  if from.addr and from.addr ~= vim.NIL and from.addr ~= '' then return from.addr end
   return ''
 end
 
@@ -93,7 +93,7 @@ function M.render(envelopes, total_width)
   local header = string.format(
     '| %s | %s | %s | %s | %s |',
     M.fit('ID', id_w),
-    M.fit('FLAGS', flags_w),
+    M.fit('FLGS', flags_w),
     M.fit('SUBJECT', subject_w),
     M.fit('FROM', from_w),
     M.fit('DATE', date_w)
@@ -105,7 +105,7 @@ function M.render(envelopes, total_width)
     local flags = M.format_flags(env)
     local subject = env.subject or ''
     local from = ''
-    if env.from then
+    if env.from and env.from ~= vim.NIL then
       if env.from.name or env.from.addr then
         from = M.format_from(env.from)
       elseif type(env.from) == 'table' and #env.from > 0 then
