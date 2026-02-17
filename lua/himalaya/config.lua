@@ -8,8 +8,13 @@ local defaults = {
   complete_contact_cmd = nil,
   custom_flags = {},
   always_confirm = true,
-  use_nerd = false,
-  show_unseen_flag = true,
+  flags = {
+    header = 'FLGS',
+    flagged = '!',
+    unseen = '*',
+    answered = 'R',
+    attachment = '@',
+  },
   gutters = true,
   date_format = '%Y-%m-%d %H:%M',
 }

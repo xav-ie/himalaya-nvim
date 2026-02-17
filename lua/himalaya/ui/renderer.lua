@@ -2,55 +2,36 @@ local config = require("himalaya.config")
 
 local M = {}
 
-local ascii_symbols = {
-	unseen = "*",
-	answered = "R",
-	flagged = "!",
-	attachment = "@",
-	header = "FLGS",
-}
-
-local nerd_symbols = {
-	unseen = "",
-	answered = "",
-	flagged = "󰈿",
-	attachment = "",
-	header = "",
-}
+local FLAG_ORDER = { "flagged", "unseen", "answered", "attachment" }
 
 --- Map JSON flags array + has_attachment to compact symbols.
 --- @param envelope table
 --- @return string
 function M.format_flags(envelope)
-	local sym = config.get().use_nerd and nerd_symbols or ascii_symbols
+	local cfg_flags = config.get().flags
+	local raw = envelope.flags or {}
+	local seen, answered, flagged = false, false, false
+
+	for _, f in ipairs(raw) do
+		if f == "Seen" then seen = true end
+		if f == "Answered" then answered = true end
+		if f == "Flagged" then flagged = true end
+	end
+
+	local active = {
+		flagged = flagged,
+		unseen = not seen,
+		answered = answered,
+		attachment = envelope.has_attachment and true or false,
+	}
+
 	local s = ""
-	local flags = envelope.flags or {}
-	local seen = false
-	local answered = false
-	local flagged = false
-
-	for _, f in ipairs(flags) do
-		if f == "Seen" then
-			seen = true
-		end
-		if f == "Answered" then
-			answered = true
-		end
-		if f == "Flagged" then
-			flagged = true
+	for _, key in ipairs(FLAG_ORDER) do
+		local sym = cfg_flags[key]
+		if type(sym) == "string" then
+			s = s .. (active[key] and sym or " ") .. " "
 		end
 	end
-
-	local sp = " "
-
-	-- Each slot: symbol + space (2 display cols)
-	-- Order: flagged (rarest) → unseen → answered → attachment (most common)
-	local s = (flagged and sym.flagged or sp) .. sp
-	if config.get().show_unseen_flag then
-		s = s .. (not seen and sym.unseen or sp) .. sp
-	end
-	s = s .. (answered and sym.answered or sp) .. sp
-	s = s .. (envelope.has_attachment and sym.attachment or sp) .. sp
 	return s
 end
 
@@ -153,13 +134,16 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 --- @param total_width number
 --- @return string[]
 function M.render(envelopes, total_width)
-	local use_nerd = config.get().use_nerd
+	local cfg_flags = config.get().flags
 	local id_w = 2 -- minimum: fits "ID" header
 	for _, env in ipairs(envelopes) do
 		local len = #tostring(env.id or "")
 		if len > id_w then id_w = len end
 	end
-	local num_slots = config.get().show_unseen_flag and 4 or 3
+	local num_slots = 0
+	for _, key in ipairs(FLAG_ORDER) do
+		if type(cfg_flags[key]) == "string" then num_slots = num_slots + 1 end
+	end
 	local flags_w = num_slots * 2
 	local date_w = 4 -- minimum: fits "DATE" header
 	for _, env in ipairs(envelopes) do
@@ -179,7 +163,6 @@ function M.render(envelopes, total_width)
 	local subject_w = math.floor(remaining * 0.6)
 	local from_w = remaining - subject_w
 
-	local sym = use_nerd and nerd_symbols or ascii_symbols
 	local col_sep = gutters and (" " .. BOX_V .. " ") or BOX_V
 	local leading = gutters and " " or ""
 	local row_fmt = leading .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s"
@@ -189,7 +172,7 @@ function M.render(envelopes, total_width)
 	local header = string.format(
 		row_fmt,
 		M.fit("ID", id_w),
-		M.fit(sym.header, flags_w),
+		M.fit(cfg_flags.header or "FLGS", flags_w),
 		M.fit("SUBJECT", subject_w),
 		M.fit("FROM", from_w),
 		M.fit("DATE", date_w)

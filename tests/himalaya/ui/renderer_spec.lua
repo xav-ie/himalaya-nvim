@@ -160,37 +160,52 @@ describe('himalaya.ui.renderer', function()
     end)
   end)
 
-  describe('nerd mode', function()
+  describe('custom flags', function()
     before_each(function()
-      config.setup({ use_nerd = true })
+      config.setup({ flags = {
+        header = '\xef\x80\xa4',
+        flagged = '\xf3\xb0\x88\xbf',
+        unseen = '\xef\x93\xb5',
+        answered = '\xef\x84\x92',
+        attachment = '\xef\x83\x86',
+      }})
     end)
 
-    it('puts nerd unseen icon in slot 1', function()
+    it('puts custom flagged icon in slot 1', function()
+      local result = renderer.format_flags({ flags = { 'Seen', 'Flagged' } })
+      assert.is_truthy(result:find('\xf3\xb0\x88\xbf'))
+    end)
+
+    it('puts custom unseen icon in slot 2', function()
       local result = renderer.format_flags({ flags = {} })
       assert.is_truthy(result:find('\xef\x93\xb5'))
-      -- Slots 2-4 are empty (spaces)
-      assert.are.equal(8, #result - (#'\xef\x93\xb5' - 1))
     end)
 
-    it('puts nerd answered icon in slot 2', function()
+    it('puts custom answered icon in slot 3', function()
       local result = renderer.format_flags({ flags = { 'Seen', 'Answered' } })
       assert.is_truthy(result:find('\xef\x84\x92'))
     end)
 
-    it('puts nerd flagged icon in slot 3', function()
-      local result = renderer.format_flags({ flags = { 'Seen', 'Flagged' } })
-      assert.is_truthy(result:find('󰈿'))
-    end)
-
-    it('puts nerd attachment icon in slot 4', function()
+    it('puts custom attachment icon in slot 4', function()
       local result = renderer.format_flags({ flags = { 'Seen' }, has_attachment = true })
       assert.is_truthy(result:find('\xef\x83\x86'))
     end)
 
-    it('uses nerd header in render', function()
+    it('uses custom header in render', function()
       local lines = renderer.render({}, 80)
       assert.are.equal(2, #lines) -- header + separator
       assert.is_truthy(lines[1]:find('\xef\x80\xa4'))
+    end)
+  end)
+
+  describe('hidden flag', function()
+    it('omits unseen slot when set to false', function()
+      config.setup({ flags = { unseen = false } })
+      local result = renderer.format_flags({ flags = {} })
+      -- 3 remaining slots × 2 chars = 6
+      assert.are.equal(6, #result)
+      -- unseen marker should not appear
+      assert.is_falsy(result:find('%*'))
     end)
   end)
 end)
