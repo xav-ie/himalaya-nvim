@@ -27,7 +27,7 @@ function M.apply_syntax(bufnr)
       syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                                     contains=HimalayaId,HimalayaFlags,HimalayaSeparator
       syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
       syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
-      syntax match HimalayaSeen      /^.\{-}\%u2502\(\s*\%(\*\|\%uf4f5\)\)\@!.\{-}$/                              contains=HimalayaSeparator
+      syntax match HimalayaSeen      /\(^.\{-}\%u2502\)\@>\(\s*\%(\*\|\%uf4f5\)\)\@!.\{-}$/                      contains=HimalayaSeparator
       syntax match HimalayaHead      /\%1l.*\|\%2l.*/                                                            contains=HimalayaSeparator
     ]])
   end)

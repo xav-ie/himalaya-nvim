@@ -41,21 +41,14 @@ function M.format_flags(envelope)
 		end
 	end
 
-	local parts = {}
-	if not seen then
-		table.insert(parts, sym.unseen)
-	end
-	if answered then
-		table.insert(parts, sym.answered)
-	end
-	if flagged then
-		table.insert(parts, sym.flagged)
-	end
-	if envelope.has_attachment then
-		table.insert(parts, sym.attachment)
-	end
+	local use_nerd = config.get().use_nerd
+	local sp = " "
 
-	return table.concat(parts, " ")
+	-- Each slot: symbol + space (2 display cols × 4 = 8)
+	return (not seen and sym.unseen or sp) .. sp
+		.. (answered and sym.answered or sp) .. sp
+		.. (flagged and sym.flagged or sp) .. sp
+		.. (envelope.has_attachment and sym.attachment or sp) .. sp
 end
 
 --- Prefer `.name`, fall back to `.addr`.
@@ -123,7 +116,7 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 function M.render(envelopes, total_width)
 	local use_nerd = config.get().use_nerd
 	local id_w = 6
-	local flags_w = use_nerd and 8 or 4
+	local flags_w = 8
 	local date_w = 19
 	-- Format: " col │ col │ col │ col │ col"
 	-- Overhead: 1 (leading space) + 4x " │ " separators (4*3=12) = 13

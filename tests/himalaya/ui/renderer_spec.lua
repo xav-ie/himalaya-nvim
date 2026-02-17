@@ -11,28 +11,28 @@ describe('himalaya.ui.renderer', function()
   end)
 
   describe('format_flags', function()
-    it('returns * for unseen (no Seen flag)', function()
-      assert.are.equal('*', renderer.format_flags({ flags = {} }))
+    it('puts * in slot 1 for unseen', function()
+      assert.are.equal('*       ', renderer.format_flags({ flags = {} }))
     end)
 
-    it('returns empty for seen envelope', function()
-      assert.are.equal('', renderer.format_flags({ flags = { 'Seen' } }))
+    it('returns all spaces for seen envelope', function()
+      assert.are.equal('        ', renderer.format_flags({ flags = { 'Seen' } }))
     end)
 
-    it('returns R for answered', function()
-      assert.are.equal('R', renderer.format_flags({ flags = { 'Seen', 'Answered' } }))
+    it('puts R in slot 2 for answered', function()
+      assert.are.equal('  R     ', renderer.format_flags({ flags = { 'Seen', 'Answered' } }))
     end)
 
-    it('returns ! for flagged', function()
-      assert.are.equal('!', renderer.format_flags({ flags = { 'Seen', 'Flagged' } }))
+    it('puts ! in slot 3 for flagged', function()
+      assert.are.equal('    !   ', renderer.format_flags({ flags = { 'Seen', 'Flagged' } }))
     end)
 
-    it('returns @ for attachment', function()
-      assert.are.equal('@', renderer.format_flags({ flags = { 'Seen' }, has_attachment = true }))
+    it('puts @ in slot 4 for attachment', function()
+      assert.are.equal('      @ ', renderer.format_flags({ flags = { 'Seen' }, has_attachment = true }))
     end)
 
-    it('combines multiple flags', function()
-      assert.are.equal('* R ! @', renderer.format_flags({
+    it('fills all slots when all flags present', function()
+      assert.are.equal('* R ! @ ', renderer.format_flags({
         flags = { 'Answered', 'Flagged' },
         has_attachment = true,
       }))
@@ -165,22 +165,24 @@ describe('himalaya.ui.renderer', function()
       config.setup({ use_nerd = true })
     end)
 
-    it('uses nerd symbols for unseen', function()
+    it('puts nerd unseen icon in slot 1', function()
       local result = renderer.format_flags({ flags = {} })
       assert.is_truthy(result:find('\xef\x93\xb5'))
+      -- Slots 2-4 are empty (spaces)
+      assert.are.equal(8, #result - (#'\xef\x93\xb5' - 1))
     end)
 
-    it('uses nerd symbols for answered', function()
+    it('puts nerd answered icon in slot 2', function()
       local result = renderer.format_flags({ flags = { 'Seen', 'Answered' } })
       assert.is_truthy(result:find('\xef\x84\x92'))
     end)
 
-    it('uses nerd symbols for flagged', function()
+    it('puts nerd flagged icon in slot 3', function()
       local result = renderer.format_flags({ flags = { 'Seen', 'Flagged' } })
       assert.is_truthy(result:find('󰈿'))
     end)
 
-    it('uses nerd symbols for attachment', function()
+    it('puts nerd attachment icon in slot 4', function()
       local result = renderer.format_flags({ flags = { 'Seen' }, has_attachment = true })
       assert.is_truthy(result:find('\xef\x83\x86'))
     end)
