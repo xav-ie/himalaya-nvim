@@ -36,11 +36,15 @@ describe('himalaya.domain.email', function()
 
   describe('get_email_id_from_line', function()
     it('extracts numeric id from a listing line', function()
-      assert.are.equal('123', email._get_email_id_from_line('| 123    | *   | Subject              | Sender               | 2024-01-01 00:00:00 |'))
+      assert.are.equal('123', email._get_email_id_from_line(' 123    \xe2\x94\x82 *   \xe2\x94\x82 Subject              \xe2\x94\x82 Sender               \xe2\x94\x82 2024-01-01 00:00:00'))
     end)
 
     it('returns empty for header line', function()
-      assert.are.equal('', email._get_email_id_from_line('| ID     | FLAGS | SUBJECT              | FROM                 | DATE                |'))
+      assert.are.equal('', email._get_email_id_from_line(' ID     \xe2\x94\x82 FLGS \xe2\x94\x82 SUBJECT              \xe2\x94\x82 FROM                 \xe2\x94\x82 DATE               '))
+    end)
+
+    it('returns empty for separator line', function()
+      assert.are.equal('', email._get_email_id_from_line('\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\xbc\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80'))
     end)
   end)
 

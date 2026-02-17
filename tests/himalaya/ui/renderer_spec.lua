@@ -87,7 +87,7 @@ describe('himalaya.ui.renderer', function()
   end)
 
   describe('render', function()
-    it('produces header + data lines', function()
+    it('produces header + separator + data lines', function()
       local envelopes = {
         {
           id = '1',
@@ -99,19 +99,22 @@ describe('himalaya.ui.renderer', function()
         },
       }
       local lines = renderer.render(envelopes, 80)
-      assert.are.equal(2, #lines)
+      assert.are.equal(3, #lines)
       -- Header contains column names
       assert.is_truthy(lines[1]:find('ID'))
       assert.is_truthy(lines[1]:find('FLGS'))
       assert.is_truthy(lines[1]:find('SUBJECT'))
       assert.is_truthy(lines[1]:find('FROM'))
       assert.is_truthy(lines[1]:find('DATE'))
+      -- Separator line contains box-drawing chars
+      assert.is_truthy(lines[2]:find('\xe2\x94\x80'))  -- ─
+      assert.is_truthy(lines[2]:find('\xe2\x94\xbc'))  -- ┼
       -- Data line contains the envelope data
-      assert.is_truthy(lines[2]:find('1'))
-      assert.is_truthy(lines[2]:find('Alice'))
+      assert.is_truthy(lines[3]:find('1'))
+      assert.is_truthy(lines[3]:find('Alice'))
     end)
 
-    it('uses pipe delimiters', function()
+    it('uses box-drawing separators', function()
       local envelopes = {
         {
           id = '42',
@@ -122,11 +125,10 @@ describe('himalaya.ui.renderer', function()
         },
       }
       local lines = renderer.render(envelopes, 80)
-      -- Lines start and end with |
-      for _, line in ipairs(lines) do
-        assert.is_truthy(line:match('^|'))
-        assert.is_truthy(line:match('|$'))
-      end
+      -- Header and data lines use │ separators, no left/right borders
+      assert.is_truthy(lines[1]:find('\xe2\x94\x82'))  -- │
+      assert.is_truthy(lines[1]:match('^ '))  -- starts with space, not border
+      assert.is_truthy(lines[3]:find('\xe2\x94\x82'))
     end)
 
     it('handles from as array', function()
@@ -140,7 +142,7 @@ describe('himalaya.ui.renderer', function()
         },
       }
       local lines = renderer.render(envelopes, 80)
-      assert.is_truthy(lines[2]:find('Carol'))
+      assert.is_truthy(lines[3]:find('Carol'))
     end)
 
     it('shows unseen flag as *', function()
@@ -154,7 +156,7 @@ describe('himalaya.ui.renderer', function()
         },
       }
       local lines = renderer.render(envelopes, 80)
-      assert.is_truthy(lines[2]:find('%*'))
+      assert.is_truthy(lines[3]:find('%*'))
     end)
   end)
 
@@ -185,6 +187,7 @@ describe('himalaya.ui.renderer', function()
 
     it('uses nerd header in render', function()
       local lines = renderer.render({}, 80)
+      assert.are.equal(2, #lines) -- header + separator
       assert.is_truthy(lines[1]:find('\xef\x80\xa4'))
     end)
   end)

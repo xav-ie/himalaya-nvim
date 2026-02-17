@@ -108,9 +108,14 @@ function M.fit(s, width)
 	end
 end
 
---- Render envelopes into pipe-delimited display lines.
---- Returns {header_line, data_line_1, ...}
---- Fixed widths: ID=6, FLAGS=4, DATE=19
+-- Box-drawing characters (hex-escaped for tokenizer safety)
+local BOX_V = "\xe2\x94\x82" -- │
+local BOX_H = "\xe2\x94\x80" -- ─
+local BOX_CROSS = "\xe2\x94\xbc" -- ┼
+
+--- Render envelopes into box-drawn display lines.
+--- Returns {header_line, separator_line, data_line_1, ...}
+--- Fixed widths: ID=6, FLAGS=4|8, DATE=19
 --- Remaining space split 60/40 between SUBJECT and FROM
 --- @param envelopes table[]
 --- @param total_width number
@@ -120,9 +125,9 @@ function M.render(envelopes, total_width)
 	local id_w = 6
 	local flags_w = use_nerd and 8 or 4
 	local date_w = 19
-	-- Format: "| ID | FLAGS | SUBJECT | FROM | DATE |"
-	-- Overhead: "| " prefix (2) + 4x " | " separators (12) + " |" suffix (2) = 16
-	local overhead = 16
+	-- Format: " col │ col │ col │ col │ col"
+	-- Overhead: 1 (leading space) + 4x " │ " separators (4*3=12) = 13
+	local overhead = 13
 	local fixed = id_w + flags_w + date_w
 	local remaining = total_width - fixed - overhead
 	if remaining < 2 then
@@ -133,11 +138,13 @@ function M.render(envelopes, total_width)
 	local from_w = remaining - subject_w
 
 	local sym = use_nerd and nerd_symbols or ascii_symbols
+	local col_sep = " " .. BOX_V .. " "
+	local row_fmt = " %s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s" .. col_sep .. "%s"
 
 	local lines = {}
 
 	local header = string.format(
-		"| %s | %s | %s | %s | %s |",
+		row_fmt,
 		M.fit("ID", id_w),
 		M.fit(sym.header, flags_w),
 		M.fit("SUBJECT", subject_w),
@@ -145,6 +152,19 @@ function M.render(envelopes, total_width)
 		M.fit("DATE", date_w)
 	)
 	table.insert(lines, header)
+
+	-- Horizontal separator under header
+	local cross_sep = BOX_H .. BOX_CROSS .. BOX_H
+	local separator = string.rep(BOX_H, 1 + id_w)
+		.. cross_sep
+		.. string.rep(BOX_H, flags_w)
+		.. cross_sep
+		.. string.rep(BOX_H, subject_w)
+		.. cross_sep
+		.. string.rep(BOX_H, from_w)
+		.. cross_sep
+		.. string.rep(BOX_H, date_w)
+	table.insert(lines, separator)
 
 	for _, env in ipairs(envelopes) do
 		local id = tostring(env.id or "")
@@ -161,7 +181,7 @@ function M.render(envelopes, total_width)
 		local date = env.date or ""
 
 		local line = string.format(
-			"| %s | %s | %s | %s | %s |",
+			row_fmt,
 			M.fit(id, id_w),
 			M.fit(flags, flags_w),
 			M.fit(subject, subject_w),

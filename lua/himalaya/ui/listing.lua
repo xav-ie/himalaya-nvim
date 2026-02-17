@@ -19,15 +19,16 @@ end
 --- @param bufnr number
 function M.apply_syntax(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
+    -- Use \%u2502 (│), \%u2500 (─), \%u253c (┼) for box-drawing chars
     vim.cmd([[
-      syntax match HimalayaSeparator /|/
-      syntax match HimalayaId        /^|.\{-}/                          contains=HimalayaSeparator
-      syntax match HimalayaFlags     /^|.\{-}|.\{-}/                    contains=HimalayaId,HimalayaSeparator
-      syntax match HimalayaSubject   /^|.\{-}|.\{-}|.\{-}/              contains=HimalayaId,HimalayaFlags,HimalayaSeparator
-      syntax match HimalayaSender    /^|.\{-}|.\{-}|.\{-}|.\{-}/        contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
-      syntax match HimalayaDate      /^|.\{-}|.\{-}|.\{-}|.\{-}|.\{-}|/ contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
-      syntax match HimalayaHead      /.*\%1l/                           contains=HimalayaSeparator
-      syntax match HimalayaUnseen    /^|.\{-}|.*\*.*$/                  contains=HimalayaSeparator
+      syntax match HimalayaSeparator /\%u2502\|\%u2500\|\%u253c/
+      syntax match HimalayaId        /^.\{-}\%u2502/                                                             contains=HimalayaSeparator
+      syntax match HimalayaFlags     /^.\{-}\%u2502.\{-}\%u2502/                                                 contains=HimalayaId,HimalayaSeparator
+      syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                                     contains=HimalayaId,HimalayaFlags,HimalayaSeparator
+      syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
+      syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
+      syntax match HimalayaHead      /\%1l.*\|\%2l.*/                                                            contains=HimalayaSeparator
+      syntax match HimalayaUnseen    /^.\{-}\%u2502\s*\%(\*\|\%uf4f5\).\{-}$/                                   contains=HimalayaSeparator
     ]])
   end)
 end
