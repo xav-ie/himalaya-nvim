@@ -41,20 +41,21 @@ function M.format_flags(envelope)
 		end
 	end
 
+	local parts = {}
 	if not seen then
-		s = s .. sym.unseen
+		table.insert(parts, sym.unseen)
 	end
 	if answered then
-		s = s .. sym.answered
+		table.insert(parts, sym.answered)
 	end
 	if flagged then
-		s = s .. sym.flagged
+		table.insert(parts, sym.flagged)
 	end
 	if envelope.has_attachment then
-		s = s .. sym.attachment
+		table.insert(parts, sym.attachment)
 	end
 
-	return s
+	return table.concat(parts, " ")
 end
 
 --- Prefer `.name`, fall back to `.addr`.
@@ -115,8 +116,9 @@ end
 --- @param total_width number
 --- @return string[]
 function M.render(envelopes, total_width)
+	local use_nerd = config.get().use_nerd
 	local id_w = 6
-	local flags_w = 4
+	local flags_w = use_nerd and 8 or 4
 	local date_w = 19
 	-- Format: "| ID | FLAGS | SUBJECT | FROM | DATE |"
 	-- Overhead: "| " prefix (2) + 4x " | " separators (12) + " |" suffix (2) = 16
@@ -130,7 +132,7 @@ function M.render(envelopes, total_width)
 	local subject_w = math.floor(remaining * 0.6)
 	local from_w = remaining - subject_w
 
-	local sym = config.get().use_nerd and nerd_symbols or ascii_symbols
+	local sym = use_nerd and nerd_symbols or ascii_symbols
 
 	local lines = {}
 

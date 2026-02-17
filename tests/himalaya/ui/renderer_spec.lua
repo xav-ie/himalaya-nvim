@@ -32,7 +32,7 @@ describe('himalaya.ui.renderer', function()
     end)
 
     it('combines multiple flags', function()
-      assert.are.equal('*R!@', renderer.format_flags({
+      assert.are.equal('* R ! @', renderer.format_flags({
         flags = { 'Answered', 'Flagged' },
         has_attachment = true,
       }))
