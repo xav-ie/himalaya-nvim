@@ -1,6 +1,7 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
 local folder = require('himalaya.domain.folder')
+local account
 
 local M = {}
 
@@ -81,7 +82,11 @@ function M.setup(bufnr)
     { 'n', 'gr',   email.reply,                        'email-reply' },
     { 'n', 'gR',   email.reply_all,                    'email-reply-all' },
     { 'n', 'gf',   email.forward,                      'email-forward' },
-    { 'n', 'ga',   email.download_attachments,         'email-download-attachments' },
+    { 'n', 'ga',   function()
+      account = account or require('himalaya.domain.account')
+      account.select()
+    end, 'account-select' },
+    { 'n', 'gA',   email.download_attachments,         'email-download-attachments' },
     { 'n', 'gC',   email.select_folder_then_copy,      'email-select-folder-then-copy' },
     { 'n', 'gM',   email.select_folder_then_move,      'email-select-folder-then-move' },
     { 'n', 'gD',   email.delete,                       'email-delete' },
