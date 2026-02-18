@@ -61,7 +61,9 @@ function M.json(opts)
     on_exit = on_exit(cmd, opts, function(stdout)
       local ok, data = pcall(vim.json.decode, stdout)
       if not ok then
-        log.err('Failed to parse JSON: ' .. stdout)
+        if not opts.silent then
+          log.err('Failed to parse JSON: ' .. stdout)
+        end
         return nil
       end
       return data
