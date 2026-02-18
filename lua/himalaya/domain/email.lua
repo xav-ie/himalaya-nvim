@@ -3,6 +3,7 @@ local log = require('himalaya.log')
 local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
+local probe = require('himalaya.domain.email.probe')
 
 local M = {}
 
@@ -10,24 +11,7 @@ local M = {}
 local current_id = ''
 local draft = ''
 local query = ''
-local email_totals = {} -- cache_key -> total email count (positive=exact, negative=at least abs(n))
-local last_folder = nil
-local last_query = nil
 local saved_view = nil
-local probe_job = nil
-
---- Compute total pages string from email_totals and current page_size.
---- @param cache_key string
---- @param page_size number
---- @return string
-local function total_pages_str(cache_key, page_size)
-  local total = email_totals[cache_key]
-  if not total then return '?' end
-  if total < 0 then
-    return tostring(math.ceil(-total / page_size)) .. '+'
-  end
-  return tostring(math.ceil(total / page_size))
-end
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -127,64 +111,13 @@ local function set_buffer_content(content)
   end
 end
 
---- Probe subsequent pages in the background to discover total page count.
---- @param account string
---- @param folder string
---- @param page_size number
---- @param probe_page number
---- @param qry string
---- @param bufnr number
-local function probe_page_count(account, folder, page_size, probe_page, qry, bufnr)
-  probe_job = request.json({
-    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-    args = {
-      folder,
-      account_flag(account),
-      page_size,
-      probe_page,
-      qry,
-    },
-    msg = string.format('Probing page %d', probe_page),
-    silent = true,
-    on_data = function(data)
-      local cache_key = folder .. '\0' .. qry
-      if #data < page_size then
-        email_totals[cache_key] = (probe_page - 1) * page_size + #data
-        probe_job = nil
-      elseif probe_page >= 10 then
-        email_totals[cache_key] = -(probe_page * page_size)
-        probe_job = nil
-      else
-        probe_page_count(account, folder, page_size, probe_page + 1, qry, bufnr)
-        return
-      end
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        local ok, page = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page')
-        local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
-        if ok and ok2 then
-          local display_qry = qry == '' and 'all' or qry
-          vim.api.nvim_buf_set_name(bufnr,
-            string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, total_pages_str(cache_key, cur_page_size)))
-          vim.cmd('redraw')
-        end
-      end
-    end,
-  })
-end
-
 --- Internal callback for list_with — populates the envelope listing buffer.
 local function on_list_with(account, folder, page, page_size, qry, data)
-  if folder ~= last_folder or qry ~= last_query then
-    email_totals = {}
-    last_folder = folder
-    last_query = qry
-  end
+  probe.reset_if_changed(folder, qry)
 
   local cache_key = folder .. '\0' .. qry
-  if not email_totals[cache_key] and #data < page_size then
-    email_totals[cache_key] = (page - 1) * page_size + #data
-  end
-  local total_str = total_pages_str(cache_key, page_size)
+  probe.set_total_from_data(cache_key, page, page_size, #data)
+  local total_str = probe.total_pages_str(cache_key, page_size)
 
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
@@ -211,9 +144,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
     vim.cmd('0')
   end
 
-  if not email_totals[cache_key] then
-    probe_page_count(account, folder, page_size, page + 1, qry, bufnr)
-  end
+  probe.start(account_flag(account), folder, page_size, page, qry, bufnr)
 end
 
 --- List envelopes, optionally switching account first.
@@ -327,11 +258,7 @@ function M.read()
   if current_id == '' or current_id == 'ID' then
     return
   end
-  -- Cancel any running probe to avoid database lock contention
-  if probe_job then
-    probe_job:kill()
-    probe_job = nil
-  end
+  probe.cancel()
   -- Capture listing window synchronously before the async request,
   -- so the callback can reliably reference it even if focus changes.
   local listing_winid = vim.api.nvim_get_current_win()
@@ -402,6 +329,7 @@ function M.read()
           end
         end
       end
+      probe.restart()
     end,
   })
 end
@@ -885,7 +813,7 @@ function M.resize_listing()
     local folder = folder_state.current()
     local buf_query = vim.b.himalaya_query or ''
     local cache_key = folder .. '\0' .. buf_query
-    local total_str = total_pages_str(cache_key, new_page_size)
+    local total_str = probe.total_pages_str(cache_key, new_page_size)
     local display_query = buf_query == '' and 'all' or buf_query
     vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
   end
