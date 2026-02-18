@@ -783,8 +783,9 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
---- Handle listing window resize: re-fetch with new page size if height changed,
---- or just re-render columns if only width changed.
+--- Handle listing window resize: recalculate page info if height changed,
+--- re-render columns for new width. Does not re-fetch to avoid async
+--- window context issues (next gn/gp will use the new page size).
 function M.resize_listing()
   if not in_listing_buffer() then return end
   local envelopes = vim.b.himalaya_envelopes
@@ -795,25 +796,31 @@ function M.resize_listing()
   local old_page_size = vim.b.himalaya_page_size
 
   if old_page_size and new_page_size ~= old_page_size then
+    -- Height changed: recalculate page number and update title
     local old_page = vim.b.himalaya_page or 1
     local first_idx = (old_page - 1) * old_page_size
     local new_page = math.floor(first_idx / new_page_size) + 1
     folder_state.set_page(new_page)
-    local acct = account_state.current()
+    vim.b.himalaya_page = new_page
+    vim.b.himalaya_page_size = new_page_size
+
     local folder = folder_state.current()
-    M.list_with(acct, folder, new_page, query)
-  else
-    -- Width-only change: re-render existing data
-    local renderer = require('himalaya.ui.renderer')
-    local listing = require('himalaya.ui.listing')
-    local bufnr = vim.api.nvim_get_current_buf()
-    local result = renderer.render(envelopes, M._bufwidth())
-    vim.bo.modifiable = true
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-    listing.apply_header(bufnr, result.header)
-    listing.apply_seen_highlights(bufnr, envelopes)
-    vim.bo.modifiable = false
+    local cache_key = folder .. '\0' .. query
+    local total_str = total_pages_str(cache_key, new_page_size)
+    local display_query = query == '' and 'all' or query
+    vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
   end
+
+  -- Re-render columns for new width
+  local renderer = require('himalaya.ui.renderer')
+  local listing = require('himalaya.ui.listing')
+  local bufnr = vim.api.nvim_get_current_buf()
+  local result = renderer.render(envelopes, M._bufwidth())
+  vim.bo.modifiable = true
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+  listing.apply_header(bufnr, result.header)
+  listing.apply_seen_highlights(bufnr, envelopes)
+  vim.bo.modifiable = false
 end
 
 --- Set the list envelopes query and refresh.
