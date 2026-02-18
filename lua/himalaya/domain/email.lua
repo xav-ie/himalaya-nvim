@@ -886,7 +886,6 @@ function M.resize_listing()
   listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
-  vim.fn.winrestview({ topline = 1 })
   vim.o.lazyredraw = saved_lz
 end
 
