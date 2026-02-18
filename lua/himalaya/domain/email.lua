@@ -96,6 +96,13 @@ local function in_listing_buffer()
   return vim.b.himalaya_buffer_type == 'listing'
 end
 
+--- Compute the page size (visible envelope rows) for the current window.
+--- @return number
+local function page_size()
+  local has_winbar = vim.wo.winbar ~= ''
+  return vim.fn.winheight(0) - (has_winbar and 0 or 1)
+end
+
 --- Get the relevant email ID depending on context (listing vs read buffer).
 --- @return string
 local function context_email_id()
@@ -103,19 +110,6 @@ local function context_email_id()
     return get_email_id_under_cursor()
   else
     return current_id
-  end
-end
-
---- Close (wipe) all open buffers whose name matches a pattern.
---- @param name string pattern to match
-local function close_open_buffers(name)
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      local bname = vim.api.nvim_buf_get_name(bufnr)
-      if bname:find(name, 1, true) then
-        vim.cmd('silent! bwipeout ' .. bufnr)
-      end
-    end
   end
 end
 
@@ -236,20 +230,19 @@ end
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
-  local has_winbar = vim.wo.winbar ~= ''
-  local page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  local ps = page_size()
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
-      page_size,
+      ps,
       page,
       qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
     on_data = function(data)
-      on_list_with(account, folder, page, page_size, qry, data)
+      on_list_with(account, folder, page, ps, qry, data)
     end,
   })
 end
@@ -258,13 +251,12 @@ end
 --- @param envelopes table[] full cached envelope list
 --- @return table[] display subset
 local function display_slice(envelopes)
-  local has_winbar = vim.wo.winbar ~= ''
-  local page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
-  if #envelopes <= page_size then
+  local ps = page_size()
+  if #envelopes <= ps then
     return envelopes
   end
   local sliced = {}
-  for i = 1, page_size do
+  for i = 1, ps do
     sliced[i] = envelopes[i]
   end
   return sliced
@@ -303,12 +295,16 @@ local function mark_envelope_seen(email_id)
 
   vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
 
-  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
       vim.api.nvim_win_call(winid, function()
         local renderer = require('himalaya.ui.renderer')
         local listing = require('himalaya.ui.listing')
-        local visible = display_slice(envelopes)
+        local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
+        local visible = {}
+        for i = 1, math.min(line_count, #envelopes) do
+          visible[i] = envelopes[i]
+        end
         local result = renderer.render(visible, M._bufwidth())
         vim.bo[listing_bufnr].modifiable = true
         vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
@@ -327,6 +323,9 @@ function M.read()
   if current_id == '' or current_id == 'ID' then
     return
   end
+  -- Capture listing window synchronously before the async request,
+  -- so the callback can reliably reference it even if focus changes.
+  local listing_winid = vim.api.nvim_get_current_win()
   local account = account_state.current()
   local folder = folder_state.current()
   request.plain({
@@ -341,9 +340,9 @@ function M.read()
         table.remove(lines)
       end
 
-      -- Reuse existing email window to avoid resize jitter
+      -- Reuse existing email window in current tab to avoid resize jitter
       local reused = false
-      for _, winid in ipairs(vim.api.nvim_list_wins()) do
+      for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
         if vim.api.nvim_win_is_valid(winid) then
           local buf = vim.api.nvim_win_get_buf(winid)
           local bname = vim.api.nvim_buf_get_name(buf)
@@ -358,16 +357,22 @@ function M.read()
       if not reused then
         -- Create buffer and populate before showing — the split opens
         -- with content already visible, no empty-buffer frame.
-        local listing_winid = vim.api.nvim_get_current_win()
-        local listing_view = vim.fn.winsaveview()
+        local listing_view
+        if vim.api.nvim_win_is_valid(listing_winid) then
+          listing_view = vim.api.nvim_win_call(listing_winid, function()
+            return vim.fn.winsaveview()
+          end)
+        end
         local email_buf = vim.api.nvim_create_buf(true, true)
         vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
         vim.api.nvim_open_win(email_buf, true, { split = 'below' })
         -- Freeze listing viewport — the split shrinks its window and
         -- scrolloff would otherwise scroll it to keep the cursor centered.
-        vim.api.nvim_win_call(listing_winid, function()
-          vim.fn.winrestview(listing_view)
-        end)
+        if listing_view and vim.api.nvim_win_is_valid(listing_winid) then
+          vim.api.nvim_win_call(listing_winid, function()
+            vim.fn.winrestview(listing_view)
+          end)
+        end
       else
         vim.bo.modifiable = true
         vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
@@ -854,8 +859,7 @@ function M.resize_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
 
-  local has_winbar = vim.wo.winbar ~= ''
-  local new_page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  local new_page_size = page_size()
   local old_page_size = vim.b.himalaya_page_size
 
   if old_page_size and new_page_size ~= old_page_size then

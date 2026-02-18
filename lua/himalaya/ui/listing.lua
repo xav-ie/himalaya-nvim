@@ -187,12 +187,22 @@ function M.setup(bufnr)
   end
   vim.api.nvim_create_autocmd('VimResized', {
     group = augroup,
-    buffer = bufnr,
     callback = on_resize,
   })
   vim.api.nvim_create_autocmd('WinResized', {
     group = augroup,
     callback = on_resize,
+  })
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    group = augroup,
+    buffer = bufnr,
+    callback = function()
+      if resize_timer then
+        resize_timer:stop()
+        resize_timer:close()
+        resize_timer = nil
+      end
+    end,
   })
 end
 
