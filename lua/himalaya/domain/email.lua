@@ -303,11 +303,18 @@ local function mark_envelope_seen(email_id)
 
   vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
 
-  -- Just refresh seen highlights — no line replacement, no truncation.
   for _, winid in ipairs(vim.api.nvim_list_wins()) do
     if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
       vim.api.nvim_win_call(winid, function()
-        require('himalaya.ui.listing').apply_seen_highlights(listing_bufnr, envelopes)
+        local renderer = require('himalaya.ui.renderer')
+        local listing = require('himalaya.ui.listing')
+        local visible = display_slice(envelopes)
+        local result = renderer.render(visible, M._bufwidth())
+        vim.bo[listing_bufnr].modifiable = true
+        vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
+        listing.apply_header(listing_bufnr, result.header)
+        listing.apply_seen_highlights(listing_bufnr, visible)
+        vim.bo[listing_bufnr].modifiable = false
       end)
       break
     end
@@ -351,9 +358,16 @@ function M.read()
       if not reused then
         -- Create buffer and populate before showing — the split opens
         -- with content already visible, no empty-buffer frame.
+        local listing_winid = vim.api.nvim_get_current_win()
+        local listing_view = vim.fn.winsaveview()
         local email_buf = vim.api.nvim_create_buf(true, true)
         vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
         vim.api.nvim_open_win(email_buf, true, { split = 'below' })
+        -- Freeze listing viewport — the split shrinks its window and
+        -- scrolloff would otherwise scroll it to keep the cursor centered.
+        vim.api.nvim_win_call(listing_winid, function()
+          vim.fn.winrestview(listing_view)
+        end)
       else
         vim.bo.modifiable = true
         vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
@@ -833,9 +847,8 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
---- Handle listing window resize: update page metadata so gn/gp use the
---- correct page size. Re-renders columns only for width changes.
---- Buffer content (line count) is left as-is to avoid viewport scroll.
+--- Handle listing window resize: recalculate page metadata and truncate
+--- displayed envelopes to fit the new window height.
 function M.resize_listing()
   if not in_listing_buffer() then return end
   local envelopes = vim.b.himalaya_envelopes
@@ -861,15 +874,16 @@ function M.resize_listing()
     vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
   end
 
-  -- Re-render columns for new width (line count stays the same)
+  -- Truncate to window height and re-render for new width
+  local display_envelopes = display_slice(envelopes)
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
-  local result = renderer.render(envelopes, M._bufwidth())
+  local result = renderer.render(display_envelopes, M._bufwidth())
   vim.bo.modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, envelopes)
+  listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
 end
 
