@@ -12,6 +12,9 @@ local current_id = ''
 local draft = ''
 local query = ''
 local saved_view = nil
+local saved_cursor_id = nil   -- email ID for cursor restoration after re-fetch
+local resize_timer = nil      -- vim.uv timer for debounced re-fetch
+local resize_job = nil        -- in-flight resize re-fetch job handle
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -130,6 +133,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_page = page
   vim.b.himalaya_page_size = page_size
   vim.b.himalaya_query = qry
+  vim.b.himalaya_cache_offset = (page - 1) * page_size
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
@@ -138,7 +142,17 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
-  if saved_view then
+  if saved_cursor_id then
+    local target = saved_cursor_id
+    saved_cursor_id = nil
+    saved_view = nil
+    for i, env in ipairs(data) do
+      if tostring(env.id) == target then
+        pcall(vim.api.nvim_win_set_cursor, 0, {i, 0})
+        break
+      end
+    end
+  elseif saved_view then
     vim.fn.winrestview(saved_view)
     saved_view = nil
   else
@@ -166,6 +180,14 @@ end
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
+  if resize_timer then
+    resize_timer:stop()
+    resize_timer = nil
+  end
+  if resize_job then
+    resize_job:kill()
+    resize_job = nil
+  end
   local ps = page_size()
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
@@ -800,8 +822,9 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
---- Handle listing window resize: recalculate page metadata and truncate
---- displayed envelopes to fit the new window height.
+--- Handle listing window resize: two-phase overlap display + deferred re-fetch.
+--- Phase 1 synchronously renders the overlap between old cache and new page
+--- boundaries (jitter-free). Phase 2 debounces a full re-fetch after 150ms.
 function M.resize_listing()
   if not in_listing_buffer() then return end
   local envelopes = vim.b.himalaya_envelopes
@@ -813,24 +836,80 @@ function M.resize_listing()
   if not old_page_size then
     vim.b.himalaya_page_size = new_page_size
   elseif new_page_size ~= old_page_size then
-    -- Height changed: recalculate page number and update title
+    -- Phase 1: synchronous overlap display
     local old_page = vim.b.himalaya_page or 1
-    local first_idx = (old_page - 1) * old_page_size
-    local new_page = math.floor(first_idx / new_page_size) + 1
+    local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
+    local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
+    local selected_global = cache_start + cursor_row - 1
+    local new_page = math.floor(selected_global / new_page_size) + 1
+    local new_page_start = (new_page - 1) * new_page_size
+    local new_page_end = new_page_start + new_page_size
+
+    local overlap_start = math.max(cache_start, new_page_start)
+    local overlap_end = math.min(cache_start + #envelopes, new_page_end)
+
+    local display_envelopes = {}
+    for i = overlap_start - cache_start + 1, overlap_end - cache_start do
+      table.insert(display_envelopes, envelopes[i])
+    end
+
+    -- Update buffer state
     folder_state.set_page(new_page)
     vim.b.himalaya_page = new_page
     vim.b.himalaya_page_size = new_page_size
 
-    local folder = folder_state.current()
+    -- Render overlap
+    local renderer = require('himalaya.ui.renderer')
+    local listing = require('himalaya.ui.listing')
+    local bufnr = vim.api.nvim_get_current_buf()
+    local folder_name = folder_state.current()
     local buf_query = vim.b.himalaya_query or ''
     local acct_flag = account_flag(account_state.current())
-    local cache_key = acct_flag .. '\0' .. folder .. '\0' .. buf_query
+    local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. buf_query
     local total_str = probe.total_pages_str(cache_key, new_page_size)
     local display_query = buf_query == '' and 'all' or buf_query
-    vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
+    vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder_name, display_query, new_page, total_str))
+
+    local result = renderer.render(display_envelopes, M._bufwidth())
+    vim.bo.modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+    listing.apply_header(bufnr, result.header)
+    listing.apply_seen_highlights(bufnr, display_envelopes)
+    vim.bo.modifiable = false
+
+    -- Position cursor on selected email
+    local cursor_line = selected_global - overlap_start + 1
+    pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
+
+    -- Phase 2: deferred re-fetch (debounced 150ms)
+    if resize_timer then resize_timer:stop() end
+    if resize_job then resize_job:kill(); resize_job = nil end
+
+    resize_timer = vim.uv.new_timer()
+    resize_timer:start(150, 0, vim.schedule_wrap(function()
+      resize_timer = nil
+      if not vim.api.nvim_buf_is_valid(bufnr) then return end
+      -- Save cursor email for restoration in on_list_with
+      saved_cursor_id = M._get_email_id_from_line(
+        vim.api.nvim_buf_get_lines(bufnr, vim.fn.line('.') - 1, vim.fn.line('.'), false)[1] or '')
+      local account = account_state.current()
+      local folder_cur = folder_state.current()
+      local cur_query = vim.b[bufnr].himalaya_query or ''
+      local cur_page = vim.b[bufnr].himalaya_page or 1
+      resize_job = request.json({
+        cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+        args = { folder_cur, account_flag(account), page_size(), cur_page, cur_query },
+        msg = 'Refetching page after resize',
+        on_data = function(data)
+          resize_job = nil
+          on_list_with(account, folder_cur, cur_page, page_size(), cur_query, data)
+        end,
+      })
+    end))
+    return
   end
 
-  -- Truncate to window height and re-render for new width
+  -- Width-only change (or initial page_size set): re-render for new width
   local display_envelopes = display_slice(envelopes)
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
@@ -842,6 +921,12 @@ function M.resize_listing()
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
   vim.fn.winrestview({ topline = 1 })
+end
+
+--- Cancel any pending resize timer and in-flight resize re-fetch job.
+function M.cancel_resize()
+  if resize_timer then resize_timer:stop(); resize_timer = nil end
+  if resize_job then resize_job:kill(); resize_job = nil end
 end
 
 --- Set the list envelopes query and refresh.

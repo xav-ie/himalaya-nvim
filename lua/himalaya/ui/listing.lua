@@ -186,6 +186,13 @@ function M.setup(bufnr)
     group = augroup,
     callback = on_resize,
   })
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    group = augroup,
+    buffer = bufnr,
+    callback = function()
+      email.cancel_resize()
+    end,
+  })
 end
 
 return M
