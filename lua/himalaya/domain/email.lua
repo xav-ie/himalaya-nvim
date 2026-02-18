@@ -301,7 +301,6 @@ local function mark_envelope_seen(email_id)
         listing.apply_header(listing_bufnr, result.header)
         listing.apply_seen_highlights(listing_bufnr, visible)
         vim.bo[listing_bufnr].modifiable = false
-        vim.fn.winrestview({ topline = 1 })
         vim.o.lazyredraw = saved_lz
       end)
       break
@@ -347,6 +346,7 @@ function M.read()
           vim.api.nvim_buf_set_lines(listing_buf, expected, -1, false, {})
           vim.bo.modifiable = false
         end
+        vim.fn.winrestview({ topline = 1 })
         vim.cmd('silent! botright new')
       end
       vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
