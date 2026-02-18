@@ -290,6 +290,8 @@ local function mark_envelope_seen(email_id)
   for _, winid in ipairs(vim.api.nvim_list_wins()) do
     if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
       vim.api.nvim_win_call(winid, function()
+        local saved_lz = vim.o.lazyredraw
+        vim.o.lazyredraw = true
         local renderer = require('himalaya.ui.renderer')
         local listing = require('himalaya.ui.listing')
         local visible = display_slice(envelopes)
@@ -300,6 +302,7 @@ local function mark_envelope_seen(email_id)
         listing.apply_seen_highlights(listing_bufnr, visible)
         vim.bo[listing_bufnr].modifiable = false
         vim.fn.winrestview({ topline = 1 })
+        vim.o.lazyredraw = saved_lz
       end)
       break
     end
@@ -833,6 +836,8 @@ function M.resize_listing()
   local display_envelopes = display_slice(envelopes)
 
   -- Re-render columns for new width with the truncated data
+  local saved_lz = vim.o.lazyredraw
+  vim.o.lazyredraw = true
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
@@ -843,6 +848,7 @@ function M.resize_listing()
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
   vim.fn.winrestview({ topline = 1 })
+  vim.o.lazyredraw = saved_lz
 end
 
 --- Set the list envelopes query and refresh.
