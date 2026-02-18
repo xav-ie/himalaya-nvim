@@ -254,6 +254,22 @@ function M.list_with(account, folder, page, qry)
   })
 end
 
+--- Slice cached envelopes to fit the current window height.
+--- @param envelopes table[] full cached envelope list
+--- @return table[] display subset
+local function display_slice(envelopes)
+  local has_winbar = vim.wo.winbar ~= ''
+  local page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  if #envelopes <= page_size then
+    return envelopes
+  end
+  local sliced = {}
+  for i = 1, page_size do
+    sliced[i] = envelopes[i]
+  end
+  return sliced
+end
+
 --- Optimistically mark an envelope as Seen in the listing buffer.
 --- Updates the cached envelope data, re-renders the line, and re-applies highlights.
 --- @param email_id string
@@ -321,8 +337,13 @@ function M.read()
     args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
     on_data = function(data)
-      local saved_lz = vim.o.lazyredraw
-      vim.o.lazyredraw = true
+      -- Prepare email content into a buffer before showing it,
+      -- so the split appears with content already loaded (no flash).
+      local lines = vim.split(data:gsub('\r', ''), '\n')
+      if #lines > 1 and lines[#lines] == '' then
+        table.remove(lines)
+      end
+
       -- Reuse existing email window to avoid resize jitter
       local reused = false
       for _, winid in ipairs(vim.api.nvim_list_wins()) do
@@ -336,21 +357,19 @@ function M.read()
           end
         end
       end
+
       if not reused then
-        -- Pre-truncate listing to expected post-split height so Neovim
-        -- draws the new layout with the right number of lines visible.
-        local listing_buf = vim.api.nvim_get_current_buf()
-        local expected = math.floor(vim.fn.winheight(0) / 2)
-        if vim.api.nvim_buf_line_count(listing_buf) > expected then
-          vim.bo.modifiable = true
-          vim.api.nvim_buf_set_lines(listing_buf, expected, -1, false, {})
-          vim.bo.modifiable = false
-        end
-        vim.fn.winrestview({ topline = 1 })
-        vim.cmd('silent! botright new')
+        -- Create buffer and populate before showing — the split opens
+        -- with content already visible, no empty-buffer frame.
+        local email_buf = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
+        vim.api.nvim_open_win(email_buf, true, { split = 'below' })
+      else
+        vim.bo.modifiable = true
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
       end
+
       vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
-      set_buffer_content(data)
       vim.bo.filetype = 'himalaya-email-reading'
       vim.bo.modified = false
       vim.cmd('0')
@@ -365,7 +384,6 @@ function M.read()
           end
         end
       end
-      vim.o.lazyredraw = saved_lz
     end,
   })
 end
@@ -823,22 +841,6 @@ function M._line_to_complete_item(line)
     name = string.format('"%s"', fields[2])
   end
   return name .. string.format('<%s>', email_addr)
-end
-
---- Slice cached envelopes to fit the current window height.
---- @param envelopes table[] full cached envelope list
---- @return table[] display subset
-local function display_slice(envelopes)
-  local has_winbar = vim.wo.winbar ~= ''
-  local page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
-  if #envelopes <= page_size then
-    return envelopes
-  end
-  local sliced = {}
-  for i = 1, page_size do
-    sliced[i] = envelopes[i]
-  end
-  return sliced
 end
 
 --- Handle listing window resize: recalculate page info if height changed,
