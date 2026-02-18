@@ -14,6 +14,7 @@ local email_totals = {} -- cache_key -> total email count (positive=exact, negat
 local last_folder = nil
 local last_query = nil
 local saved_view = nil
+local probe_job = nil
 
 --- Compute total pages string from email_totals and current page_size.
 --- @param cache_key string
@@ -134,7 +135,7 @@ end
 --- @param qry string
 --- @param bufnr number
 local function probe_page_count(account, folder, page_size, probe_page, qry, bufnr)
-  request.json({
+  probe_job = request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
@@ -144,12 +145,15 @@ local function probe_page_count(account, folder, page_size, probe_page, qry, buf
       qry,
     },
     msg = string.format('Probing page %d', probe_page),
+    silent = true,
     on_data = function(data)
       local cache_key = folder .. '\0' .. qry
       if #data < page_size then
         email_totals[cache_key] = (probe_page - 1) * page_size + #data
+        probe_job = nil
       elseif probe_page >= 10 then
         email_totals[cache_key] = -(probe_page * page_size)
+        probe_job = nil
       else
         probe_page_count(account, folder, page_size, probe_page + 1, qry, bufnr)
         return
@@ -322,6 +326,11 @@ function M.read()
   current_id = get_email_id_under_cursor()
   if current_id == '' or current_id == 'ID' then
     return
+  end
+  -- Cancel any running probe to avoid database lock contention
+  if probe_job then
+    probe_job:kill()
+    probe_job = nil
   end
   -- Capture listing window synchronously before the async request,
   -- so the callback can reliably reference it even if focus changes.

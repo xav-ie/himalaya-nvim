@@ -34,9 +34,11 @@ local function on_exit(cmd, opts, parse_fn)
     end
 
     if code ~= 0 then
-      log.err(string.format('%s [FAIL] (exit code %d)', opts.msg, code))
-      if stderr ~= '' then
-        log.err(stderr)
+      if not opts.silent then
+        log.err(string.format('%s [FAIL] (exit code %d)', opts.msg, code))
+        if stderr ~= '' then
+          log.err(stderr)
+        end
       end
       return
     end
@@ -54,7 +56,7 @@ function M.json(opts)
   local args = opts.args or {}
   local cmd = M._build_cmd(opts.cmd, args, 'json')
 
-  job.run(cmd, {
+  return job.run(cmd, {
     stdin = opts.stdin,
     on_exit = on_exit(cmd, opts, function(stdout)
       local ok, data = pcall(vim.json.decode, stdout)
@@ -71,7 +73,7 @@ function M.plain(opts)
   local args = opts.args or {}
   local cmd = M._build_cmd(opts.cmd, args, 'plain')
 
-  job.run(cmd, {
+  return job.run(cmd, {
     stdin = opts.stdin,
     on_exit = on_exit(cmd, opts, function(stdout)
       return stdout
