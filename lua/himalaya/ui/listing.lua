@@ -164,7 +164,6 @@ function M.setup(bufnr)
   })
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
-  local resize_timer
   local function do_resize()
     for _, winid in ipairs(vim.api.nvim_list_wins()) do
       if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
@@ -176,14 +175,14 @@ function M.setup(bufnr)
       end
     end
   end
+  local resize_pending = false
   local function on_resize()
-    if not resize_timer then
-      resize_timer = vim.uv.new_timer()
-    end
-    resize_timer:stop()
-    resize_timer:start(50, 0, vim.schedule_wrap(function()
+    if resize_pending then return end
+    resize_pending = true
+    vim.schedule(function()
+      resize_pending = false
       do_resize()
-    end))
+    end)
   end
   vim.api.nvim_create_autocmd('VimResized', {
     group = augroup,
@@ -192,17 +191,6 @@ function M.setup(bufnr)
   vim.api.nvim_create_autocmd('WinResized', {
     group = augroup,
     callback = on_resize,
-  })
-  vim.api.nvim_create_autocmd('BufWipeout', {
-    group = augroup,
-    buffer = bufnr,
-    callback = function()
-      if resize_timer then
-        resize_timer:stop()
-        resize_timer:close()
-        resize_timer = nil
-      end
-    end,
   })
 end
 
