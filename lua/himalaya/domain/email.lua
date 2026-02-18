@@ -322,6 +322,8 @@ function M.read()
     args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
     on_data = function(data)
+      local saved_lz = vim.o.lazyredraw
+      vim.o.lazyredraw = true
       -- Reuse existing email window to avoid resize jitter
       local reused = false
       for _, winid in ipairs(vim.api.nvim_list_wins()) do
@@ -354,6 +356,7 @@ function M.read()
           end
         end
       end
+      vim.o.lazyredraw = saved_lz
     end,
   })
 end
