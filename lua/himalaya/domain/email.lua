@@ -277,6 +277,7 @@ end
 
 --- Read email under cursor.
 function M.read()
+  M.cancel_resize()
   current_id = get_email_id_under_cursor()
   if current_id == '' or current_id == 'ID' then
     return
