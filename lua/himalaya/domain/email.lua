@@ -322,13 +322,38 @@ function M.read()
     args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
     on_data = function(data)
-      close_open_buffers('Himalaya/read email')
-      vim.cmd(string.format('silent! botright new Himalaya/read email [%s]', current_id))
+      -- Reuse existing email window to avoid resize jitter
+      local reused = false
+      for _, winid in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_is_valid(winid) then
+          local buf = vim.api.nvim_win_get_buf(winid)
+          local bname = vim.api.nvim_buf_get_name(buf)
+          if bname:find('Himalaya/read email', 1, true) then
+            vim.api.nvim_set_current_win(winid)
+            reused = true
+            break
+          end
+        end
+      end
+      if not reused then
+        vim.cmd('silent! botright new')
+      end
+      vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
       set_buffer_content(data)
       vim.bo.filetype = 'himalaya-email-reading'
       vim.bo.modified = false
       vim.cmd('0')
       mark_envelope_seen(current_id)
+      -- Wipe stale email reading buffers
+      local cur_buf = vim.api.nvim_get_current_buf()
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_valid(bufnr) and bufnr ~= cur_buf then
+          local bname = vim.api.nvim_buf_get_name(bufnr)
+          if bname:find('Himalaya/read email', 1, true) then
+            vim.cmd('silent! bwipeout ' .. bufnr)
+          end
+        end
+      end
     end,
   })
 end
