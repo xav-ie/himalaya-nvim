@@ -299,6 +299,7 @@ local function mark_envelope_seen(email_id)
         listing.apply_header(listing_bufnr, result.header)
         listing.apply_seen_highlights(listing_bufnr, visible)
         vim.bo[listing_bufnr].modifiable = false
+        vim.fn.winrestview({ topline = 1 })
       end)
       break
     end
@@ -841,6 +842,7 @@ function M.resize_listing()
   listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
+  vim.fn.winrestview({ topline = 1 })
 end
 
 --- Set the list envelopes query and refresh.
