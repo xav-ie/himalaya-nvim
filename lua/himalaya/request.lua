@@ -24,13 +24,13 @@ end
 
 local function on_exit(cmd, opts, parse_fn)
   return function(stdout, stderr, code)
-    log.warn(string.format('[himalaya] cmd: %s', table.concat(cmd, ' ')))
-    log.warn(string.format('[himalaya] exit code: %d', code))
+    log.debug(string.format('[himalaya] cmd: %s', table.concat(cmd, ' ')))
+    log.debug(string.format('[himalaya] exit code: %d', code))
     if stderr ~= '' then
-      log.warn(string.format('[himalaya] stderr: %s', stderr))
+      log.debug(string.format('[himalaya] stderr: %s', stderr))
     end
     if stdout ~= '' then
-      log.warn(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
+      log.debug(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
     end
 
     if code ~= 0 then
@@ -47,13 +47,11 @@ local function on_exit(cmd, opts, parse_fn)
     end
     opts.on_data(data)
     vim.cmd('redraw')
-    log.info(string.format('%s [OK]', opts.msg))
   end
 end
 
 function M.json(opts)
   local args = opts.args or {}
-  log.info(string.format('%s...', opts.msg))
   local cmd = M._build_cmd(opts.cmd, args, 'json')
 
   job.run(cmd, {
@@ -71,7 +69,6 @@ end
 
 function M.plain(opts)
   local args = opts.args or {}
-  log.info(string.format('%s...', opts.msg))
   local cmd = M._build_cmd(opts.cmd, args, 'plain')
 
   job.run(cmd, {
