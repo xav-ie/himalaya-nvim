@@ -292,11 +292,12 @@ local function mark_envelope_seen(email_id)
       vim.api.nvim_win_call(winid, function()
         local renderer = require('himalaya.ui.renderer')
         local listing = require('himalaya.ui.listing')
-        local result = renderer.render(envelopes, M._bufwidth())
+        local visible = display_slice(envelopes)
+        local result = renderer.render(visible, M._bufwidth())
         vim.bo[listing_bufnr].modifiable = true
         vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
         listing.apply_header(listing_bufnr, result.header)
-        listing.apply_seen_highlights(listing_bufnr, envelopes)
+        listing.apply_seen_highlights(listing_bufnr, visible)
         vim.bo[listing_bufnr].modifiable = false
       end)
       break
@@ -783,9 +784,25 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
+--- Slice cached envelopes to fit the current window height.
+--- @param envelopes table[] full cached envelope list
+--- @return table[] display subset
+local function display_slice(envelopes)
+  local has_winbar = vim.wo.winbar ~= ''
+  local page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  if #envelopes <= page_size then
+    return envelopes
+  end
+  local sliced = {}
+  for i = 1, page_size do
+    sliced[i] = envelopes[i]
+  end
+  return sliced
+end
+
 --- Handle listing window resize: recalculate page info if height changed,
---- re-render columns for new width. Does not re-fetch to avoid async
---- window context issues (next gn/gp will use the new page size).
+--- truncate/expand displayed envelopes to fit, and re-render columns for
+--- new width. Does not re-fetch to avoid async window context issues.
 function M.resize_listing()
   if not in_listing_buffer() then return end
   local envelopes = vim.b.himalaya_envelopes
@@ -811,15 +828,18 @@ function M.resize_listing()
     vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
   end
 
-  -- Re-render columns for new width
+  -- Always limit display to current window height
+  local display_envelopes = display_slice(envelopes)
+
+  -- Re-render columns for new width with the truncated data
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
-  local result = renderer.render(envelopes, M._bufwidth())
+  local result = renderer.render(display_envelopes, M._bufwidth())
   vim.bo.modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, envelopes)
+  listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
 end
 
