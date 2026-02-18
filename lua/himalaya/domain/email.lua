@@ -10,10 +10,23 @@ local M = {}
 local current_id = ''
 local draft = ''
 local query = ''
-local page_totals = {}
+local email_totals = {} -- cache_key -> total email count (positive=exact, negative=at least abs(n))
 local last_folder = nil
 local last_query = nil
 local saved_view = nil
+
+--- Compute total pages string from email_totals and current page_size.
+--- @param cache_key string
+--- @param page_size number
+--- @return string
+local function total_pages_str(cache_key, page_size)
+  local total = email_totals[cache_key]
+  if not total then return '?' end
+  if total < 0 then
+    return tostring(math.ceil(-total / page_size)) .. '+'
+  end
+  return tostring(math.ceil(total / page_size))
+end
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -141,19 +154,20 @@ local function probe_page_count(account, folder, page_size, probe_page, qry, buf
     on_data = function(data)
       local cache_key = folder .. '\0' .. qry
       if #data < page_size then
-        page_totals[cache_key] = tostring(probe_page)
+        email_totals[cache_key] = (probe_page - 1) * page_size + #data
       elseif probe_page >= 10 then
-        page_totals[cache_key] = '10+'
+        email_totals[cache_key] = -(probe_page * page_size)
       else
         probe_page_count(account, folder, page_size, probe_page + 1, qry, bufnr)
         return
       end
       if vim.api.nvim_buf_is_valid(bufnr) then
         local ok, page = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page')
-        if ok then
+        local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
+        if ok and ok2 then
           local display_qry = qry == '' and 'all' or qry
           vim.api.nvim_buf_set_name(bufnr,
-            string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, page_totals[cache_key]))
+            string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, total_pages_str(cache_key, cur_page_size)))
           vim.cmd('redraw')
         end
       end
@@ -164,21 +178,16 @@ end
 --- Internal callback for list_with — populates the envelope listing buffer.
 local function on_list_with(account, folder, page, page_size, qry, data)
   if folder ~= last_folder or qry ~= last_query then
-    page_totals = {}
+    email_totals = {}
     last_folder = folder
     last_query = qry
   end
 
   local cache_key = folder .. '\0' .. qry
-  local total_str
-  if page_totals[cache_key] then
-    total_str = page_totals[cache_key]
-  elseif #data < page_size then
-    page_totals[cache_key] = tostring(page)
-    total_str = tostring(page)
-  else
-    total_str = '?'
+  if not email_totals[cache_key] and #data < page_size then
+    email_totals[cache_key] = (page - 1) * page_size + #data
   end
+  local total_str = total_pages_str(cache_key, page_size)
 
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
@@ -188,6 +197,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.bo.modifiable = true
   vim.b.himalaya_envelopes = data
   vim.b.himalaya_page = page
+  vim.b.himalaya_page_size = page_size
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
@@ -203,7 +213,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
     vim.cmd('0')
   end
 
-  if not page_totals[cache_key] then
+  if not email_totals[cache_key] then
     probe_page_count(account, folder, page_size, page + 1, qry, bufnr)
   end
 end
@@ -773,21 +783,37 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
---- Re-render the envelope listing with the current buffer width.
---- Called on window resize to reflow columns.
-function M.rerender_listing()
+--- Handle listing window resize: re-fetch with new page size if height changed,
+--- or just re-render columns if only width changed.
+function M.resize_listing()
   if not in_listing_buffer() then return end
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
-  local renderer = require('himalaya.ui.renderer')
-  local listing = require('himalaya.ui.listing')
-  local bufnr = vim.api.nvim_get_current_buf()
-  local result = renderer.render(envelopes, M._bufwidth())
-  vim.bo.modifiable = true
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, envelopes)
-  vim.bo.modifiable = false
+
+  local has_winbar = vim.wo.winbar ~= ''
+  local new_page_size = vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  local old_page_size = vim.b.himalaya_page_size
+
+  if old_page_size and new_page_size ~= old_page_size then
+    local old_page = vim.b.himalaya_page or 1
+    local first_idx = (old_page - 1) * old_page_size
+    local new_page = math.floor(first_idx / new_page_size) + 1
+    folder_state.set_page(new_page)
+    local acct = account_state.current()
+    local folder = folder_state.current()
+    M.list_with(acct, folder, new_page, query)
+  else
+    -- Width-only change: re-render existing data
+    local renderer = require('himalaya.ui.renderer')
+    local listing = require('himalaya.ui.listing')
+    local bufnr = vim.api.nvim_get_current_buf()
+    local result = renderer.render(envelopes, M._bufwidth())
+    vim.bo.modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+    listing.apply_header(bufnr, result.header)
+    listing.apply_seen_highlights(bufnr, envelopes)
+    vim.bo.modifiable = false
+  end
 end
 
 --- Set the list envelopes query and refresh.

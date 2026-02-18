@@ -164,22 +164,25 @@ function M.setup(bufnr)
   })
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
+  local function on_resize()
+    for _, winid in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
+        vim.api.nvim_win_call(winid, function()
+          email.resize_listing()
+          M.apply_syntax(bufnr)
+        end)
+        break
+      end
+    end
+  end
   vim.api.nvim_create_autocmd('VimResized', {
     group = augroup,
     buffer = bufnr,
-    callback = function()
-      email.rerender_listing()
-      M.apply_syntax(bufnr)
-    end,
+    callback = on_resize,
   })
   vim.api.nvim_create_autocmd('WinResized', {
     group = augroup,
-    callback = function()
-      if vim.api.nvim_get_current_buf() == bufnr then
-        email.rerender_listing()
-        M.apply_syntax(bufnr)
-      end
-    end,
+    callback = on_resize,
   })
 end
 

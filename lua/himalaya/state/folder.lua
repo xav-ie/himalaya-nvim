@@ -23,4 +23,8 @@ function M.previous_page()
   current_page = math.max(1, current_page - 1)
 end
 
+function M.set_page(n)
+  current_page = math.max(1, n)
+end
+
 return M
