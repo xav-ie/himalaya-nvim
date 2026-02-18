@@ -884,11 +884,14 @@ function M.resize_listing()
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(display_envelopes, M._bufwidth())
+  local view = vim.fn.winsaveview()
   vim.bo.modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
+  view.lnum = math.min(view.lnum, #result.lines)
+  vim.fn.winrestview(view)
 end
 
 --- Set the list envelopes query and refresh.
