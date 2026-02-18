@@ -102,7 +102,7 @@ function M.setup(bufnr)
   vim.bo[bufnr].buftype = 'nofile'
   vim.api.nvim_buf_call(bufnr, function()
     vim.wo.cursorline = true
-    vim.wo.wrap = false
+    vim.wo.wrap = true
   end)
   vim.bo[bufnr].modifiable = false
 
