@@ -40,11 +40,13 @@ local function on_exit(cmd, opts, parse_fn)
           log.err(stderr)
         end
       end
+      if opts.on_error then opts.on_error() end
       return
     end
 
     local data = parse_fn(stdout)
     if data == nil then
+      if opts.on_error then opts.on_error() end
       return
     end
     opts.on_data(data)

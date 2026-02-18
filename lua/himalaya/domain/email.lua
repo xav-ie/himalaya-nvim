@@ -113,9 +113,10 @@ end
 
 --- Internal callback for list_with — populates the envelope listing buffer.
 local function on_list_with(account, folder, page, page_size, qry, data)
-  probe.reset_if_changed(folder, qry)
+  local acct_flag = account_flag(account)
+  probe.reset_if_changed(acct_flag, folder, qry)
 
-  local cache_key = folder .. '\0' .. qry
+  local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
   probe.set_total_from_data(cache_key, page, page_size, #data)
   local total_str = probe.total_pages_str(cache_key, page_size)
 
@@ -144,7 +145,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
     vim.cmd('0')
   end
 
-  probe.start(account_flag(account), folder, page_size, page, qry, bufnr)
+  probe.start(acct_flag, folder, page_size, page, qry, bufnr)
 end
 
 --- List envelopes, optionally switching account first.
@@ -268,6 +269,9 @@ function M.read()
     cmd = 'message read %s --folder %s %s',
     args = { account_flag(account), folder, current_id },
     msg = string.format('Fetching email %s', current_id),
+    on_error = function()
+      probe.restart()
+    end,
     on_data = function(data)
       -- Prepare email content into a buffer before showing it,
       -- so the split appears with content already loaded (no flash).
@@ -442,6 +446,7 @@ function M.delete(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'message delete %s --folder %s %s',
     args = { account_flag(account), folder, ids },
@@ -459,6 +464,7 @@ function M.copy(target_folder)
   local id = context_email_id()
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'message copy %s --folder %s %s %s',
     args = {
@@ -492,6 +498,7 @@ function M.move(target_folder)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'message move %s --folder %s %s %s',
     args = {
@@ -542,6 +549,7 @@ function M.flag_add(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'flag add %s --folder %s %s %s',
     args = { account_flag(account), folder, flags, ids },
@@ -575,6 +583,7 @@ function M.flag_remove(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'flag remove %s --folder %s %s %s',
     args = { account_flag(account), folder, flags, ids },
@@ -600,6 +609,7 @@ function M.mark_seen(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'flag add %s --folder %s Seen %s',
     args = { account_flag(account), folder, ids },
@@ -626,6 +636,7 @@ function M.mark_unseen(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
+  probe.cancel()
   request.plain({
     cmd = 'flag remove %s --folder %s Seen %s',
     args = { account_flag(account), folder, ids },
@@ -812,7 +823,8 @@ function M.resize_listing()
 
     local folder = folder_state.current()
     local buf_query = vim.b.himalaya_query or ''
-    local cache_key = folder .. '\0' .. buf_query
+    local acct_flag = account_flag(account_state.current())
+    local cache_key = acct_flag .. '\0' .. folder .. '\0' .. buf_query
     local total_str = probe.total_pages_str(cache_key, new_page_size)
     local display_query = buf_query == '' and 'all' or buf_query
     vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
