@@ -338,6 +338,15 @@ function M.read()
         end
       end
       if not reused then
+        -- Pre-truncate listing to expected post-split height so Neovim
+        -- draws the new layout with the right number of lines visible.
+        local listing_buf = vim.api.nvim_get_current_buf()
+        local expected = math.floor(vim.fn.winheight(0) / 2)
+        if vim.api.nvim_buf_line_count(listing_buf) > expected then
+          vim.bo.modifiable = true
+          vim.api.nvim_buf_set_lines(listing_buf, expected, -1, false, {})
+          vim.bo.modifiable = false
+        end
         vim.cmd('silent! botright new')
       end
       vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
