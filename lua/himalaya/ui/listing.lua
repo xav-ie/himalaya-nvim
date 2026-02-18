@@ -175,12 +175,8 @@ function M.setup(bufnr)
       end
     end
   end
-  local resizing = false
   local function on_resize()
-    if resizing then return end
-    resizing = true
     do_resize()
-    resizing = false
   end
   vim.api.nvim_create_autocmd('VimResized', {
     group = augroup,

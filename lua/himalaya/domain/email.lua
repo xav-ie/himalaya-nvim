@@ -99,8 +99,7 @@ end
 --- Compute the page size (visible envelope rows) for the current window.
 --- @return number
 local function page_size()
-  local has_winbar = vim.wo.winbar ~= ''
-  return vim.fn.winheight(0) - (has_winbar and 0 or 1)
+  return math.max(1, vim.fn.winheight(0))
 end
 
 --- Get the relevant email ID depending on context (listing vs read buffer).
@@ -192,6 +191,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_envelopes = data
   vim.b.himalaya_page = page
   vim.b.himalaya_page_size = page_size
+  vim.b.himalaya_query = qry
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
@@ -862,7 +862,9 @@ function M.resize_listing()
   local new_page_size = page_size()
   local old_page_size = vim.b.himalaya_page_size
 
-  if old_page_size and new_page_size ~= old_page_size then
+  if not old_page_size then
+    vim.b.himalaya_page_size = new_page_size
+  elseif new_page_size ~= old_page_size then
     -- Height changed: recalculate page number and update title
     local old_page = vim.b.himalaya_page or 1
     local first_idx = (old_page - 1) * old_page_size
@@ -872,9 +874,10 @@ function M.resize_listing()
     vim.b.himalaya_page_size = new_page_size
 
     local folder = folder_state.current()
-    local cache_key = folder .. '\0' .. query
+    local buf_query = vim.b.himalaya_query or ''
+    local cache_key = folder .. '\0' .. buf_query
     local total_str = total_pages_str(cache_key, new_page_size)
-    local display_query = query == '' and 'all' or query
+    local display_query = buf_query == '' and 'all' or buf_query
     vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_query, new_page, total_str))
   end
 
@@ -884,15 +887,12 @@ function M.resize_listing()
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(display_envelopes, M._bufwidth())
-  local saved_lz = vim.o.lazyredraw
-  vim.o.lazyredraw = true
   vim.bo.modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
   vim.fn.winrestview({ topline = 1 })
-  vim.o.lazyredraw = saved_lz
 end
 
 --- Set the list envelopes query and refresh.
