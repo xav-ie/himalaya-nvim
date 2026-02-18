@@ -103,7 +103,6 @@ function M.setup(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
     vim.wo.cursorline = true
     vim.wo.wrap = true
-    vim.wo.scrolloff = 0
   end)
   vim.bo[bufnr].modifiable = false
 
@@ -176,14 +175,12 @@ function M.setup(bufnr)
       end
     end
   end
-  local resize_pending = false
+  local resizing = false
   local function on_resize()
-    if resize_pending then return end
-    resize_pending = true
-    vim.schedule(function()
-      resize_pending = false
-      do_resize()
-    end)
+    if resizing then return end
+    resizing = true
+    do_resize()
+    resizing = false
   end
   vim.api.nvim_create_autocmd('VimResized', {
     group = augroup,
