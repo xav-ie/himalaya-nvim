@@ -226,7 +226,7 @@ end
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
-  local page_size = vim.fn.winheight(0) - 2
+  local page_size = vim.fn.winheight(0) - 1
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
