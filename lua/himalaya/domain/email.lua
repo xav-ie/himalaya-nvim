@@ -871,13 +871,14 @@ function M.resize_listing()
     local old_page = vim.b.himalaya_page or 1
     local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
     local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
-    -- After reading truncation, buffer rows don't match cache indices.
-    -- Use saved envelope ID to find the correct cursor position.
-    local saved_reading_id = vim.b.himalaya_reading_cursor_id
-    if saved_reading_id then
-      vim.b.himalaya_reading_cursor_id = nil
+    -- Buffer rows may not match cache indices (e.g., after Phase 1
+    -- truncation or Phase 2 re-fetch). Extract the email ID from the
+    -- current buffer line and find its position in the cache.
+    local cursor_line_text = vim.api.nvim_buf_get_lines(0, cursor_row - 1, cursor_row, false)[1] or ''
+    local cursor_email_id = M._get_email_id_from_line(cursor_line_text)
+    if cursor_email_id ~= '' then
       for i, env in ipairs(envelopes) do
-        if tostring(env.id) == saved_reading_id then cursor_row = i; break end
+        if tostring(env.id) == cursor_email_id then cursor_row = i; break end
       end
     end
     local selected_global = cache_start + cursor_row - 1
@@ -922,9 +923,6 @@ function M.resize_listing()
     pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
 
     if reading then
-      -- Save envelope ID for cursor restoration on grow.
-      vim.b.himalaya_reading_cursor_id = display_envelopes[cursor_line]
-        and tostring(display_envelopes[cursor_line].id) or nil
       -- When the page is fully covered by cached envelopes, skip Phase 2.
       -- When sparse (cursor near cache edge), fall through to Phase 2
       -- so the server fills the rest of the page.
