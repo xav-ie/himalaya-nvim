@@ -507,6 +507,7 @@ function M.open(callback, prev_query)
     query_subscribed = last_state.query_subscribed
     restore_labels()
     update_value_hl()
+    recompose_query()
     vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
   else
     vim.api.nvim_win_set_cursor(win, { 1, 0 })
