@@ -6,6 +6,7 @@ describe('himalaya.domain.email resize_listing', function()
   local last_request_json_opts    -- captured from request.json mock
   local mock_request_sync_data   -- set before list_with to make request.json call on_data synchronously
   local mock_request_job         -- return value for request.json (fake SystemObj)
+  local probe_cancel_count        -- tracks probe.cancel() calls
 
   --- Generate a list of envelope stubs.
   --- @param start_id number  first envelope ID
@@ -49,6 +50,7 @@ describe('himalaya.domain.email resize_listing', function()
     last_request_json_opts = nil
     mock_request_sync_data = nil
     mock_request_job = nil
+    probe_cancel_count = 0
 
     -- Stub out every dependency that email.lua requires at load time.
     -- request mock: captures args for verification; can be made synchronous
@@ -90,7 +92,7 @@ describe('himalaya.domain.email resize_listing', function()
       set_total_from_data = function() end,
       total_pages_str = function() return '?' end,
       start = function() end,
-      cancel = function() end,
+      cancel = function() probe_cancel_count = probe_cancel_count + 1 end,
       restart = function() end,
     }
 
@@ -1457,6 +1459,18 @@ describe('himalaya.domain.email resize_listing', function()
       assert.has_no.errors(function()
         email.list_with('test', 'INBOX', 1, '')
       end)
+    end)
+  end)
+
+  -- ── list_with cancels probe ──────────────────────────────────────
+
+  describe('list_with cancels probe', function()
+    it('cancels the probe before issuing the CLI request', function()
+      probe_cancel_count = 0
+      email.list_with('test', 'INBOX', 1, '')
+
+      assert.are.equal(1, probe_cancel_count,
+        'list_with must cancel probe to release database lock before CLI fetch')
     end)
   end)
 

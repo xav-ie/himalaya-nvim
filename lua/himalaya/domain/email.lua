@@ -214,6 +214,10 @@ function M.list_with(account, folder, page, qry)
     resize_job:kill()
     resize_job = nil
   end
+  -- Cancel any running probe so its database lock is released before the
+  -- new CLI fetch.  Without this, rapid page navigation (e.g. gn right
+  -- after opening the inbox) hits "could not acquire lock" errors.
+  probe.cancel()
   local ps = page_size()
   -- On first load the winbar hasn't been set yet, so winheight still
   -- includes that row.  Reserve one line for the header winbar.
