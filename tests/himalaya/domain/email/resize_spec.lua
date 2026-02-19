@@ -1696,6 +1696,85 @@ describe('himalaya.domain.email resize_listing', function()
     end)
   end)
 
+  -- ── rapid resize sequences ─────────────────────────────────────
+
+  describe('rapid resize sequences', function()
+    it('shrink by 15 lines at 5ms intervals triggers no Phase 2', function()
+      local start_height = 20
+      vim.api.nvim_win_set_height(0, start_height)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, start_height)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = start_height
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(start_height)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      local phase2_count = 0
+      local orig_json = package.loaded['himalaya.request'].json
+      package.loaded['himalaya.request'].json = function(opts)
+        phase2_count = phase2_count + 1
+        return orig_json(opts)
+      end
+
+      for i = 1, 15 do
+        vim.api.nvim_win_set_height(0, start_height - i)
+        email.resize_listing()
+        if i < 15 then
+          vim.wait(5, function() return false end)
+        end
+      end
+
+      -- Wait long enough for any pending timer to fire
+      vim.wait(250, function() return phase2_count > 0 end, 50)
+
+      assert.are.equal(0, phase2_count, 'no Phase 2 should fire during shrink within cache')
+      assert.are.equal(start_height - 15, vim.b.himalaya_page_size)
+
+      package.loaded['himalaya.request'].json = orig_json
+      email.cancel_resize()
+    end)
+
+    it('grow by 15 lines at 5ms intervals triggers exactly one Phase 2', function()
+      local start_height = 5
+      vim.api.nvim_win_set_height(0, start_height)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, start_height)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = start_height
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(start_height)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      local phase2_count = 0
+      local orig_json = package.loaded['himalaya.request'].json
+      package.loaded['himalaya.request'].json = function(opts)
+        phase2_count = phase2_count + 1
+        return orig_json(opts)
+      end
+
+      for i = 1, 15 do
+        vim.api.nvim_win_set_height(0, start_height + i)
+        email.resize_listing()
+        if i < 15 then
+          vim.wait(5, function() return false end)
+        end
+      end
+
+      -- Wait for the debounced timer to fire (150ms + margin)
+      vim.wait(300, function() return phase2_count > 0 end)
+
+      assert.are.equal(1, phase2_count, 'exactly one Phase 2 should fire after debounce')
+      assert.are.equal(start_height + 15, last_request_json_opts.args[3],
+        'Phase 2 should use final page_size')
+
+      package.loaded['himalaya.request'].json = orig_json
+      email.cancel_resize()
+    end)
+  end)
+
   -- ── display_slice (width-only path) ──────────────────────────────
 
   describe('display_slice', function()
