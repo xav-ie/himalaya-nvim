@@ -831,6 +831,17 @@ function M.resize_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
 
+  -- Skip resize when listing is background (email being read).
+  -- The listing resizes correctly when the reading window closes.
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if vim.api.nvim_win_is_valid(winid) then
+      local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
+      if bname:find('Himalaya/read email', 1, true) then
+        return
+      end
+    end
+  end
+
   local new_page_size = page_size()
   local old_page_size = vim.b.himalaya_page_size
 
