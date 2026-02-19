@@ -61,6 +61,15 @@ local SUBJECT_LINE = 0
 local BODY_LINE = 1
 local QUERY_LINE = #FIELDS - 1
 
+--- Build the negated variant of a field label (same width, leading space → '!').
+local function negate_label(label)
+  local spaces, rest = label:match('^( *)(.*)')
+  if #spaces > 0 then
+    return spaces:sub(1, -2) .. '!' .. rest
+  end
+  return '!' .. label:sub(1, -2)
+end
+
 --- Open the search popup. Calls callback(query_string) on submit.
 --- @param callback fun(query: string)
 function M.open(callback)
@@ -71,6 +80,7 @@ function M.open(callback)
   local body_subscribed = true
   local query_subscribed = true
   local propagating = false
+  local negated = {}  -- per-line negation toggle (0-based index → bool)
 
   local ns = vim.api.nvim_create_namespace('himalaya_search')
 
@@ -92,8 +102,11 @@ function M.open(callback)
   local label_marks = {}
 
   local function set_label(line_idx, field)
+    local is_neg = negated[line_idx]
+    local label_text = is_neg and negate_label(field.label) or field.label
+    local label_hl = is_neg and 'DiagnosticError' or 'Comment'
     local opts = {
-      virt_text = { { field.label, 'Comment' } },
+      virt_text = { { label_text, label_hl } },
       virt_text_pos = 'inline',
       right_gravity = false,
     }
@@ -242,12 +255,14 @@ function M.open(callback)
       if field.complete == 'when' then
         local val = get_line(i - 1)
         if val ~= '' then
-          and_segs[#and_segs + 1] = { text = val, hl = FIELD_HL.when }
+          local text = negated[i - 1] and ('not ' .. val) or val
+          and_segs[#and_segs + 1] = { text = text, hl = FIELD_HL.when }
         end
       elseif field.keyword then
         local val = get_line(i - 1)
         if val ~= '' then
           local cond = format_condition(field, val)
+          if negated[i - 1] then cond = 'not ' .. cond end
           local hl = FIELD_HL[field.keyword]
           if field.keyword == 'subject' or field.keyword == 'body' then
             or_segs[#or_segs + 1] = { text = cond, hl = hl }
@@ -432,6 +447,17 @@ function M.open(callback)
   vim.keymap.set({ 'n', 'i' }, '<S-Tab>', prev_field, map_opts)
   vim.keymap.set({ 'n', 'i' }, '<CR>', submit, map_opts)
   vim.keymap.set('n', '<Esc>', close, map_opts)
+
+  -- <C-x>: toggle field negation (keyword/complete fields only, not query)
+  vim.keymap.set({ 'n', 'i' }, '<C-x>', function()
+    local row = vim.api.nvim_win_get_cursor(win)[1] - 1 -- 0-based
+    local field = FIELDS[row + 1]
+    if not field or (not field.keyword and not field.complete) then return end
+    negated[row] = not negated[row] or nil
+    set_label(row, field)
+    query_subscribed = true
+    recompose_query()
+  end, map_opts)
 
   -- Prevent <BS> at column 0 from joining lines
   vim.keymap.set('i', '<BS>', function()
