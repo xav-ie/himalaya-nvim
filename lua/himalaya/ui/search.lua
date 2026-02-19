@@ -82,9 +82,10 @@ function M.open(callback)
   end
 
   --- Format a single field condition for the query string.
+  --- Text-pattern fields escape spaces with backslash for multi-word support.
   local function format_condition(field, val)
     if field.quote then
-      return field.keyword .. ' "' .. val .. '"'
+      return field.keyword .. ' ' .. val:gsub(' ', '\\ ')
     end
     return field.keyword .. ' ' .. val
   end
