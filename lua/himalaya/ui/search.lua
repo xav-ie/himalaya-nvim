@@ -78,28 +78,41 @@ function M.open(callback)
     propagating = false
   end
 
-  -- Attach reactive listener
+  -- Attach reactive listener.
+  -- Buffer modifications are not allowed inside on_lines, so we defer
+  -- all propagation with vim.schedule.
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(_, _, _, first_line)
       if propagating then return end
       if not vim.api.nvim_buf_is_valid(buf) then return true end
 
       if first_line == 0 then
-        -- Search field changed: propagate to subscribed fields
-        local search_val = get_line(0)
-        propagating = true
-        if subject_subscribed then set_line(1, search_val) end
-        if body_subscribed then set_line(2, search_val) end
-        propagating = false
-        recompose_query()
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          local search_val = get_line(0)
+          propagating = true
+          if subject_subscribed then set_line(1, search_val) end
+          if body_subscribed then set_line(2, search_val) end
+          propagating = false
+          recompose_query()
+        end)
       elseif first_line == 1 then
         subject_subscribed = false
-        recompose_query()
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          recompose_query()
+        end)
       elseif first_line == 2 then
         body_subscribed = false
-        recompose_query()
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          recompose_query()
+        end)
       elseif first_line == 3 then
-        recompose_query()
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          recompose_query()
+        end)
       elseif first_line == 4 then
         query_subscribed = false
       end
