@@ -155,6 +155,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
+  vim.fn.winrestview({ topline = 1 })
   if saved_cursor_id then
     local target = saved_cursor_id
     saved_cursor_id = nil
@@ -921,7 +922,10 @@ function M.resize_listing()
     listing.apply_seen_highlights(bufnr, display_envelopes)
     vim.bo.modifiable = false
 
-    -- Position cursor on selected email
+    -- Position cursor on selected email and ensure line 1 is at the top.
+    -- Neovim may have shifted topline during the native resize before our
+    -- handler runs; the listing always fits in the window so topline=1.
+    vim.fn.winrestview({ topline = 1 })
     pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
 
     if reading then
