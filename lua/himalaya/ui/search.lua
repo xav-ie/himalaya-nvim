@@ -163,6 +163,7 @@ function M.open(callback)
 
   --- Close the popup window and clean up.
   local function close()
+    vim.cmd('stopinsert')
     if vim.api.nvim_win_is_valid(win) then
       vim.api.nvim_win_close(win, true)
     end
