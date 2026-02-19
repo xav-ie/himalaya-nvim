@@ -968,9 +968,9 @@ function M.resize_listing()
         args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
         msg = 'Refetching page after resize',
         silent = true,
+        is_stale = function() return my_gen ~= resize_generation end,
         on_data = function(data)
           resize_job = nil
-          if my_gen ~= resize_generation then return end
           if not vim.api.nvim_win_is_valid(listing_win) then return end
           saved_cursor_id = cursor_id
           vim.api.nvim_win_call(listing_win, function()

@@ -57,7 +57,9 @@ describe('himalaya.domain.email resize_listing', function()
       json = function(opts)
         last_request_json_opts = opts
         if mock_request_sync_data and opts.on_data then
-          opts.on_data(mock_request_sync_data)
+          if not (opts.is_stale and opts.is_stale()) then
+            opts.on_data(mock_request_sync_data)
+          end
         end
         return mock_request_job
       end,
@@ -1055,7 +1057,7 @@ describe('himalaya.domain.email resize_listing', function()
       email.cancel_resize()
     end)
 
-    it('Phase 2 on_data is discarded when generation is stale', function()
+    it('Phase 2 is_stale skips callback when generation is stale', function()
       -- Trigger a resize that starts Phase 2
       vim.api.nvim_win_set_height(0, 5)
       vim.b.himalaya_buffer_type = 'listing'
@@ -1069,20 +1071,20 @@ describe('himalaya.domain.email resize_listing', function()
 
       email.resize_listing()
 
-      -- Wait for Phase 2 timer to fire and capture the on_data callback
+      -- Wait for Phase 2 timer to fire
       vim.wait(300, function() return last_request_json_opts ~= nil end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
-      local stale_on_data = last_request_json_opts.on_data
+
+      -- is_stale should be a function
+      assert.is_function(last_request_json_opts.is_stale)
+      -- Not stale yet (generation hasn't changed)
+      assert.is_false(last_request_json_opts.is_stale())
 
       -- Simulate a new resize happening (increments generation)
       email._set_resize_generation(email._get_resize_generation() + 1)
 
-      -- Invoke the stale on_data — it should be a no-op
-      rendered_envs = nil
-      stale_on_data(make_envelopes(1, 5))
-
-      -- The stale callback should not have rendered anything
-      assert.is_nil(rendered_envs)
+      -- Now is_stale reports true — on_exit will bail out before parsing
+      assert.is_true(last_request_json_opts.is_stale())
 
       email.cancel_resize()
     end)
