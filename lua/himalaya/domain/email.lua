@@ -868,7 +868,15 @@ function M.resize_listing()
   elseif reading then
     -- Cursor-aware truncation: no page change, no Phase 2 re-fetch.
     vim.b.himalaya_page_size = new_page_size
+    -- Resolve cursor to envelope index: use saved ID from previous
+    -- reading truncation (buffer rows don't match cache indices).
     local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
+    local saved_id = vim.b.himalaya_reading_cursor_id
+    if saved_id then
+      for i, env in ipairs(envelopes) do
+        if tostring(env.id) == saved_id then cursor_row = i; break end
+      end
+    end
     local display, cursor_in_display
     if #envelopes <= new_page_size then
       display = envelopes
@@ -883,6 +891,9 @@ function M.resize_listing()
       for i = start, finish do display[#display + 1] = envelopes[i] end
       cursor_in_display = cursor_row - start + 1
     end
+    -- Save envelope ID at cursor for restoration on grow
+    vim.b.himalaya_reading_cursor_id = display[cursor_in_display]
+      and tostring(display[cursor_in_display].id) or nil
     local renderer = require('himalaya.ui.renderer')
     local listing = require('himalaya.ui.listing')
     local bufnr = vim.api.nvim_get_current_buf()
@@ -899,6 +910,15 @@ function M.resize_listing()
     local old_page = vim.b.himalaya_page or 1
     local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
     local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
+    -- After reading truncation, buffer rows don't match cache indices.
+    -- Use saved envelope ID to find the correct cursor position.
+    local saved_reading_id = vim.b.himalaya_reading_cursor_id
+    if saved_reading_id then
+      vim.b.himalaya_reading_cursor_id = nil
+      for i, env in ipairs(envelopes) do
+        if tostring(env.id) == saved_reading_id then cursor_row = i; break end
+      end
+    end
     local selected_global = cache_start + cursor_row - 1
     local new_page = math.floor(selected_global / new_page_size) + 1
     local new_page_start = (new_page - 1) * new_page_size

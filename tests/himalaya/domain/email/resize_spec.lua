@@ -122,6 +122,7 @@ describe('himalaya.domain.email resize_listing', function()
     vim.b.himalaya_page = nil
     vim.b.himalaya_page_size = nil
     vim.b.himalaya_cache_offset = nil
+    vim.b.himalaya_reading_cursor_id = nil
     vim.b.himalaya_query = nil
     -- Restore window height for other test files.
     pcall(vim.api.nvim_win_set_height, 0, original_height)
@@ -278,6 +279,116 @@ describe('himalaya.domain.email resize_listing', function()
       email.cancel_resize()
 
       assert.is_not_nil(rendered_envs)
+    end)
+
+    it('restores cursor to selected email when listing grows after reading close', function()
+      -- Scenario: 10 envelopes on page 1, cursor on row 8 (ID 8).
+      -- Open reading split → listing shrinks to 5 → reading truncation centers
+      -- around ID 8 (display: IDs 6-10, cursor on row 3 = ID 8).
+      -- Close reading split → listing grows back to 10 → Phase 1 should
+      -- resolve cursor from saved_reading_cursor_id, NOT from row position.
+      vim.api.nvim_win_set_height(0, 10)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {8, 0})
+
+      -- Step 1: open reading split → shrinks listing
+      open_reading_window()
+      email.resize_listing()
+
+      -- Verify reading truncation saved the cursor ID
+      assert.are.equal('8', vim.b.himalaya_reading_cursor_id)
+      -- Cursor should be on ID 8 in the truncated display
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('8', rendered_envs[cursor_line].id)
+
+      -- Step 2: close reading window → listing grows back
+      close_reading_window()
+      rendered_envs = nil
+      email.resize_listing()
+      email.cancel_resize()
+
+      -- Phase 1 should have used saved_reading_cursor_id to find ID 8
+      -- in the full envelope cache, placing cursor on row 8
+      assert.is_not_nil(rendered_envs)
+      local grow_cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('8', rendered_envs[grow_cursor].id)
+      -- saved ID should be consumed (cleared)
+      assert.is_nil(vim.b.himalaya_reading_cursor_id)
+    end)
+
+    it('restores cursor from reading truncation on page 2+ grow', function()
+      -- Page 2: envelopes 11-20 (IDs 11-20), cursor on row 7 (ID 17).
+      -- Reading shrink → truncation centers around ID 17.
+      -- Close reading → Phase 1 grow should resolve cursor to ID 17.
+      vim.api.nvim_win_set_height(0, 10)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(11, 10)
+      vim.b.himalaya_page = 2
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 10
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {7, 0})
+
+      -- Step 1: reading truncation
+      open_reading_window()
+      email.resize_listing()
+
+      assert.are.equal('17', vim.b.himalaya_reading_cursor_id)
+
+      -- Step 2: grow
+      close_reading_window()
+      rendered_envs = nil
+      email.resize_listing()
+      email.cancel_resize()
+
+      assert.is_not_nil(rendered_envs)
+      local grow_cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('17', rendered_envs[grow_cursor].id)
+      assert.is_nil(vim.b.himalaya_reading_cursor_id)
+    end)
+
+    it('handles chained reading resizes then grow correctly', function()
+      -- Start with 10 envelopes, cursor on row 8 (ID 8).
+      -- Two successive reading truncations, then grow.
+      -- Cursor should still land on ID 8.
+      vim.api.nvim_win_set_height(0, 10)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {8, 0})
+
+      -- First reading truncation
+      open_reading_window()
+      email.resize_listing()
+      assert.are.equal('8', vim.b.himalaya_reading_cursor_id)
+
+      -- Shrink further (e.g., another split)
+      vim.api.nvim_win_set_height(0, 3)
+      email.resize_listing()
+      -- ID should still be preserved through chained truncation
+      assert.are.equal('8', vim.b.himalaya_reading_cursor_id)
+
+      -- Close reading → grow
+      close_reading_window()
+      rendered_envs = nil
+      email.resize_listing()
+      email.cancel_resize()
+
+      assert.is_not_nil(rendered_envs)
+      local grow_cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('8', rendered_envs[grow_cursor].id)
+      assert.is_nil(vim.b.himalaya_reading_cursor_id)
     end)
 
     it('preserves page number while reading', function()
