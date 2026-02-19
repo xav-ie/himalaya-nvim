@@ -727,6 +727,23 @@ function M.resize_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
 
+  -- Guard: if the buffer belongs to a different folder/account/query than the
+  -- current state, its page data is stale.  This happens when a folder switch
+  -- (e.g. INBOX → Drafts) triggers an async fetch and WinResized fires before
+  -- the new data arrives.  Without this guard, resize_listing() would compute
+  -- a page number from the old folder's buffer vars and clobber
+  -- folder_state.current_page(), causing "page N out of bounds" on the next
+  -- navigation action.
+  local buf_cache_key = vim.b.himalaya_cache_key
+  if buf_cache_key then
+    local current_key = account_flag(account_state.current())
+      .. '\0' .. folder_state.current()
+      .. '\0' .. (vim.b.himalaya_query or '')
+    if buf_cache_key ~= current_key then
+      return
+    end
+  end
+
   perf.reset()
   perf.start("resize_listing_total")
 

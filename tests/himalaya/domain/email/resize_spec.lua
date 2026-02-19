@@ -2249,5 +2249,75 @@ describe('himalaya.domain.email resize_listing', function()
       vim.wo.winbar = ''
     end)
   end)
+
+  -- ── folder switch stale page guard ─────────────────────────────
+
+  describe('folder switch stale page guard', function()
+    it('does not clobber folder_state page when buffer cache_key is stale', function()
+      -- Simulate: buffer has INBOX data on high page (e.g. page 85)
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 85
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 840
+      vim.b.himalaya_query = ''
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      -- Folder switch happened: folder_state now returns 'Drafts'
+      package.loaded['himalaya.state.folder'].current = function() return 'Drafts' end
+
+      set_page_calls = {}
+      email.resize_listing()
+
+      -- resize_listing must NOT call folder_state.set_page() because
+      -- the buffer's cache_key belongs to INBOX, not Drafts
+      assert.are.equal(0, #set_page_calls,
+        'resize_listing must not call set_page when buffer cache_key is stale')
+    end)
+
+    it('does not render stale data after folder switch', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 85
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 840
+      vim.b.himalaya_query = ''
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      -- Folder switch happened
+      package.loaded['himalaya.state.folder'].current = function() return 'Drafts' end
+
+      rendered_envs = nil
+      email.resize_listing()
+
+      -- Should not render anything since the buffer data is stale
+      assert.is_nil(rendered_envs, 'should not render stale data after folder switch')
+    end)
+
+    it('still resizes normally when cache_key matches current folder', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {3, 0})
+
+      -- folder_state.current() returns 'INBOX' (default mock) — cache_key matches
+      email.resize_listing()
+
+      assert.is_not_nil(rendered_envs, 'should still render when cache_key matches')
+      assert.are.equal(5, #rendered_envs)
+    end)
+  end)
 end)
 
