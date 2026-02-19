@@ -143,6 +143,119 @@ describe('himalaya.domain.email resize_listing', function()
     assert.is_nil(rendered_envs)
   end)
 
+  -- ── skip resize while reading ───────────────────────────────────
+
+  describe('reading window suppression', function()
+    local reading_win, reading_buf
+
+    --- Open a fake reading window in the current tab and return to the listing window.
+    local function open_reading_window()
+      local listing_win = vim.api.nvim_get_current_win()
+      reading_buf = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_buf_set_name(reading_buf, 'Himalaya/read email [42]')
+      reading_win = vim.api.nvim_open_win(reading_buf, false, { split = 'below' })
+      vim.api.nvim_set_current_win(listing_win)
+    end
+
+    local function close_reading_window()
+      if reading_win and vim.api.nvim_win_is_valid(reading_win) then
+        vim.api.nvim_win_close(reading_win, true)
+        reading_win = nil
+      end
+      if reading_buf and vim.api.nvim_buf_is_valid(reading_buf) then
+        vim.cmd('silent! bwipeout ' .. reading_buf)
+        reading_buf = nil
+      end
+    end
+
+    after_each(function()
+      close_reading_window()
+    end)
+
+    it('skips resize when a reading window exists', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {8, 0})
+
+      open_reading_window()
+      email.resize_listing()
+
+      -- Nothing should have changed
+      assert.is_nil(rendered_envs)
+      assert.are.equal(1, vim.b.himalaya_page)
+      assert.are.equal(10, vim.b.himalaya_page_size)
+    end)
+
+    it('does not start Phase 2 timer when reading', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+
+      open_reading_window()
+      email.resize_listing()
+
+      -- cancel_resize should be a no-op (no timer was started)
+      assert.has_no.errors(function()
+        email.cancel_resize()
+      end)
+    end)
+
+    it('resumes normal resize after reading window closes', function()
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {3, 0})
+
+      -- Resize while reading — suppressed
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 5)
+      email.resize_listing()
+      assert.is_nil(rendered_envs)
+
+      -- Close reading window — resize should work now
+      close_reading_window()
+      email.resize_listing()
+      email.cancel_resize()
+
+      assert.is_not_nil(rendered_envs)
+      assert.are.equal(5, vim.b.himalaya_page_size)
+    end)
+
+    it('preserves buffer content while reading', function()
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+
+      local lines_before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 5)
+      email.resize_listing()
+
+      local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.same(lines_before, lines_after)
+    end)
+  end)
+
   -- ── page_size initialisation ─────────────────────────────────────
 
   it('initializes page_size when not previously set', function()
