@@ -463,6 +463,20 @@ function M.open(callback)
     return '<BS>'
   end, { buffer = buf, noremap = true, silent = true, expr = true })
 
+  -- Map dd to clear line content instead of deleting the line
+  vim.keymap.set('n', 'dd', '0D', map_opts)
+
+  -- Map visual d/x to clear selected lines' content instead of deleting them.
+  -- Each set_line triggers on_lines → vim.schedule, which handles re-link logic.
+  for _, key in ipairs({ 'd', 'x' }) do
+    vim.keymap.set('x', key, function()
+      local sl = vim.fn.line("'<") - 1
+      local el = vim.fn.line("'>") - 1
+      for l = sl, el do set_line(l, '') end
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
+    end, map_opts)
+  end
+
   -- Start in insert mode on line 0
   vim.api.nvim_win_set_cursor(win, { 1, 0 })
   vim.cmd('startinsert')
