@@ -890,20 +890,34 @@ function M.resize_listing()
     resize_timer:start(150, 0, vim.schedule_wrap(function()
       resize_timer = nil
       if not vim.api.nvim_buf_is_valid(bufnr) then return end
-      -- Save cursor email for restoration in on_list_with
+      -- Find the window still showing the listing buffer
+      local listing_win = nil
+      for _, winid in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
+          listing_win = winid
+          break
+        end
+      end
+      if not listing_win then return end
+      -- Read cursor and page size from the listing window (focus may be elsewhere)
+      local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
       saved_cursor_id = M._get_email_id_from_line(
-        vim.api.nvim_buf_get_lines(bufnr, vim.fn.line('.') - 1, vim.fn.line('.'), false)[1] or '')
+        vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
       local account = account_state.current()
       local folder_cur = folder_state.current()
       local cur_query = vim.b[bufnr].himalaya_query or ''
       local cur_page = vim.b[bufnr].himalaya_page or 1
+      local ps = math.max(1, vim.api.nvim_win_get_height(listing_win))
       resize_job = request.json({
         cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-        args = { folder_cur, account_flag(account), page_size(), cur_page, cur_query },
+        args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
         msg = 'Refetching page after resize',
         on_data = function(data)
           resize_job = nil
-          on_list_with(account, folder_cur, cur_page, page_size(), cur_query, data)
+          if not vim.api.nvim_win_is_valid(listing_win) then return end
+          vim.api.nvim_win_call(listing_win, function()
+            on_list_with(account, folder_cur, cur_page, page_size(), cur_query, data)
+          end)
         end,
       })
     end))
