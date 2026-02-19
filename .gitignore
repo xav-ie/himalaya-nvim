@@ -7,3 +7,6 @@ result
 
 # Vim doc tags
 doc/tags
+
+# Perf benchmark output
+perf-results.json

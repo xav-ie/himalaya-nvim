@@ -4,6 +4,7 @@ local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local probe = require('himalaya.domain.email.probe')
+local perf = require('himalaya.perf')
 
 local M = {}
 
@@ -851,6 +852,9 @@ function M.resize_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
 
+  perf.reset()
+  perf.start("resize_listing_total")
+
   -- Check if listing is background (email being read).
   local reading = false
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -933,6 +937,8 @@ function M.resize_listing()
       -- When sparse (cursor near cache edge), fall through to Phase 2
       -- so the server fills the rest of the page.
       if #display_envelopes >= new_page_size then
+        perf.stop("resize_listing_total")
+        perf.report()
         return
       end
     end
@@ -983,6 +989,8 @@ function M.resize_listing()
         end,
       })
     end))
+    perf.stop("resize_listing_total")
+    perf.report()
     return
   end
 
@@ -998,6 +1006,8 @@ function M.resize_listing()
   listing.apply_seen_highlights(bufnr, display_envelopes)
   vim.bo.modifiable = false
   vim.fn.winrestview({ topline = 1 })
+  perf.stop("resize_listing_total")
+  perf.report()
 end
 
 --- Cancel any pending resize timer and in-flight resize re-fetch job.

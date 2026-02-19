@@ -1,6 +1,7 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
 local folder = require('himalaya.domain.folder')
+local perf = require('himalaya.perf')
 local account
 
 local M = {}
@@ -22,6 +23,7 @@ end
 --- Apply syntax match rules to the given buffer.
 --- @param bufnr number
 function M.apply_syntax(bufnr)
+  perf.start("apply_syntax")
   vim.api.nvim_buf_call(bufnr, function()
     -- Use \%u2502 (│), \%u2500 (─), \%u253c (┼) for box-drawing chars
     vim.cmd([[
@@ -33,6 +35,7 @@ function M.apply_syntax(bufnr)
       syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
     ]])
   end)
+  perf.stop("apply_syntax")
 end
 
 --- Compute the gutter width (number column, fold column, sign column) for a window.
@@ -77,6 +80,7 @@ end
 --- @param bufnr number
 --- @param envelopes table[]
 function M.apply_seen_highlights(bufnr, envelopes)
+  perf.start("apply_seen_highlights")
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   for i, env in ipairs(envelopes) do
     local flags = env.flags or {}
@@ -94,6 +98,7 @@ function M.apply_seen_highlights(bufnr, envelopes)
       })
     end
   end
+  perf.stop("apply_seen_highlights")
 end
 
 --- Set up the listing buffer: options, highlights, syntax, and keybinds.

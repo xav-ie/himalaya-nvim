@@ -1,4 +1,5 @@
 local config = require("himalaya.config")
+local perf = require("himalaya.perf")
 
 local M = {}
 
@@ -58,6 +59,7 @@ end
 --- @param raw string
 --- @return string
 function M.format_date(raw)
+	perf.count("format_date")
 	local fmt = config.get().date_format
 	if not fmt or raw == "" then
 		return raw
@@ -98,7 +100,9 @@ function M.fit(s, width)
 		return ""
 	end
 	s = tostring(s)
+	perf.count("fit")
 	local dw = vim.fn.strdisplaywidth(s)
+	perf.count("strdisplaywidth")
 	if dw == width then
 		return s
 	elseif dw < width then
@@ -134,6 +138,7 @@ local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 --- @param total_width number
 --- @return table
 function M.render(envelopes, total_width)
+	perf.start("renderer.render")
 	local cfg_flags = config.get().flags
 	local id_w = 2 -- minimum: fits "ID" header
 	for _, env in ipairs(envelopes) do
@@ -215,6 +220,7 @@ function M.render(envelopes, total_width)
 		table.insert(lines, line)
 	end
 
+	perf.stop("renderer.render")
 	return { header = header, separator = separator, lines = lines }
 end
 
