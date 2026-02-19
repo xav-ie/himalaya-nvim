@@ -15,6 +15,7 @@ end
 
 function M._register_commands()
   local email = require('himalaya.domain.email')
+  local compose = require('himalaya.domain.email.compose')
   local folder = require('himalaya.domain.folder')
 
   local account_state = require('himalaya.state.account')
@@ -47,19 +48,19 @@ function M._register_commands()
   end, { nargs = '*', range = true })
 
   vim.api.nvim_create_user_command('HimalayaWrite', function()
-    email.write()
+    compose.write()
   end, { nargs = '*' })
 
   vim.api.nvim_create_user_command('HimalayaReply', function()
-    email.reply()
+    compose.reply()
   end, { nargs = '*' })
 
   vim.api.nvim_create_user_command('HimalayaReplyAll', function()
-    email.reply_all()
+    compose.reply_all()
   end, { nargs = '*' })
 
   vim.api.nvim_create_user_command('HimalayaForward', function()
-    email.forward()
+    compose.forward()
   end, { nargs = '*' })
 
   vim.api.nvim_create_user_command('HimalayaFolders', function()

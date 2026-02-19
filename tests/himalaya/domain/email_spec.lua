@@ -1,23 +1,22 @@
 describe('himalaya.domain.email', function()
   local email
+  local compose
 
   before_each(function()
     package.loaded['himalaya.domain.email'] = nil
+    package.loaded['himalaya.domain.email.compose'] = nil
     package.loaded['himalaya.config'] = nil
     package.loaded['himalaya.state.account'] = nil
     package.loaded['himalaya.state.folder'] = nil
     require('himalaya.config')._reset()
     email = require('himalaya.domain.email')
+    compose = require('himalaya.domain.email.compose')
   end)
 
   it('exposes all public functions', function()
     assert.is_function(email.list)
     assert.is_function(email.list_with)
     assert.is_function(email.read)
-    assert.is_function(email.write)
-    assert.is_function(email.reply)
-    assert.is_function(email.reply_all)
-    assert.is_function(email.forward)
     assert.is_function(email.delete)
     assert.is_function(email.copy)
     assert.is_function(email.move)
@@ -27,11 +26,18 @@ describe('himalaya.domain.email', function()
     assert.is_function(email.flag_remove)
     assert.is_function(email.download_attachments)
     assert.is_function(email.open_browser)
-    assert.is_function(email.save_draft)
-    assert.is_function(email.process_draft)
     assert.is_function(email.complete_contact)
     assert.is_function(email.set_list_envelopes_query)
     assert.is_function(email.resize_listing)
+  end)
+
+  it('exposes compose functions', function()
+    assert.is_function(compose.write)
+    assert.is_function(compose.reply)
+    assert.is_function(compose.reply_all)
+    assert.is_function(compose.forward)
+    assert.is_function(compose.save_draft)
+    assert.is_function(compose.process_draft)
   end)
 
   describe('get_email_id_from_line', function()

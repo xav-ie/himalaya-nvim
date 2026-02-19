@@ -1,5 +1,6 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
+local compose = require('himalaya.domain.email.compose')
 local thread = require('himalaya.domain.email.thread')
 
 local M = {}
@@ -18,10 +19,10 @@ function M.setup(bufnr)
   end)
 
   keybinds.define(bufnr, {
-    { 'n', 'gw', email.write,                    'email-write' },
-    { 'n', 'gr', email.reply,                    'email-reply' },
-    { 'n', 'gR', email.reply_all,                'email-reply-all' },
-    { 'n', 'gf', email.forward,                  'email-forward' },
+    { 'n', 'gw', compose.write,                   'email-write' },
+    { 'n', 'gr', compose.reply,                   'email-reply' },
+    { 'n', 'gR', compose.reply_all,               'email-reply-all' },
+    { 'n', 'gf', compose.forward,                 'email-forward' },
     { 'n', 'ga', email.download_attachments,     'email-download-attachments' },
     { 'n', 'gC', email.select_folder_then_copy,  'email-select-folder-then-copy' },
     { 'n', 'gM', email.select_folder_then_move,  'email-select-folder-then-move' },

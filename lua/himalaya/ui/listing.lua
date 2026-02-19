@@ -1,5 +1,6 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
+local compose = require('himalaya.domain.email.compose')
 local folder = require('himalaya.domain.folder')
 local perf = require('himalaya.perf')
 local account
@@ -120,10 +121,10 @@ function M.setup(bufnr)
     { 'n', 'gp',   folder.select_previous_page,      'folder-select-previous-page' },
     { 'n', 'gn',   folder.select_next_page,           'folder-select-next-page' },
     { 'n', '<cr>', email.read,                         'email-read' },
-    { 'n', 'gw',   email.write,                        'email-write' },
-    { 'n', 'gr',   email.reply,                        'email-reply' },
-    { 'n', 'gR',   email.reply_all,                    'email-reply-all' },
-    { 'n', 'gf',   email.forward,                      'email-forward' },
+    { 'n', 'gw',   compose.write,                       'email-write' },
+    { 'n', 'gr',   compose.reply,                       'email-reply' },
+    { 'n', 'gR',   compose.reply_all,                   'email-reply-all' },
+    { 'n', 'gf',   compose.forward,                     'email-forward' },
     { 'n', 'ga',   function()
       account = account or require('himalaya.domain.account')
       account.select()

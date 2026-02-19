@@ -1,5 +1,6 @@
 local config = require('himalaya.config')
 local email = require('himalaya.domain.email')
+local compose = require('himalaya.domain.email.compose')
 
 local M = {}
 
@@ -25,7 +26,7 @@ function M.setup(bufnr)
     group = group,
     buffer = bufnr,
     callback = function()
-      email.save_draft()
+      compose.save_draft()
     end,
   })
 
@@ -33,7 +34,7 @@ function M.setup(bufnr)
     group = group,
     buffer = bufnr,
     callback = function()
-      email.process_draft()
+      compose.process_draft()
     end,
   })
 end
