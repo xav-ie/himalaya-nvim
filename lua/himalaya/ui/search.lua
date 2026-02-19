@@ -1,9 +1,30 @@
 local M = {}
 
+-- Field definitions: each field maps to a buffer line.
+-- `keyword`  = the himalaya query keyword (nil for search/query meta-lines)
+-- `quote`    = wrap value in double quotes (text patterns need it for multi-word)
+-- `sep`      = place a virtual separator line below this field
+local FIELDS = {
+  { label = 'search: ' },
+  { label = 'subject: ', keyword = 'subject', quote = true },
+  { label = 'body: ',    keyword = 'body',    quote = true },
+  { label = 'from: ',    keyword = 'from',    quote = true },
+  { label = 'to: ',      keyword = 'to',      quote = true },
+  { label = 'date: ',    keyword = 'date' },
+  { label = 'before: ',  keyword = 'before' },
+  { label = 'after: ',   keyword = 'after' },
+  { label = 'flag: ',    keyword = 'flag',    sep = true },
+  { label = 'query: ' },
+}
+
+local SEARCH_LINE = 0
+local QUERY_LINE = #FIELDS - 1
+
 --- Open the search popup. Calls callback(query_string) on submit.
 --- @param callback fun(query: string)
 function M.open(callback)
   local buf = vim.api.nvim_create_buf(false, true)
+  local num_lines = #FIELDS
 
   -- Reactive state
   local subject_subscribed = true
@@ -13,28 +34,27 @@ function M.open(callback)
 
   local ns = vim.api.nvim_create_namespace('himalaya_search')
 
-  -- Set initial buffer lines (5 fields, all empty)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '', '', '', '', '' })
+  -- Set initial buffer lines (all empty)
+  local init_lines = {}
+  for _ = 1, num_lines do init_lines[#init_lines + 1] = '' end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, init_lines)
 
   -- Labels as inline virtual text
-  local labels = { 'search: ', 'subject: ', 'body: ', 'from: ', 'query: ' }
-  for i, label in ipairs(labels) do
+  for i, field in ipairs(FIELDS) do
     local opts = {
-      virt_text = { { label, 'Comment' } },
+      virt_text = { { field.label, 'Comment' } },
       virt_text_pos = 'inline',
       right_gravity = false,
     }
-    -- Add separator line below "from" field (line 3)
-    if i == 4 then
-      local sep_width = 56
-      opts.virt_lines = { { { string.rep('\u{2500}', sep_width), 'FloatBorder' } } }
+    if field.sep then
+      opts.virt_lines = { { { string.rep('\u{2500}', 56), 'FloatBorder' } } }
     end
     vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, opts)
   end
 
   -- Open floating window
   local width = 60
-  local height = 6
+  local height = num_lines + 1 -- +1 for the virtual separator line
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = width,
@@ -51,32 +71,60 @@ function M.open(callback)
   vim.wo[win].cursorline = true
 
   --- Read a single buffer line by 0-based index.
-  --- @param line_idx number
-  --- @return string
   local function get_line(line_idx)
     return vim.api.nvim_buf_get_lines(buf, line_idx, line_idx + 1, false)[1] or ''
   end
 
   --- Set a single buffer line by 0-based index (preserves extmarks).
-  --- @param line_idx number
-  --- @param text string
   local function set_line(line_idx, text)
     local old = get_line(line_idx)
     vim.api.nvim_buf_set_text(buf, line_idx, 0, line_idx, #old, { text })
   end
 
-  --- Recompose the query line from subject/body/from fields.
+  --- Format a single field condition for the query string.
+  local function format_condition(field, val)
+    if field.quote then
+      return field.keyword .. ' "' .. val .. '"'
+    end
+    return field.keyword .. ' ' .. val
+  end
+
+  --- Recompose the query line from all filter fields.
+  --- Text-search fields (subject, body) are OR-grouped together, then
+  --- AND-combined with all other conditions.
   local function recompose_query()
     if not query_subscribed then return end
-    local parts = {}
-    local subject = get_line(1)
-    local body = get_line(2)
-    local from = get_line(3)
-    if subject ~= '' then parts[#parts + 1] = 'subject ' .. subject end
-    if body ~= '' then parts[#parts + 1] = 'body ' .. body end
-    if from ~= '' then parts[#parts + 1] = 'from ' .. from end
+    -- Collect OR-group (subject, body) and AND-group (everything else)
+    local or_parts = {}
+    local and_parts = {}
+    for i, field in ipairs(FIELDS) do
+      if field.keyword then
+        local val = get_line(i - 1)
+        if val ~= '' then
+          local cond = format_condition(field, val)
+          if field.keyword == 'subject' or field.keyword == 'body' then
+            or_parts[#or_parts + 1] = cond
+          else
+            and_parts[#and_parts + 1] = cond
+          end
+        end
+      end
+    end
+    -- Build: (subject X or body Y) and from Z and to W ...
+    local result = {}
+    if #or_parts > 0 then
+      local or_str = table.concat(or_parts, ' or ')
+      -- Wrap in parens only when there are both OR-parts and AND-parts
+      if #and_parts > 0 and #or_parts > 1 then
+        or_str = '(' .. or_str .. ')'
+      end
+      result[#result + 1] = or_str
+    end
+    for _, part in ipairs(and_parts) do
+      result[#result + 1] = part
+    end
     propagating = true
-    set_line(4, table.concat(parts, ' or '))
+    set_line(QUERY_LINE, table.concat(result, ' and '))
     propagating = false
   end
 
@@ -88,35 +136,26 @@ function M.open(callback)
       if propagating then return end
       if not vim.api.nvim_buf_is_valid(buf) then return true end
 
-      if first_line == 0 then
+      if first_line == SEARCH_LINE then
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
-          local search_val = get_line(0)
+          local search_val = get_line(SEARCH_LINE)
           propagating = true
           if subject_subscribed then set_line(1, search_val) end
           if body_subscribed then set_line(2, search_val) end
           propagating = false
           recompose_query()
         end)
-      elseif first_line == 1 then
-        subject_subscribed = false
-        vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
-          recompose_query()
-        end)
-      elseif first_line == 2 then
-        body_subscribed = false
-        vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
-          recompose_query()
-        end)
-      elseif first_line == 3 then
-        vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
-          recompose_query()
-        end)
-      elseif first_line == 4 then
+      elseif first_line == QUERY_LINE then
         query_subscribed = false
+      else
+        -- Any filter field changed
+        if first_line == 1 then subject_subscribed = false end
+        if first_line == 2 then body_subscribed = false end
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          recompose_query()
+        end)
       end
     end,
   })
@@ -133,7 +172,7 @@ function M.open(callback)
 
   --- Submit the query.
   local function submit()
-    local final_query = get_line(4)
+    local final_query = get_line(QUERY_LINE)
     close()
     callback(final_query)
   end
@@ -141,7 +180,7 @@ function M.open(callback)
   --- Move to the next field line, wrapping around.
   local function next_field()
     local row = vim.api.nvim_win_get_cursor(win)[1]
-    local next_row = (row % 5) + 1
+    local next_row = (row % num_lines) + 1
     vim.api.nvim_win_set_cursor(win, { next_row, 0 })
     vim.cmd('startinsert!')
   end
@@ -149,7 +188,7 @@ function M.open(callback)
   --- Move to the previous field line, wrapping around.
   local function prev_field()
     local row = vim.api.nvim_win_get_cursor(win)[1]
-    local prev_row = ((row - 2) % 5) + 1
+    local prev_row = ((row - 2) % num_lines) + 1
     vim.api.nvim_win_set_cursor(win, { prev_row, 0 })
     vim.cmd('startinsert!')
   end
