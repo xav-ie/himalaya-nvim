@@ -892,13 +892,28 @@ function M.resize_listing()
     for i = overlap_start - cache_start + 1, overlap_end - cache_start do
       table.insert(display_envelopes, envelopes[i])
     end
+    local cursor_line = selected_global - overlap_start + 1
+
+    -- During reading, page boundaries near the cache edge can produce sparse
+    -- displays (e.g. email 41/42 with page_size=20 → page 3 has only 2 emails).
+    -- Fill from cache so the user always sees a full page while reading.
+    if reading and #display_envelopes < new_page_size and #envelopes >= new_page_size then
+      local end_idx = math.min(#envelopes, cursor_row + new_page_size - 1)
+      local start_idx = math.max(1, end_idx - new_page_size + 1)
+      end_idx = math.min(#envelopes, start_idx + new_page_size - 1)
+      display_envelopes = {}
+      for i = start_idx, end_idx do
+        table.insert(display_envelopes, envelopes[i])
+      end
+      cursor_line = cursor_row - start_idx + 1
+    end
 
     -- Update buffer state
     folder_state.set_page(new_page)
     vim.b.himalaya_page = new_page
     vim.b.himalaya_page_size = new_page_size
 
-    -- Render overlap
+    -- Render
     local renderer = require('himalaya.ui.renderer')
     local listing = require('himalaya.ui.listing')
     local bufnr = vim.api.nvim_get_current_buf()
@@ -918,7 +933,6 @@ function M.resize_listing()
     vim.bo.modifiable = false
 
     -- Position cursor on selected email
-    local cursor_line = selected_global - overlap_start + 1
     pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
 
     if reading then

@@ -416,6 +416,121 @@ describe('himalaya.domain.email resize_listing', function()
       local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
       assert.are.equal('8', rendered_envs[cursor_line].id)
     end)
+
+    it('fills sparse page from cache when cursor near end during reading', function()
+      -- 42 envelopes on page 1, cursor on email 41.
+      -- Window shrinks to 13 → page boundary gives only 3 emails.
+      -- Cache-fill should show a full 13-email display from the cache.
+      vim.api.nvim_win_set_height(0, 42)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 42)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 42
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(42)
+      vim.api.nvim_win_set_cursor(0, {41, 0})
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 13)
+      email.resize_listing()
+
+      -- Display should be filled to 13 (not sparse 3)
+      assert.are.equal(13, #rendered_envs)
+      -- Cursor should still be on envelope 41
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('41', rendered_envs[cursor_line].id)
+    end)
+
+    it('fills sparse page for last email in cache during reading', function()
+      -- 42 envelopes, cursor on email 42 (last).
+      -- Window shrinks to 20 → page 3 has only 2 emails.
+      -- Cache-fill should show 20 emails ending at email 42.
+      vim.api.nvim_win_set_height(0, 42)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 42)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 42
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(42)
+      vim.api.nvim_win_set_cursor(0, {42, 0})
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      email.resize_listing()
+
+      -- Display should be filled to 20
+      assert.are.equal(20, #rendered_envs)
+      -- Last email in display should be email 42
+      assert.are.equal('42', rendered_envs[#rendered_envs].id)
+      -- Cursor should be on email 42
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('42', rendered_envs[cursor_line].id)
+    end)
+
+    it('does not cache-fill when overlap is full during reading', function()
+      -- 42 envelopes, cursor on email 23.
+      -- Window shrinks to 20 → page 2 has 20 emails (full overlap).
+      -- No cache-fill needed.
+      vim.api.nvim_win_set_height(0, 42)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 42)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 42
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(42)
+      vim.api.nvim_win_set_cursor(0, {23, 0})
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      email.resize_listing()
+
+      -- Page 2: indices 20-39, overlap = 20 emails
+      assert.are.equal(20, #rendered_envs)
+      assert.are.equal(2, vim.b.himalaya_page)
+      -- Email 23 should be at position 3 (index 22 - 20 + 1)
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal(3, cursor_line)
+      assert.are.equal('23', rendered_envs[cursor_line].id)
+    end)
+
+    it('restores cursor correctly after sparse-fill reading then grow', function()
+      -- 42 envelopes, cursor on email 41.
+      -- Reading shrink with cache-fill, then close → grow should restore cursor.
+      vim.api.nvim_win_set_height(0, 42)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 42)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 42
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(42)
+      vim.api.nvim_win_set_cursor(0, {41, 0})
+
+      -- Step 1: reading truncation with cache-fill
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      email.resize_listing()
+
+      assert.are.equal('41', vim.b.himalaya_reading_cursor_id)
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('41', rendered_envs[cursor_line].id)
+
+      -- Step 2: close reading → grow back
+      close_reading_window()
+      vim.api.nvim_win_set_height(0, 42)
+      rendered_envs = nil
+      email.resize_listing()
+      email.cancel_resize()
+
+      -- Cursor should be back on email 41
+      assert.is_not_nil(rendered_envs)
+      local grow_cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('41', rendered_envs[grow_cursor].id)
+      assert.is_nil(vim.b.himalaya_reading_cursor_id)
+    end)
   end)
 
   -- ── page_size initialisation ─────────────────────────────────────
