@@ -304,6 +304,10 @@ function M.open(callback)
     propagating = false
   end
 
+  -- Per-line generation counters to prevent vim.schedule race conditions.
+  -- Each on_lines increments the counter; stale scheduled callbacks skip.
+  local edit_gen = {}
+
   -- Attach reactive listener.
   -- Buffer modifications are not allowed inside on_lines, so we defer
   -- all propagation with vim.schedule.
@@ -338,8 +342,11 @@ function M.open(callback)
           recompose_query()
         end)
       elseif first_line == QUERY_LINE then
+        edit_gen[QUERY_LINE] = (edit_gen[QUERY_LINE] or 0) + 1
+        local gen = edit_gen[QUERY_LINE]
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
+          if edit_gen[QUERY_LINE] ~= gen then return end
           local val = get_line(QUERY_LINE)
           if val == '' and not query_subscribed then
             query_subscribed = true
@@ -350,10 +357,14 @@ function M.open(callback)
           end
         end)
       else
+        edit_gen[first_line] = (edit_gen[first_line] or 0) + 1
+        local gen = edit_gen[first_line]
+        local fl = first_line
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
+          if edit_gen[fl] ~= gen then return end
           -- Re-link subject when cleared
-          if first_line == 1 then
+          if fl == 1 then
             local val = get_line(1)
             if val == '' and not subject_subscribed then
               subject_subscribed = true
@@ -368,7 +379,7 @@ function M.open(callback)
             end
           end
           -- Re-link body when cleared
-          if first_line == 2 then
+          if fl == 2 then
             local val = get_line(2)
             if val == '' and not body_subscribed then
               body_subscribed = true
