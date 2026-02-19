@@ -57,11 +57,12 @@ function M.open(callback)
     return vim.api.nvim_buf_get_lines(buf, line_idx, line_idx + 1, false)[1] or ''
   end
 
-  --- Set a single buffer line by 0-based index.
+  --- Set a single buffer line by 0-based index (preserves extmarks).
   --- @param line_idx number
   --- @param text string
   local function set_line(line_idx, text)
-    vim.api.nvim_buf_set_lines(buf, line_idx, line_idx + 1, false, { text })
+    local old = get_line(line_idx)
+    vim.api.nvim_buf_set_text(buf, line_idx, 0, line_idx, #old, { text })
   end
 
   --- Recompose the query line from subject/body/from fields.
