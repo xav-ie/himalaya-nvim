@@ -865,48 +865,9 @@ function M.resize_listing()
 
   if not old_page_size then
     vim.b.himalaya_page_size = new_page_size
-  elseif reading then
-    -- Cursor-aware truncation: no page change, no Phase 2 re-fetch.
-    vim.b.himalaya_page_size = new_page_size
-    -- Resolve cursor to envelope index: use saved ID from previous
-    -- reading truncation (buffer rows don't match cache indices).
-    local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
-    local saved_id = vim.b.himalaya_reading_cursor_id
-    if saved_id then
-      for i, env in ipairs(envelopes) do
-        if tostring(env.id) == saved_id then cursor_row = i; break end
-      end
-    end
-    local display, cursor_in_display
-    if #envelopes <= new_page_size then
-      display = envelopes
-      cursor_in_display = cursor_row
-    else
-      -- Slice centered around cursor
-      local half = math.floor(new_page_size / 2)
-      local start = math.max(1, cursor_row - half)
-      local finish = math.min(#envelopes, start + new_page_size - 1)
-      start = math.max(1, finish - new_page_size + 1)
-      display = {}
-      for i = start, finish do display[#display + 1] = envelopes[i] end
-      cursor_in_display = cursor_row - start + 1
-    end
-    -- Save envelope ID at cursor for restoration on grow
-    vim.b.himalaya_reading_cursor_id = display[cursor_in_display]
-      and tostring(display[cursor_in_display].id) or nil
-    local renderer = require('himalaya.ui.renderer')
-    local listing = require('himalaya.ui.listing')
-    local bufnr = vim.api.nvim_get_current_buf()
-    local result = renderer.render(display, M._bufwidth())
-    vim.bo[bufnr].modifiable = true
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-    listing.apply_header(bufnr, result.header)
-    listing.apply_seen_highlights(bufnr, display)
-    vim.bo[bufnr].modifiable = false
-    pcall(vim.api.nvim_win_set_cursor, 0, {cursor_in_display, 0})
-    return
-  elseif new_page_size ~= old_page_size then
-    -- Phase 1: synchronous overlap display
+  elseif reading or new_page_size ~= old_page_size then
+    -- Page-boundary logic (shared by reading truncation and Phase 1).
+    -- Reading truncation uses the same overlap computation but skips Phase 2.
     local old_page = vim.b.himalaya_page or 1
     local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
     local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
@@ -959,6 +920,13 @@ function M.resize_listing()
     -- Position cursor on selected email
     local cursor_line = selected_global - overlap_start + 1
     pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
+
+    if reading then
+      -- Save envelope ID for cursor restoration on grow; skip Phase 2.
+      vim.b.himalaya_reading_cursor_id = display_envelopes[cursor_line]
+        and tostring(display_envelopes[cursor_line].id) or nil
+      return
+    end
 
     -- Phase 2: deferred re-fetch (debounced 150ms)
     if resize_timer then resize_timer:stop() end

@@ -173,7 +173,7 @@ describe('himalaya.domain.email resize_listing', function()
       close_reading_window()
     end)
 
-    it('truncates display around cursor when reading', function()
+    it('truncates display using page boundaries when reading', function()
       vim.api.nvim_win_set_height(0, 10)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
@@ -188,10 +188,12 @@ describe('himalaya.domain.email resize_listing', function()
       open_reading_window()
       email.resize_listing()
 
-      -- Page stays 1 (no Phase 1 page change)
-      assert.are.equal(1, vim.b.himalaya_page)
-      -- Display is truncated
+      -- Display is truncated to page boundaries
       assert.is_not_nil(rendered_envs)
+      -- Page is recomputed based on cursor position and new page_size
+      local new_ps = vim.b.himalaya_page_size
+      local expected_page = math.floor(7 / new_ps) + 1  -- global index 7
+      assert.are.equal(expected_page, vim.b.himalaya_page)
       -- Envelope 8 must be in the rendered slice
       local found = false
       for _, env in ipairs(rendered_envs) do
@@ -283,10 +285,10 @@ describe('himalaya.domain.email resize_listing', function()
 
     it('restores cursor to selected email when listing grows after reading close', function()
       -- Scenario: 10 envelopes on page 1, cursor on row 8 (ID 8).
-      -- Open reading split → listing shrinks to 5 → reading truncation centers
-      -- around ID 8 (display: IDs 6-10, cursor on row 3 = ID 8).
-      -- Close reading split → listing grows back to 10 → Phase 1 should
-      -- resolve cursor from saved_reading_cursor_id, NOT from row position.
+      -- Open reading split → listing shrinks to ~5 → page-boundary truncation
+      -- puts ID 8 on page 2 (IDs 6-10, cursor on row 3 = ID 8).
+      -- Close reading split → listing grows back to 10 → should resolve
+      -- cursor from saved_reading_cursor_id, NOT from row position.
       vim.api.nvim_win_set_height(0, 10)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
@@ -324,8 +326,8 @@ describe('himalaya.domain.email resize_listing', function()
 
     it('restores cursor from reading truncation on page 2+ grow', function()
       -- Page 2: envelopes 11-20 (IDs 11-20), cursor on row 7 (ID 17).
-      -- Reading shrink → truncation centers around ID 17.
-      -- Close reading → Phase 1 grow should resolve cursor to ID 17.
+      -- Reading shrink → page-boundary truncation shows ID 17.
+      -- Close reading → grow should resolve cursor to ID 17.
       vim.api.nvim_win_set_height(0, 10)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(11, 10)
@@ -391,7 +393,8 @@ describe('himalaya.domain.email resize_listing', function()
       assert.is_nil(vim.b.himalaya_reading_cursor_id)
     end)
 
-    it('preserves page number while reading', function()
+    it('updates page correctly when cursor is in second half during reading', function()
+      vim.api.nvim_win_set_height(0, 10)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
       vim.b.himalaya_page = 1
@@ -399,15 +402,19 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      -- Cursor in second half — would normally change page to 2
+      -- Cursor in second half
       vim.api.nvim_win_set_cursor(0, {8, 0})
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 5)
       email.resize_listing()
 
-      -- Page must NOT change to 2 while reading
-      assert.are.equal(1, vim.b.himalaya_page)
+      -- Page should change: global index 7, page = floor(7/5)+1 = 2
+      assert.are.equal(2, vim.b.himalaya_page)
+      assert.are.equal(5, vim.b.himalaya_page_size)
+      -- Cursor should still be on envelope 8
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('8', rendered_envs[cursor_line].id)
     end)
   end)
 
