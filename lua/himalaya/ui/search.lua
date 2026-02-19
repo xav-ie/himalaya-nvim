@@ -1,26 +1,61 @@
 local M = {}
 
+-- Date helpers for when-presets
+local function today_str(offset_days)
+  return os.date('%Y-%m-%d', os.time() + offset_days * 86400)
+end
+
+-- Returns the Monday of the current ISO week
+local function week_start()
+  local t = os.time()
+  local d = os.date('*t', t)
+  local wday = (d.wday + 5) % 7  -- Mon=0 .. Sun=6
+  return os.date('%Y-%m-%d', t - wday * 86400)
+end
+
+local WHEN_PRESETS = {
+  { label = 'today',         resolve = function() return 'date ' .. today_str(0) end },
+  { label = 'yesterday',     resolve = function() return 'date ' .. today_str(-1) end },
+  { label = 'past 3 days',   resolve = function() return 'after ' .. today_str(-3) end },
+  { label = 'past week',     resolve = function() return 'after ' .. today_str(-7) end },
+  { label = 'past 2 weeks',  resolve = function() return 'after ' .. today_str(-14) end },
+  { label = 'past month',    resolve = function() return 'after ' .. today_str(-30) end },
+  { label = 'past 3 months', resolve = function() return 'after ' .. today_str(-90) end },
+  { label = 'this week',     resolve = function() return 'after ' .. week_start() end },
+  { label = 'this month',    resolve = function() return 'after ' .. os.date('%Y-%m') .. '-01' end },
+  { label = 'this year',     resolve = function() return 'after ' .. os.date('%Y') .. '-01-01' end },
+}
+
+-- Per-field highlight sources for query coloring and linked labels
+local FIELD_HL = {
+  subject = 'DiagnosticInfo',
+  body    = 'String',
+  from    = 'DiagnosticWarn',
+  to      = 'Special',
+  when    = 'Type',
+  flag    = 'DiagnosticError',
+}
+
 -- Field definitions: each field maps to a buffer line.
 -- `keyword`  = the himalaya query keyword (nil for search/query meta-lines)
 -- `quote`    = wrap value in double quotes (text patterns need it for multi-word)
 -- `sep`      = place a virtual separator line below this field
--- `complete` = list of completion candidates for this field
+-- `complete` = 'flag' | 'when' — enables Tab-completion on this line
 local FIELDS = {
   { label = ' search: ' },
   { label = 'subject: ', keyword = 'subject', quote = true },
   { label = '   body: ', keyword = 'body',    quote = true },
   { label = '   from: ', keyword = 'from',    quote = true },
   { label = '     to: ', keyword = 'to',      quote = true },
-  { label = '   date: ', keyword = 'date' },
-  { label = ' before: ', keyword = 'before' },
-  { label = '  after: ', keyword = 'after' },
-  { label = '   flag: ', keyword = 'flag',    sep = true, complete = true },
+  { label = '   when: ', complete = 'when' },
+  { label = '   flag: ', keyword = 'flag',    sep = true, complete = 'flag' },
   { label = '  query: ' },
 }
 
-local FLAG_LINE -- set after FIELDS is defined
+local FLAG_LINE, WHEN_LINE
 for i, f in ipairs(FIELDS) do
-  if f.complete then FLAG_LINE = i - 1; break end
+  if f.complete == 'flag' then FLAG_LINE = i - 1 end
+  if f.complete == 'when' then WHEN_LINE = i - 1 end
 end
 
 local SEARCH_LINE = 0
@@ -40,13 +75,24 @@ function M.open(callback)
 
   local ns = vim.api.nvim_create_namespace('himalaya_search')
 
-  -- Set initial buffer lines (all empty)
-  local init_lines = {}
-  for _ = 1, num_lines do init_lines[#init_lines + 1] = '' end
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, init_lines)
+  -- Per-field linked value highlights (field color + underline for content)
+  local linked_value_hl = {}
+  for kw, source in pairs(FIELD_HL) do
+    local name = 'HimalayaSearch' .. kw:sub(1, 1):upper() .. kw:sub(2) .. 'Linked'
+    local attrs = vim.api.nvim_get_hl(0, { name = source, link = false })
+    attrs.underline = true
+    vim.api.nvim_set_hl(0, name, attrs)
+    linked_value_hl[kw] = name
+  end
 
-  -- Labels as inline virtual text
-  for i, field in ipairs(FIELDS) do
+  -- Namespace for underline highlights on linked field values
+  local value_hl_ns = vim.api.nvim_create_namespace('himalaya_search_value_hl')
+  -- Namespace for per-field coloring on the query line
+  local query_hl_ns = vim.api.nvim_create_namespace('himalaya_search_query_hl')
+
+  local label_marks = {}
+
+  local function set_label(line_idx, field)
     local opts = {
       virt_text = { { field.label, 'Comment' } },
       virt_text_pos = 'inline',
@@ -55,7 +101,28 @@ function M.open(callback)
     if field.sep then
       opts.virt_lines = { { { string.rep('\u{2500}', 56), 'FloatBorder' } } }
     end
-    vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, opts)
+    if label_marks[line_idx] then
+      opts.id = label_marks[line_idx]
+    end
+    label_marks[line_idx] = vim.api.nvim_buf_set_extmark(buf, ns, line_idx, 0, opts)
+  end
+
+  local function restore_labels()
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+    for k in pairs(label_marks) do label_marks[k] = nil end
+    for i, field in ipairs(FIELDS) do
+      set_label(i - 1, field)
+    end
+  end
+
+  -- Set initial buffer lines (all empty)
+  local init_lines = {}
+  for _ = 1, num_lines do init_lines[#init_lines + 1] = '' end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, init_lines)
+
+  -- Labels as inline virtual text
+  for i, field in ipairs(FIELDS) do
+    set_label(i - 1, field)
   end
 
   -- Open floating window
@@ -76,28 +143,58 @@ function M.open(callback)
   vim.wo[win].wrap = false
   vim.wo[win].cursorline = true
 
-  -- Flag completion: build the candidate list from the flags module.
+  -- Completion: build candidate lists for flag and when lines.
   local flag_candidates = require('himalaya.domain.email.flags').complete_list()
 
-  -- completefunc: returns flag candidates when cursor is on the flag line.
+  local when_candidates = {}
+  for _, p in ipairs(WHEN_PRESETS) do
+    when_candidates[#when_candidates + 1] = {
+      word = p.resolve(),
+      menu = p.label,
+    }
+  end
+
   vim.api.nvim_buf_set_var(buf, '_himalaya_flag_candidates', flag_candidates)
+  vim.api.nvim_buf_set_var(buf, '_himalaya_when_candidates', when_candidates)
+  vim.api.nvim_buf_set_var(buf, '_himalaya_flag_line', FLAG_LINE)
+  vim.api.nvim_buf_set_var(buf, '_himalaya_when_line', WHEN_LINE)
   vim.bo[buf].completefunc = 'v:lua._himalaya_search_completefunc'
   -- Global completefunc wrapper (scoped to this buffer via buf-local var).
   if not _G._himalaya_search_completefunc then
     function _G._himalaya_search_completefunc(findstart, base)
       local b = vim.api.nvim_get_current_buf()
-      local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_candidates')
-      if not ok then return findstart == 1 and -3 or {} end
-      if findstart == 1 then
-        return 0
-      end
-      local matches = {}
-      for _, flag in ipairs(candidates) do
-        if flag:lower():find(base:lower(), 1, true) == 1 then
-          matches[#matches + 1] = flag
+      local row = vim.fn.line('.') - 1 -- 0-based
+
+      local ok_fl, fl = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_line')
+      local ok_wl, wl = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_when_line')
+
+      if ok_wl and row == wl then
+        -- When-line completion
+        local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_when_candidates')
+        if not ok then return findstart == 1 and -3 or {} end
+        if findstart == 1 then return 0 end
+        local matches = {}
+        for _, c in ipairs(candidates) do
+          if c.word:lower():find(base:lower(), 1, true) == 1 then
+            matches[#matches + 1] = c
+          end
         end
+        return matches
+      elseif ok_fl and row == fl then
+        -- Flag-line completion
+        local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_candidates')
+        if not ok then return findstart == 1 and -3 or {} end
+        if findstart == 1 then return 0 end
+        local matches = {}
+        for _, flag in ipairs(candidates) do
+          if flag:lower():find(base:lower(), 1, true) == 1 then
+            matches[#matches + 1] = flag
+          end
+        end
+        return matches
       end
-      return matches
+
+      return findstart == 1 and -3 or {}
     end
   end
 
@@ -121,42 +218,89 @@ function M.open(callback)
     return field.keyword .. ' ' .. val
   end
 
+  --- Update underline highlights on linked field values.
+  local function update_value_hl()
+    vim.api.nvim_buf_clear_namespace(buf, value_hl_ns, 0, -1)
+    if subject_subscribed then
+      local len = #get_line(1)
+      if len > 0 then
+        vim.api.nvim_buf_set_extmark(buf, value_hl_ns, 1, 0, {
+          end_col = len, hl_group = linked_value_hl.subject,
+        })
+      end
+    end
+    if body_subscribed then
+      local len = #get_line(2)
+      if len > 0 then
+        vim.api.nvim_buf_set_extmark(buf, value_hl_ns, 2, 0, {
+          end_col = len, hl_group = linked_value_hl.body,
+        })
+      end
+    end
+  end
+
   --- Recompose the query line from all filter fields.
   --- Text-search fields (subject, body) are OR-grouped together, then
-  --- AND-combined with all other conditions.
+  --- AND-combined with all other conditions. Each field's contribution
+  --- is colored with its field highlight on the query line.
   local function recompose_query()
     if not query_subscribed then return end
-    -- Collect OR-group (subject, body) and AND-group (everything else)
-    local or_parts = {}
-    local and_parts = {}
+    local or_segs = {}
+    local and_segs = {}
     for i, field in ipairs(FIELDS) do
-      if field.keyword then
+      if field.complete == 'when' then
+        local val = get_line(i - 1)
+        if val ~= '' then
+          and_segs[#and_segs + 1] = { text = val, hl = FIELD_HL.when }
+        end
+      elseif field.keyword then
         local val = get_line(i - 1)
         if val ~= '' then
           local cond = format_condition(field, val)
+          local hl = FIELD_HL[field.keyword]
           if field.keyword == 'subject' or field.keyword == 'body' then
-            or_parts[#or_parts + 1] = cond
+            or_segs[#or_segs + 1] = { text = cond, hl = hl }
           else
-            and_parts[#and_parts + 1] = cond
+            and_segs[#and_segs + 1] = { text = cond, hl = hl }
           end
         end
       end
     end
-    -- Build: (subject X or body Y) and from Z and to W ...
-    local result = {}
-    if #or_parts > 0 then
-      local or_str = table.concat(or_parts, ' or ')
-      -- Wrap in parens only when there are both OR-parts and AND-parts
-      if #and_parts > 0 and #or_parts > 1 then
-        or_str = '(' .. or_str .. ')'
+    -- Build segments with separators
+    local segments = {}
+    if #or_segs > 0 then
+      local need_parens = #and_segs > 0 and #or_segs > 1
+      if need_parens then segments[#segments + 1] = { text = '(' } end
+      for j, seg in ipairs(or_segs) do
+        if j > 1 then segments[#segments + 1] = { text = ' or ' } end
+        segments[#segments + 1] = seg
       end
-      result[#result + 1] = or_str
+      if need_parens then segments[#segments + 1] = { text = ')' } end
     end
-    for _, part in ipairs(and_parts) do
-      result[#result + 1] = part
+    for _, seg in ipairs(and_segs) do
+      if #segments > 0 then segments[#segments + 1] = { text = ' and ' } end
+      segments[#segments + 1] = seg
+    end
+    -- Build final string and track highlight positions
+    local texts = {}
+    local hl_ranges = {}
+    local pos = 0
+    for _, seg in ipairs(segments) do
+      texts[#texts + 1] = seg.text
+      if seg.hl then
+        hl_ranges[#hl_ranges + 1] = { pos, pos + #seg.text, seg.hl }
+      end
+      pos = pos + #seg.text
     end
     propagating = true
-    set_line(QUERY_LINE, table.concat(result, ' and '))
+    set_line(QUERY_LINE, table.concat(texts))
+    -- Apply per-field coloring on the query line
+    vim.api.nvim_buf_clear_namespace(buf, query_hl_ns, QUERY_LINE, QUERY_LINE + 1)
+    for _, r in ipairs(hl_ranges) do
+      vim.api.nvim_buf_set_extmark(buf, query_hl_ns, QUERY_LINE, r[1], {
+        end_col = r[2], hl_group = r[3],
+      })
+    end
     propagating = false
   end
 
@@ -164,9 +308,23 @@ function M.open(callback)
   -- Buffer modifications are not allowed inside on_lines, so we defer
   -- all propagation with vim.schedule.
   vim.api.nvim_buf_attach(buf, false, {
-    on_lines = function(_, _, _, first_line)
+    on_lines = function(_, _, _, first_line, lastline, new_lastline)
       if propagating then return end
       if not vim.api.nvim_buf_is_valid(buf) then return true end
+
+      -- Undo any line additions/deletions to preserve buffer structure
+      if lastline ~= new_lastline then
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          propagating = true
+          vim.cmd('silent! undo')
+          propagating = false
+          restore_labels()
+          update_value_hl()
+          recompose_query()
+        end)
+        return
+      end
 
       if first_line == SEARCH_LINE then
         vim.schedule(function()
@@ -176,16 +334,55 @@ function M.open(callback)
           if subject_subscribed then set_line(1, search_val) end
           if body_subscribed then set_line(2, search_val) end
           propagating = false
+          update_value_hl()
           recompose_query()
         end)
       elseif first_line == QUERY_LINE then
-        query_subscribed = false
-      else
-        -- Any filter field changed
-        if first_line == 1 then subject_subscribed = false end
-        if first_line == 2 then body_subscribed = false end
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
+          local val = get_line(QUERY_LINE)
+          if val == '' and not query_subscribed then
+            query_subscribed = true
+            recompose_query()
+          elseif query_subscribed then
+            query_subscribed = false
+            vim.api.nvim_buf_clear_namespace(buf, query_hl_ns, QUERY_LINE, QUERY_LINE + 1)
+          end
+        end)
+      else
+        vim.schedule(function()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          -- Re-link subject when cleared
+          if first_line == 1 then
+            local val = get_line(1)
+            if val == '' and not subject_subscribed then
+              subject_subscribed = true
+              local search_val = get_line(SEARCH_LINE)
+              if search_val ~= '' then
+                propagating = true
+                set_line(1, search_val)
+                propagating = false
+              end
+            elseif subject_subscribed then
+              subject_subscribed = false
+            end
+          end
+          -- Re-link body when cleared
+          if first_line == 2 then
+            local val = get_line(2)
+            if val == '' and not body_subscribed then
+              body_subscribed = true
+              local search_val = get_line(SEARCH_LINE)
+              if search_val ~= '' then
+                propagating = true
+                set_line(2, search_val)
+                propagating = false
+              end
+            elseif body_subscribed then
+              body_subscribed = false
+            end
+          end
+          update_value_hl()
           recompose_query()
         end)
       end
@@ -229,10 +426,14 @@ function M.open(callback)
   -- Buffer-local keymaps
   local map_opts = { buffer = buf, noremap = true, silent = true }
 
-  -- <Tab>: on the flag line trigger completion, otherwise navigate fields.
+  -- <Tab>: on completable lines trigger completion, otherwise navigate fields.
+  local complete_lines = {}
+  for i, f in ipairs(FIELDS) do
+    if f.complete then complete_lines[i - 1] = true end
+  end
   vim.keymap.set({ 'n', 'i' }, '<Tab>', function()
     local row = vim.api.nvim_win_get_cursor(win)[1] - 1 -- 0-based
-    if row == FLAG_LINE then
+    if complete_lines[row] then
       vim.api.nvim_feedkeys(
         vim.api.nvim_replace_termcodes('<C-x><C-u>', true, false, true),
         'n', false)
