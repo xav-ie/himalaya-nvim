@@ -172,7 +172,7 @@ describe('himalaya.domain.email resize_listing', function()
       close_reading_window()
     end)
 
-    it('skips resize when a reading window exists', function()
+    it('truncates display without changing page when reading', function()
       vim.api.nvim_win_set_height(0, 5)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
@@ -186,10 +186,13 @@ describe('himalaya.domain.email resize_listing', function()
       open_reading_window()
       email.resize_listing()
 
-      -- Nothing should have changed
-      assert.is_nil(rendered_envs)
+      -- Page stays 1 (no Phase 1 page change)
       assert.are.equal(1, vim.b.himalaya_page)
-      assert.are.equal(10, vim.b.himalaya_page_size)
+      -- But display is truncated via display_slice
+      assert.is_not_nil(rendered_envs)
+      assert.is_true(#rendered_envs <= 5)
+      -- First envelopes shown (display_slice takes from the front)
+      assert.are.equal('1', rendered_envs[1].id)
     end)
 
     it('does not start Phase 2 timer when reading', function()
@@ -221,22 +224,22 @@ describe('himalaya.domain.email resize_listing', function()
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, {3, 0})
 
-      -- Resize while reading — suppressed
+      -- Resize while reading — truncates but no page change
       open_reading_window()
       vim.api.nvim_win_set_height(0, 5)
       email.resize_listing()
-      assert.is_nil(rendered_envs)
+      assert.are.equal(1, vim.b.himalaya_page)
+      rendered_envs = nil
 
-      -- Close reading window — resize should work now
+      -- Close reading window — Phase 1 should work now
       close_reading_window()
       email.resize_listing()
       email.cancel_resize()
 
       assert.is_not_nil(rendered_envs)
-      assert.are.equal(5, vim.b.himalaya_page_size)
     end)
 
-    it('preserves buffer content while reading', function()
+    it('preserves page number while reading', function()
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
       vim.b.himalaya_page = 1
@@ -244,15 +247,15 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-
-      local lines_before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      -- Cursor in second half — would normally change page to 2
+      vim.api.nvim_win_set_cursor(0, {8, 0})
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 5)
       email.resize_listing()
 
-      local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-      assert.are.same(lines_before, lines_after)
+      -- Page must NOT change to 2 while reading
+      assert.are.equal(1, vim.b.himalaya_page)
     end)
   end)
 
@@ -790,8 +793,8 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_buffer_type = 'listing'
       seed_buffer_lines(1)
 
-      -- list_with uses page_size() = winheight(0) internally
-      local ps = vim.fn.winheight(0)
+      -- list_with subtracts 1 from winheight when winbar is empty (first load)
+      local ps = vim.fn.winheight(0) - 1
       email.list_with('test', 'INBOX', 2, '')
 
       assert.are.equal((2 - 1) * ps, vim.b.himalaya_cache_offset)
@@ -807,8 +810,8 @@ describe('himalaya.domain.email resize_listing', function()
       email.list_with('test', 'INBOX', 3, '')
 
       assert.are.equal(3, vim.b.himalaya_page)
-      -- page_size comes from vim.fn.winheight(0)
-      assert.are.equal(vim.fn.winheight(0), vim.b.himalaya_page_size)
+      -- list_with subtracts 1 from winheight when winbar is empty (first load)
+      assert.are.equal(vim.fn.winheight(0) - 1, vim.b.himalaya_page_size)
     end)
 
     it('restores cursor to saved_cursor_id after re-fetch', function()

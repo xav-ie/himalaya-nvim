@@ -189,6 +189,11 @@ function M.list_with(account, folder, page, qry)
     resize_job = nil
   end
   local ps = page_size()
+  -- On first load the winbar hasn't been set yet, so winheight still
+  -- includes that row.  Reserve one line for the header winbar.
+  if vim.wo.winbar == '' then
+    ps = math.max(1, ps - 1)
+  end
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
@@ -831,13 +836,14 @@ function M.resize_listing()
   local envelopes = vim.b.himalaya_envelopes
   if not envelopes then return end
 
-  -- Skip resize when listing is background (email being read).
-  -- The listing resizes correctly when the reading window closes.
+  -- Check if listing is background (email being read).
+  local reading = false
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_is_valid(winid) then
       local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
       if bname:find('Himalaya/read email', 1, true) then
-        return
+        reading = true
+        break
       end
     end
   end
@@ -846,6 +852,10 @@ function M.resize_listing()
   local old_page_size = vim.b.himalaya_page_size
 
   if not old_page_size then
+    vim.b.himalaya_page_size = new_page_size
+  elseif reading then
+    -- While reading, just track the new page_size and fall through to
+    -- display_slice truncation. No page change, no Phase 2 re-fetch.
     vim.b.himalaya_page_size = new_page_size
   elseif new_page_size ~= old_page_size then
     -- Phase 1: synchronous overlap display
