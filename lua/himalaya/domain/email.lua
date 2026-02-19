@@ -939,8 +939,11 @@ end
 
 --- Set the list envelopes query and refresh.
 function M.set_list_envelopes_query()
-  query = vim.fn.input('Query: ')
-  M.list()
+  local search = require('himalaya.ui.search')
+  search.open(function(final_query)
+    query = final_query
+    M.list()
+  end)
 end
 
 --- Accessor for current_id (used by compose module).
