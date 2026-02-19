@@ -91,8 +91,8 @@ function M.apply_seen_highlights(bufnr, envelopes)
     if seen then
       local line = i - 1  -- 0-based, no header offset
       vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
-        end_row = line,
-        end_col = #vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1],
+        end_row = line + 1,
+        hl_eol = true,
         hl_group = 'HimalayaSeen',
         priority = 200,
       })
@@ -175,7 +175,6 @@ function M.setup(bufnr)
       if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
         vim.api.nvim_win_call(winid, function()
           email.resize_listing()
-          M.apply_syntax(bufnr)
         end)
         break
       end

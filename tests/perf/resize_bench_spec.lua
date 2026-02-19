@@ -335,6 +335,75 @@ describe('resize perf baseline', function()
     end
   end)
 
+  -- ── resize_listing() shrink within cache (no Phase 2) + redraw ─
+
+  it('bench: resize_listing shrink within cache (no Phase 2)', function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local n = #envelopes
+
+    local result = renderer.render(envelopes, WIDTH)
+    vim.bo[bufnr].modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+    vim.bo[bufnr].modifiable = false
+    listing.apply_syntax(bufnr)
+    vim.b.himalaya_buffer_type = 'listing'
+    vim.b.himalaya_envelopes = envelopes
+    vim.b.himalaya_page = 1
+    vim.b.himalaya_page_size = n
+    vim.b.himalaya_cache_offset = 0
+    vim.b.himalaya_query = ''
+
+    -- Both heights are smaller than the cache size, so Phase 2 is skipped
+    local heights = { math.max(1, n - 10), math.max(1, n - 20) }
+    local samples = {}
+    local last_snap
+    local phase2_called = false
+    local orig_json = package.loaded['himalaya.request'].json
+    package.loaded['himalaya.request'].json = function(opts)
+      phase2_called = true
+      return orig_json(opts)
+    end
+
+    for i = 1, ITERATIONS do
+      local h = heights[(i % 2) + 1]
+      vim.api.nvim_win_set_height(0, h)
+      vim.b.himalaya_page_size = heights[((i + 1) % 2) + 1]
+      seed_buffer_lines(bufnr, n)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+      perf.reset()
+      local t0 = vim.fn.reltime()
+      email.resize_listing()
+      vim.cmd('redraw')
+      local ms = vim.fn.reltimefloat(vim.fn.reltime(t0)) * 1000
+      table.insert(samples, ms)
+      last_snap = perf.snapshot()
+    end
+
+    package.loaded['himalaya.request'].json = orig_json
+
+    local s = stats(samples)
+    write_result({
+      label = 'resize_listing_shrink_no_phase2',
+      envelopes = n, width = WIDTH, iterations = ITERATIONS,
+      min_ms = round2(s.min), max_ms = round2(s.max),
+      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      phase2_fired = phase2_called,
+      last_timers = last_snap and last_snap.timers or {},
+      last_counters = last_snap and last_snap.counters or {},
+    })
+
+    print(string.format(
+      '\n  resize_listing (shrink, no Phase 2): min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+      s.min, s.median, s.max, ITERATIONS, n))
+    if last_snap then
+      for k, v in pairs(last_snap.timers) do
+        print(string.format('    %s: %.2fms', k, v))
+      end
+    end
+    assert.is_false(phase2_called, 'Phase 2 should not fire when cache covers new page')
+  end)
+
   -- ── resize_listing() width-only + redraw ───────────────────────
 
   it('bench: resize_listing width-only + redraw', function()

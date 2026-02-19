@@ -932,15 +932,15 @@ function M.resize_listing()
     vim.fn.winrestview({ topline = 1 })
     pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
 
-    if reading then
-      -- When the page is fully covered by cached envelopes, skip Phase 2.
-      -- When sparse (cursor near cache edge), fall through to Phase 2
-      -- so the server fills the rest of the page.
-      if #display_envelopes >= new_page_size then
-        perf.stop("resize_listing_total")
-        perf.report()
-        return
-      end
+    -- When the page is fully covered by cached envelopes, skip Phase 2.
+    -- The cache retains its high-water mark from the last server fetch;
+    -- Phase 1 only updates page_size/page, never mutates the cache.
+    -- When sparse (cursor near cache edge), fall through to Phase 2
+    -- so the server fills the rest of the page.
+    if #display_envelopes >= new_page_size then
+      perf.stop("resize_listing_total")
+      perf.report()
+      return
     end
 
     -- Phase 2: deferred re-fetch (debounced 150ms)
