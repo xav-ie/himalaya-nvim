@@ -4,6 +4,7 @@ local M = {}
 -- `keyword`  = the himalaya query keyword (nil for search/query meta-lines)
 -- `quote`    = wrap value in double quotes (text patterns need it for multi-word)
 -- `sep`      = place a virtual separator line below this field
+-- `complete` = list of completion candidates for this field
 local FIELDS = {
   { label = 'search: ' },
   { label = 'subject: ', keyword = 'subject', quote = true },
@@ -13,9 +14,14 @@ local FIELDS = {
   { label = 'date: ',    keyword = 'date' },
   { label = 'before: ',  keyword = 'before' },
   { label = 'after: ',   keyword = 'after' },
-  { label = 'flag: ',    keyword = 'flag',    sep = true },
+  { label = 'flag: ',    keyword = 'flag',    sep = true, complete = true },
   { label = 'query: ' },
 }
+
+local FLAG_LINE -- set after FIELDS is defined
+for i, f in ipairs(FIELDS) do
+  if f.complete then FLAG_LINE = i - 1; break end
+end
 
 local SEARCH_LINE = 0
 local QUERY_LINE = #FIELDS - 1
@@ -49,6 +55,11 @@ function M.open(callback)
     if field.sep then
       opts.virt_lines = { { { string.rep('\u{2500}', 56), 'FloatBorder' } } }
     end
+    if field.complete then
+      opts.virt_text[#opts.virt_text + 1] = {
+        '  <Tab> to complete', 'NonText',
+      }
+    end
     vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, opts)
   end
 
@@ -69,6 +80,31 @@ function M.open(callback)
 
   vim.wo[win].wrap = false
   vim.wo[win].cursorline = true
+
+  -- Flag completion: build the candidate list from the flags module.
+  local flag_candidates = require('himalaya.domain.email.flags').complete_list()
+
+  -- completefunc: returns flag candidates when cursor is on the flag line.
+  vim.api.nvim_buf_set_var(buf, '_himalaya_flag_candidates', flag_candidates)
+  vim.bo[buf].completefunc = 'v:lua._himalaya_search_completefunc'
+  -- Global completefunc wrapper (scoped to this buffer via buf-local var).
+  if not _G._himalaya_search_completefunc then
+    function _G._himalaya_search_completefunc(findstart, base)
+      local b = vim.api.nvim_get_current_buf()
+      local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_candidates')
+      if not ok then return findstart == 1 and -3 or {} end
+      if findstart == 1 then
+        return 0
+      end
+      local matches = {}
+      for _, flag in ipairs(candidates) do
+        if flag:lower():find(base:lower(), 1, true) == 1 then
+          matches[#matches + 1] = flag
+        end
+      end
+      return matches
+    end
+  end
 
   --- Read a single buffer line by 0-based index.
   local function get_line(line_idx)
@@ -198,7 +234,17 @@ function M.open(callback)
   -- Buffer-local keymaps
   local map_opts = { buffer = buf, noremap = true, silent = true }
 
-  vim.keymap.set({ 'n', 'i' }, '<Tab>', next_field, map_opts)
+  -- <Tab>: on the flag line trigger completion, otherwise navigate fields.
+  vim.keymap.set({ 'n', 'i' }, '<Tab>', function()
+    local row = vim.api.nvim_win_get_cursor(win)[1] - 1 -- 0-based
+    if row == FLAG_LINE then
+      vim.api.nvim_feedkeys(
+        vim.api.nvim_replace_termcodes('<C-x><C-u>', true, false, true),
+        'n', false)
+    else
+      next_field()
+    end
+  end, map_opts)
   vim.keymap.set({ 'n', 'i' }, '<S-Tab>', prev_field, map_opts)
   vim.keymap.set({ 'n', 'i' }, '<CR>', submit, map_opts)
   vim.keymap.set('n', '<Esc>', close, map_opts)
