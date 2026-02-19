@@ -103,7 +103,8 @@ local function context_email_id()
 end
 
 --- Internal callback for list_with — populates the envelope listing buffer.
-local function on_list_with(account, folder, page, page_size, qry, data)
+--- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*page_size)
+local function on_list_with(account, folder, page, page_size, qry, data, fetch_offset)
   local acct_flag = account_flag(account)
   probe.reset_if_changed(acct_flag, folder, qry)
 
@@ -121,7 +122,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_page_size = page_size
   vim.b.himalaya_query = qry
 
-  local new_offset = (page - 1) * page_size
+  local new_offset = fetch_offset or ((page - 1) * page_size)
   if vim.b.himalaya_cache_key ~= cache_key then
     vim.b.himalaya_envelopes = data
     vim.b.himalaya_cache_offset = new_offset
@@ -133,16 +134,28 @@ local function on_list_with(account, folder, page, page_size, qry, data)
     vim.b.himalaya_cache_offset = merged_offset
   end
   vim.b.himalaya_cache_key = cache_key
+
+  -- Extract the display page's slice from (possibly larger) fetched data.
+  local display_page_start = (page - 1) * page_size
+  local data_idx_start = display_page_start - new_offset
+  local page_data = data
+  if data_idx_start > 0 or #data > page_size then
+    page_data = {}
+    for i = data_idx_start + 1, math.min(#data, data_idx_start + page_size) do
+      page_data[#page_data + 1] = data[i]
+    end
+  end
+
   local bufnr = vim.api.nvim_get_current_buf()
-  local result = renderer.render(data, M._bufwidth())
+  local result = renderer.render(page_data, M._bufwidth())
   -- Set winbar first so page_size() reflects actual visible area
   listing.apply_header(bufnr, result.header)
   -- After winbar is set, visible area may have shrunk — truncate if needed
   local actual_ps = math.max(1, vim.fn.winheight(0))
-  local display = data
-  if #data > actual_ps then
+  local display = page_data
+  if #page_data > actual_ps then
     display = {}
-    for i = 1, actual_ps do display[i] = data[i] end
+    for i = 1, actual_ps do display[i] = page_data[i] end
     local trimmed = {}
     for i = 1, actual_ps do trimmed[i] = result.lines[i] end
     result.lines = trimmed
@@ -207,22 +220,26 @@ function M.list_with(account, folder, page, qry)
   if vim.wo.winbar == '' then
     ps = math.max(1, ps - 1)
   end
-  -- On page 1 (offset 0) we can safely double the fetch size to fill
-  -- the cache ahead; for page 2+ the CLI offset depends on page_size
-  -- so we keep the display size to maintain correct alignment.
-  local fetch_ps = (page == 1) and (ps * 2) or ps
+  -- Double the fetch size to prime the cache with an extra page of
+  -- envelopes.  Adjust the CLI page number so the returned data always
+  -- covers the requested display page:
+  --   cli_page = ceil(page/2), fetch_ps = ps*2
+  -- Odd display pages → first half of CLI data, even → second half.
+  local fetch_ps = ps * 2
+  local cli_page = math.ceil(page / 2)
+  local fetch_offset = (cli_page - 1) * fetch_ps
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
       fetch_ps,
-      page,
+      cli_page,
       qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
     on_data = function(data)
-      on_list_with(account, folder, page, ps, qry, data)
+      on_list_with(account, folder, page, ps, qry, data, fetch_offset)
     end,
   })
 end
