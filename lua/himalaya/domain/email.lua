@@ -15,6 +15,7 @@ local saved_view = nil
 local saved_cursor_id = nil   -- email ID for cursor restoration after re-fetch
 local resize_timer = nil      -- vim.uv timer for debounced re-fetch
 local resize_job = nil        -- in-flight resize re-fetch job handle
+local resize_generation = 0   -- incremented on kill; stale callbacks check this
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -197,6 +198,7 @@ function M.list_with(account, folder, page, qry)
     resize_timer = nil
   end
   if resize_job then
+    resize_generation = resize_generation + 1
     resize_job:kill()
     resize_job = nil
   end
@@ -933,7 +935,7 @@ function M.resize_listing()
 
     -- Phase 2: deferred re-fetch (debounced 150ms)
     if resize_timer then resize_timer:stop() end
-    if resize_job then resize_job:kill(); resize_job = nil end
+    if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
 
     resize_timer = vim.uv.new_timer()
     resize_timer:start(150, 0, vim.schedule_wrap(function()
@@ -959,12 +961,16 @@ function M.resize_listing()
       local cur_query = vim.b[bufnr].himalaya_query or ''
       local cur_page = vim.b[bufnr].himalaya_page or 1
       local ps = vim.b[bufnr].himalaya_page_size
+      resize_generation = resize_generation + 1
+      local my_gen = resize_generation
       resize_job = request.json({
         cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
         args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
         msg = 'Refetching page after resize',
+        silent = true,
         on_data = function(data)
           resize_job = nil
+          if my_gen ~= resize_generation then return end
           if not vim.api.nvim_win_is_valid(listing_win) then return end
           saved_cursor_id = cursor_id
           vim.api.nvim_win_call(listing_win, function()
@@ -993,7 +999,7 @@ end
 --- Cancel any pending resize timer and in-flight resize re-fetch job.
 function M.cancel_resize()
   if resize_timer then resize_timer:stop(); resize_timer = nil end
-  if resize_job then resize_job:kill(); resize_job = nil end
+  if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
 end
 
 --- Set the list envelopes query and refresh.
@@ -1001,5 +1007,11 @@ function M.set_list_envelopes_query()
   query = vim.fn.input('Query: ')
   M.list()
 end
+
+--- Test-only accessors for resize generation state.
+function M._get_resize_generation() return resize_generation end
+function M._set_resize_generation(n) resize_generation = n end
+function M._set_resize_job(j) resize_job = j end
+function M._get_resize_job() return resize_job end
 
 return M

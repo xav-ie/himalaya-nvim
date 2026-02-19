@@ -996,6 +996,148 @@ describe('himalaya.domain.email resize_listing', function()
     end)
   end)
 
+  -- ── resize_generation (stale callback protection) ──────────────
+
+  describe('resize_generation', function()
+    it('starts at 0 for a fresh module', function()
+      assert.are.equal(0, email._get_resize_generation())
+    end)
+
+    it('cancel_resize increments generation when killing a job', function()
+      local killed = false
+      email._set_resize_job({ kill = function() killed = true end })
+
+      local gen_before = email._get_resize_generation()
+      email.cancel_resize()
+
+      assert.is_true(killed)
+      assert.are.equal(gen_before + 1, email._get_resize_generation())
+      assert.is_nil(email._get_resize_job())
+    end)
+
+    it('cancel_resize does not increment generation when no job exists', function()
+      local gen_before = email._get_resize_generation()
+      email.cancel_resize()
+      assert.are.equal(gen_before, email._get_resize_generation())
+    end)
+
+    it('list_with increments generation when killing a resize job', function()
+      local killed = false
+      email._set_resize_job({ kill = function() killed = true end })
+
+      local gen_before = email._get_resize_generation()
+      email.list_with('test', 'INBOX', 1, '')
+
+      assert.is_true(killed)
+      assert.are.equal(gen_before + 1, email._get_resize_generation())
+    end)
+
+    it('Phase 2 increments generation before issuing request', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      local gen_before = email._get_resize_generation()
+      email.resize_listing()
+
+      -- Wait for Phase 2 timer to fire
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
+      -- Generation must have been incremented by Phase 2 setup
+      assert.is_true(email._get_resize_generation() > gen_before)
+
+      email.cancel_resize()
+    end)
+
+    it('Phase 2 on_data is discarded when generation is stale', function()
+      -- Trigger a resize that starts Phase 2
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      email.resize_listing()
+
+      -- Wait for Phase 2 timer to fire and capture the on_data callback
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
+      local stale_on_data = last_request_json_opts.on_data
+
+      -- Simulate a new resize happening (increments generation)
+      email._set_resize_generation(email._get_resize_generation() + 1)
+
+      -- Invoke the stale on_data — it should be a no-op
+      rendered_envs = nil
+      stale_on_data(make_envelopes(1, 5))
+
+      -- The stale callback should not have rendered anything
+      assert.is_nil(rendered_envs)
+
+      email.cancel_resize()
+    end)
+
+    it('Phase 2 request uses silent = true', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      email.resize_listing()
+
+      -- Wait for Phase 2 timer to fire
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
+      assert.is_true(last_request_json_opts.silent,
+        'Phase 2 request must use silent = true to suppress errors from killed jobs')
+
+      email.cancel_resize()
+    end)
+
+    it('Phase 2 re-fetch kills bump generation on consecutive resizes', function()
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      -- First resize
+      vim.api.nvim_win_set_height(0, 7)
+      email.resize_listing()
+      local gen_after_first = email._get_resize_generation()
+
+      -- Second resize should stop first timer and bump generation
+      -- (the timer kill path only bumps when resize_job is non-nil,
+      --  but the Phase 2 launch bumps unconditionally)
+      vim.api.nvim_win_set_height(0, 4)
+      email.resize_listing()
+
+      -- Wait for the second Phase 2 to fire
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_true(email._get_resize_generation() > gen_after_first)
+
+      email.cancel_resize()
+    end)
+  end)
+
   -- ── buffer state after resize ───────────────────────────────────
 
   describe('buffer state', function()
