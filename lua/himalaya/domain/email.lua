@@ -207,12 +207,16 @@ function M.list_with(account, folder, page, qry)
   if vim.wo.winbar == '' then
     ps = math.max(1, ps - 1)
   end
+  -- On page 1 (offset 0) we can safely double the fetch size to fill
+  -- the cache ahead; for page 2+ the CLI offset depends on page_size
+  -- so we keep the display size to maintain correct alignment.
+  local fetch_ps = (page == 1) and (ps * 2) or ps
   request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
-      ps,
+      fetch_ps,
       page,
       qry,
     },
