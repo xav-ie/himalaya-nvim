@@ -940,10 +940,13 @@ end
 --- Set the list envelopes query and refresh.
 function M.set_list_envelopes_query()
   local search = require('himalaya.ui.search')
-  search.open(function(final_query)
+  search.open(function(final_query, folder)
     query = final_query
+    if folder and folder ~= '' then
+      folder_state.set(folder)
+    end
     M.list()
-  end, query)
+  end, query, folder_state.current())
 end
 
 --- Accessor for current_id (used by compose module).

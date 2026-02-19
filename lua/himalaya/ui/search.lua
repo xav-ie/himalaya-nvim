@@ -42,6 +42,7 @@ local FIELD_HL = {
 -- `sep`      = place a virtual separator line below this field
 -- `complete` = 'flag' | 'when' — enables Tab-completion on this line
 local FIELDS = {
+  { label = ' folder: ', complete = 'folder', sep = true },
   { label = 'subject: ', keyword = 'subject', quote = true },
   { label = '   body: ', keyword = 'body',    quote = true },
   { label = '   from: ', keyword = 'from',    quote = true },
@@ -51,14 +52,15 @@ local FIELDS = {
   { label = '  query: ' },
 }
 
-local FLAG_LINE, WHEN_LINE
+local FLAG_LINE, WHEN_LINE, FOLDER_LINE
 for i, f in ipairs(FIELDS) do
-  if f.complete == 'flag' then FLAG_LINE = i - 1 end
-  if f.complete == 'when' then WHEN_LINE = i - 1 end
+  if f.complete == 'flag'   then FLAG_LINE   = i - 1 end
+  if f.complete == 'when'   then WHEN_LINE   = i - 1 end
+  if f.complete == 'folder' then FOLDER_LINE = i - 1 end
 end
 
-local SUBJECT_LINE = 0
-local BODY_LINE = 1
+local SUBJECT_LINE = 1
+local BODY_LINE = 2
 local QUERY_LINE = #FIELDS - 1
 
 --- Build the negated variant of a field label (same width, leading space → '!').
@@ -73,10 +75,11 @@ end
 -- Saved state from the last submitted search (persists across popup opens).
 local last_state = nil
 
---- Open the search popup. Calls callback(query_string) on submit.
---- @param callback fun(query: string)
+--- Open the search popup. Calls callback(query_string, folder_string) on submit.
+--- @param callback fun(query: string, folder: string)
 --- @param prev_query? string  Non-empty when a previous search is active.
-function M.open(callback, prev_query)
+--- @param current_folder? string  Current folder name (pre-populated).
+function M.open(callback, prev_query, current_folder)
   local buf = vim.api.nvim_create_buf(false, true)
   local num_lines = #FIELDS
 
@@ -143,7 +146,10 @@ function M.open(callback, prev_query)
 
   -- Open floating window
   local width = 60
-  local height = num_lines + 1 -- +1 for the virtual separator line
+  -- Count virtual separator lines (fields with sep = true add a virt_line).
+  local sep_count = 0
+  for _, f in ipairs(FIELDS) do if f.sep then sep_count = sep_count + 1 end end
+  local height = num_lines + sep_count
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = width,
@@ -170,10 +176,28 @@ function M.open(callback, prev_query)
     }
   end
 
+  -- Fetch folder names asynchronously for completion.
+  local account_state = require('himalaya.state.account')
+  require('himalaya.request').json({
+    cmd = 'folder list %s',
+    args = {
+      account_state.current() ~= '' and ('--account ' .. account_state.current()) or '',
+    },
+    msg = 'Listing folders',
+    silent = true,
+    on_data = function(data)
+      if not vim.api.nvim_buf_is_valid(buf) then return end
+      local names = {}
+      for _, f in ipairs(data) do names[#names + 1] = f.name end
+      vim.api.nvim_buf_set_var(buf, '_himalaya_folder_candidates', names)
+    end,
+  })
+
   vim.api.nvim_buf_set_var(buf, '_himalaya_flag_candidates', flag_candidates)
   vim.api.nvim_buf_set_var(buf, '_himalaya_when_candidates', when_candidates)
   vim.api.nvim_buf_set_var(buf, '_himalaya_flag_line', FLAG_LINE)
   vim.api.nvim_buf_set_var(buf, '_himalaya_when_line', WHEN_LINE)
+  vim.api.nvim_buf_set_var(buf, '_himalaya_folder_line', FOLDER_LINE)
   vim.bo[buf].completefunc = 'v:lua._himalaya_search_completefunc'
   -- Global completefunc wrapper (scoped to this buffer via buf-local var).
   if not _G._himalaya_search_completefunc then
@@ -183,8 +207,21 @@ function M.open(callback, prev_query)
 
       local ok_fl, fl = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_line')
       local ok_wl, wl = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_when_line')
+      local ok_fol, fol = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_folder_line')
 
-      if ok_wl and row == wl then
+      if ok_fol and row == fol then
+        -- Folder-line completion
+        local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_folder_candidates')
+        if not ok then return findstart == 1 and -3 or {} end
+        if findstart == 1 then return 0 end
+        local matches = {}
+        for _, name in ipairs(candidates) do
+          if name:lower():find(base:lower(), 1, true) == 1 then
+            matches[#matches + 1] = name
+          end
+        end
+        return matches
+      elseif ok_wl and row == wl then
         -- When-line completion
         local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_when_candidates')
         if not ok then return findstart == 1 and -3 or {} end
@@ -421,8 +458,9 @@ function M.open(callback, prev_query)
       body_subscribed = body_subscribed,
       query_subscribed = query_subscribed,
     }
+    local final_folder = get_line(FOLDER_LINE)
     close()
-    callback(final_query)
+    callback(final_query, final_folder)
   end
 
   --- Move to the next field line, wrapping around.
@@ -496,8 +534,8 @@ function M.open(callback, prev_query)
   end
 
   -- Restore full state from last submit, or start fresh.
+  propagating = true
   if prev_query and prev_query ~= '' and last_state then
-    propagating = true
     for i, val in ipairs(last_state.values) do
       set_line(i - 1, val)
     end
@@ -510,7 +548,11 @@ function M.open(callback, prev_query)
     recompose_query()
     vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
   else
-    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    if current_folder and current_folder ~= '' then
+      set_line(FOLDER_LINE, current_folder)
+    end
+    propagating = false
+    vim.api.nvim_win_set_cursor(win, { SUBJECT_LINE + 1, 0 })
   end
   vim.cmd('startinsert')
 end
