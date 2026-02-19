@@ -103,6 +103,7 @@ function M.setup(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
     vim.wo.cursorline = true
     vim.wo.wrap = true
+    vim.wo.scrolloff = 0
   end)
   vim.bo[bufnr].modifiable = false
 
