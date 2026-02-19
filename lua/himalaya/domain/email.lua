@@ -449,10 +449,20 @@ function M.delete(first_line, last_line)
   })
 end
 
---- Copy email to target folder.
+--- Copy email(s) to target folder. Supports visual range via first_line/last_line.
 --- @param target_folder string
-function M.copy(target_folder)
-  local id = context_email_id()
+--- @param first_line? number
+--- @param last_line? number
+function M.copy(target_folder, first_line, last_line)
+  local ids
+  if in_listing_buffer() and first_line and last_line then
+    ids = get_email_id_under_cursors(first_line, last_line)
+  elseif in_listing_buffer() then
+    ids = get_email_id_under_cursor()
+  else
+    ids = current_id
+  end
+
   local account = account_state.current()
   local folder = folder_state.current()
   probe.cancel()
@@ -462,7 +472,7 @@ function M.copy(target_folder)
       account_flag(account),
       folder,
       target_folder,
-      id,
+      ids,
     },
     msg = 'Copying email',
     on_data = function()
@@ -471,16 +481,25 @@ function M.copy(target_folder)
   })
 end
 
---- Move email to target folder (with confirmation prompt).
+--- Move email(s) to target folder (with confirmation prompt). Supports visual range via first_line/last_line.
 --- @param target_folder string
-function M.move(target_folder)
-  local id = context_email_id()
+--- @param first_line? number
+--- @param last_line? number
+function M.move(target_folder, first_line, last_line)
+  local ids
+  if in_listing_buffer() and first_line and last_line then
+    ids = get_email_id_under_cursors(first_line, last_line)
+  elseif in_listing_buffer() then
+    ids = get_email_id_under_cursor()
+  else
+    ids = current_id
+  end
 
   local cfg = config.get()
   if cfg.always_confirm then
     local saved_cmdheight = vim.o.cmdheight
     vim.o.cmdheight = math.max(saved_cmdheight, 2)
-    local choice = vim.fn.confirm(string.format('Move email %s?', id), '&Yes\n&No', 1)
+    local choice = vim.fn.confirm(string.format('Move email(s) %s?', ids), '&Yes\n&No', 1)
     vim.o.cmdheight = saved_cmdheight
     if choice ~= 1 then
       return
@@ -496,7 +515,7 @@ function M.move(target_folder)
       account_flag(account),
       folder,
       target_folder,
-      id,
+      ids,
     },
     msg = 'Moving email',
     on_data = function()
@@ -505,16 +524,24 @@ function M.move(target_folder)
   })
 end
 
---- Open folder picker then copy email to selected folder.
-function M.select_folder_then_copy()
+--- Open folder picker then copy email(s) to selected folder. Supports visual range via first_line/last_line.
+--- @param first_line? number
+--- @param last_line? number
+function M.select_folder_then_copy(first_line, last_line)
   local folder_domain = require('himalaya.domain.folder')
-  folder_domain.open_picker(M.copy)
+  folder_domain.open_picker(function(target_folder)
+    M.copy(target_folder, first_line, last_line)
+  end)
 end
 
---- Open folder picker then move email to selected folder.
-function M.select_folder_then_move()
+--- Open folder picker then move email(s) to selected folder. Supports visual range via first_line/last_line.
+--- @param first_line? number
+--- @param last_line? number
+function M.select_folder_then_move(first_line, last_line)
   local folder_domain = require('himalaya.domain.folder')
-  folder_domain.open_picker(M.move)
+  folder_domain.open_picker(function(target_folder)
+    M.move(target_folder, first_line, last_line)
+  end)
 end
 
 --- Add flags to email(s). Supports visual range via first_line/last_line.
