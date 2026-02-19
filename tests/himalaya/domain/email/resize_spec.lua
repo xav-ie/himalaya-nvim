@@ -1992,5 +1992,147 @@ describe('himalaya.domain.email resize_listing', function()
       email.cancel_resize()
     end)
   end)
+
+  -- ── mark_envelope_seen with cumulative cache ──────────────────
+
+  describe('mark_envelope_seen with cumulative cache', function()
+    it('renders correct page slice on page 2 with cumulative cache', function()
+      -- Build cumulative cache: page 1 (IDs 1-5) + page 2 (IDs 6-10)
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      -- Cache: 10 envelopes (IDs 1-10), page=2, page_size=5
+      assert.are.equal(10, #vim.b.himalaya_envelopes)
+      assert.are.equal(2, vim.b.himalaya_page)
+
+      -- Buffer should show page 2 (IDs 6-10)
+      local lines_before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.is_truthy(lines_before[1]:find('6'))
+
+      -- Mark envelope 8 as seen
+      email._mark_envelope_seen('8')
+
+      -- After mark_seen, buffer should still show page 2 envelopes
+      local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal(#lines_before, #lines_after)
+      -- First line should still be envelope 6 (page 2), not envelope 1 (page 1)
+      assert.is_truthy(lines_after[1]:find('6'),
+        'first line must still be envelope 6 (page 2), not page 1')
+      assert.is_truthy(lines_after[#lines_after]:find('10'),
+        'last line must still be envelope 10')
+
+      vim.wo.winbar = ''
+    end)
+
+    it('renders correct page slice on page 1 with cumulative cache', function()
+      -- Build cumulative cache but stay on page 1
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+
+      -- Cache: 5 envelopes (IDs 1-5), page=1, page_size=5
+      assert.are.equal(1, vim.b.himalaya_page)
+
+      email._mark_envelope_seen('3')
+
+      local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.is_truthy(lines_after[1]:find('1'),
+        'first line must be envelope 1')
+      assert.is_truthy(lines_after[#lines_after]:find('5'),
+        'last line must be envelope 5')
+
+      vim.wo.winbar = ''
+    end)
+
+    it('updates Seen flag in cumulative cache', function()
+      -- Build cumulative cache, mark an envelope on page 2
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      -- Page 2 envelopes without Seen flag
+      local page2 = make_envelopes(6, ps)
+      for _, env in ipairs(page2) do env.flags = {} end
+      mock_request_sync_data = page2
+      email.list_with('test', 'INBOX', 2, '')
+
+      -- Envelope 8 should not have Seen flag yet
+      local envs = vim.b.himalaya_envelopes
+      local found_seen = false
+      for _, f in ipairs(envs[8].flags) do
+        if f == 'Seen' then found_seen = true end
+      end
+      assert.is_false(found_seen)
+
+      email._mark_envelope_seen('8')
+
+      -- Now envelope 8 in cache should have Seen flag
+      envs = vim.b.himalaya_envelopes
+      found_seen = false
+      for _, f in ipairs(envs[8].flags) do
+        if f == 'Seen' then found_seen = true end
+      end
+      assert.is_true(found_seen)
+
+      vim.wo.winbar = ''
+    end)
+
+    it('renders correct slice after resize + page change + mark seen', function()
+      -- Build cumulative cache of 10 envelopes
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      assert.are.equal(10, #vim.b.himalaya_envelopes)
+
+      -- Shrink to 4 (winheight=3), cursor on row 1 (ID 6), global=5
+      -- new_page = floor(5/3)+1 = 2
+      vim.api.nvim_win_set_height(0, 4)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+      email.resize_listing()
+      email.cancel_resize()
+
+      local resize_page = vim.b.himalaya_page
+      local lines_after_resize = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+
+      -- Mark an envelope in the current display as seen
+      local first_id = email._get_email_id_from_line(lines_after_resize[1])
+      email._mark_envelope_seen(first_id)
+
+      -- Buffer should still show the same page after mark_seen
+      local lines_after_mark = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal(#lines_after_resize, #lines_after_mark)
+      assert.are.equal(resize_page, vim.b.himalaya_page)
+      -- First displayed envelope should be the same
+      local first_id_after = email._get_email_id_from_line(lines_after_mark[1])
+      assert.are.equal(first_id, first_id_after)
+
+      vim.wo.winbar = ''
+    end)
+  end)
 end)
 

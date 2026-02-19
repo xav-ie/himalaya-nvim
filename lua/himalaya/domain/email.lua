@@ -293,9 +293,15 @@ local function mark_envelope_seen(email_id)
         local renderer = require('himalaya.ui.renderer')
         local listing = require('himalaya.ui.listing')
         local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
+        local cur_page = vim.b.himalaya_page or 1
+        local ps = vim.b.himalaya_page_size or line_count
+        local cache_offset = vim.b.himalaya_cache_offset or 0
+        local page_start = (cur_page - 1) * ps
+        local idx = math.max(1, page_start - cache_offset + 1)
+        local last_idx = math.min(#envelopes, idx + line_count - 1)
         local visible = {}
-        for i = 1, math.min(line_count, #envelopes) do
-          visible[i] = envelopes[i]
+        for i = idx, last_idx do
+          visible[#visible + 1] = envelopes[i]
         end
         local result = renderer.render(visible, M._bufwidth())
         vim.bo[listing_bufnr].modifiable = true
@@ -1034,6 +1040,9 @@ function M.set_list_envelopes_query()
   query = vim.fn.input('Query: ')
   M.list()
 end
+
+--- Test-only accessor for mark_envelope_seen.
+M._mark_envelope_seen = mark_envelope_seen
 
 --- Test-only accessors for resize generation state.
 function M._get_resize_generation() return resize_generation end
