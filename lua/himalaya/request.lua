@@ -4,15 +4,6 @@ local log = require('himalaya.log')
 
 local M = {}
 
---- Write a line to /tmp/himalaya-debug.log (temporary debugging aid).
-local function trace(msg)
-  local f = io.open('/tmp/himalaya-debug.log', 'a')
-  if f then
-    f:write(os.date('%H:%M:%S') .. ' ' .. msg .. '\n')
-    f:close()
-  end
-end
-
 function M._build_cmd(cmd_fmt, args, output_mode)
   local cfg = config.get()
   local subcmd = #args > 0 and string.format(cmd_fmt, unpack(args)) or cmd_fmt
@@ -49,8 +40,6 @@ local function on_exit(cmd, opts, parse_fn)
     end
 
     if code ~= 0 then
-      trace(string.format('EXIT code=%d silent=%s msg=%q cmd=%s stderr=%s',
-        code, tostring(opts.silent), opts.msg or '?', cmd_str, (stderr or ''):sub(1, 200)))
       if not opts.silent then
         log.err(string.format('%s [FAIL] (exit code %d)', opts.msg, code))
         if stderr ~= '' then
@@ -63,8 +52,6 @@ local function on_exit(cmd, opts, parse_fn)
 
     local data = parse_fn(stdout)
     if data == nil then
-      trace(string.format('PARSE_FAIL silent=%s msg=%q stdout=%q cmd=%s',
-        tostring(opts.silent), opts.msg or '?', (stdout or ''):sub(1, 200), cmd_str))
       if opts.on_error then opts.on_error() end
       return
     end
