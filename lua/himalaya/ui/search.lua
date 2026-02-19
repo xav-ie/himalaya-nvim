@@ -22,6 +22,7 @@ function M.open(callback)
     local opts = {
       virt_text = { { label, 'Comment' } },
       virt_text_pos = 'inline',
+      right_gravity = false,
     }
     -- Add separator line below "from" field (line 3)
     if i == 4 then
