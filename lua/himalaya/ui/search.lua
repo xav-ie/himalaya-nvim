@@ -70,9 +70,12 @@ local function negate_label(label)
   return '!' .. label:sub(1, -2)
 end
 
+-- Saved state from the last submitted search (persists across popup opens).
+local last_state = nil
+
 --- Open the search popup. Calls callback(query_string) on submit.
 --- @param callback fun(query: string)
---- @param prev_query? string  Previous query to restore in the query field.
+--- @param prev_query? string  Non-empty when a previous search is active.
 function M.open(callback, prev_query)
   local buf = vim.api.nvim_create_buf(false, true)
   local num_lines = #FIELDS
@@ -407,6 +410,17 @@ function M.open(callback, prev_query)
   --- Submit the query.
   local function submit()
     local final_query = get_line(QUERY_LINE)
+    -- Save full state for restoration on next open.
+    local values = {}
+    for i = 1, num_lines do values[i] = get_line(i - 1) end
+    local neg_copy = {}
+    for k, v in pairs(negated) do neg_copy[k] = v end
+    last_state = {
+      values = values,
+      negated = neg_copy,
+      body_subscribed = body_subscribed,
+      query_subscribed = query_subscribed,
+    }
     close()
     callback(final_query)
   end
@@ -481,13 +495,18 @@ function M.open(callback, prev_query)
     end, map_opts)
   end
 
-  -- Restore previous query and start on the query line for quick clearing,
-  -- or fall back to the subject line for fresh searches.
-  if prev_query and prev_query ~= '' then
+  -- Restore full state from last submit, or start fresh.
+  if prev_query and prev_query ~= '' and last_state then
     propagating = true
-    set_line(QUERY_LINE, prev_query)
+    for i, val in ipairs(last_state.values) do
+      set_line(i - 1, val)
+    end
     propagating = false
-    query_subscribed = false
+    for k, v in pairs(last_state.negated) do negated[k] = v end
+    body_subscribed = last_state.body_subscribed
+    query_subscribed = last_state.query_subscribed
+    restore_labels()
+    update_value_hl()
     vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
   else
     vim.api.nvim_win_set_cursor(win, { 1, 0 })
