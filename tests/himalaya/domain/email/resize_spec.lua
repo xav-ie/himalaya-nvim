@@ -124,6 +124,7 @@ describe('himalaya.domain.email resize_listing', function()
     vim.b.himalaya_page = nil
     vim.b.himalaya_page_size = nil
     vim.b.himalaya_cache_offset = nil
+    vim.b.himalaya_cache_key = nil
     vim.b.himalaya_query = nil
     -- Restore window height for other test files.
     pcall(vim.api.nvim_win_set_height, 0, original_height)
@@ -1809,6 +1810,186 @@ describe('himalaya.domain.email resize_listing', function()
       -- Should be the first `height` envelopes
       assert.are.equal('1', rendered_envs[1].id)
       assert.are.equal(tostring(height), rendered_envs[height].id)
+    end)
+  end)
+
+  -- ── cumulative cache via on_list_with ──────────────────────────
+
+  describe('cumulative cache', function()
+    -- With winbar='hdr' set, winheight(0) = height - 1.
+    -- list_with skips the -1 subtraction when winbar is already present.
+    -- So set height to ps+1 to get page_size() = ps.
+    it('consecutive page fetches merge into cumulative cache', function()
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+
+      assert.are.equal(ps, #vim.b.himalaya_envelopes)
+      assert.are.equal(0, vim.b.himalaya_cache_offset)
+      assert.are.equal('1', vim.b.himalaya_envelopes[1].id)
+
+      -- Second fetch: page 2
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      assert.are.equal(10, #vim.b.himalaya_envelopes)
+      assert.are.equal(0, vim.b.himalaya_cache_offset)
+      assert.are.equal('1', vim.b.himalaya_envelopes[1].id)
+      assert.are.equal('10', vim.b.himalaya_envelopes[10].id)
+
+      vim.wo.winbar = ''
+    end)
+
+    it('folder change invalidates cache (no merge)', function()
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      assert.are.equal(ps, #vim.b.himalaya_envelopes)
+
+      -- Different folder → cache_key changes → replace
+      mock_request_sync_data = make_envelopes(101, ps)
+      package.loaded['himalaya.state.folder'].current = function() return 'Sent' end
+      email.list_with('test', 'Sent', 1, '')
+
+      assert.are.equal(ps, #vim.b.himalaya_envelopes)
+      assert.are.equal('101', vim.b.himalaya_envelopes[1].id)
+
+      vim.wo.winbar = ''
+    end)
+
+    it('query change invalidates cache (no merge)', function()
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      assert.are.equal(ps, #vim.b.himalaya_envelopes)
+
+      -- Different query → cache_key changes → replace
+      mock_request_sync_data = make_envelopes(201, ps)
+      email.list_with('test', 'INBOX', 1, 'subject:hello')
+
+      assert.are.equal(ps, #vim.b.himalaya_envelopes)
+      assert.are.equal('201', vim.b.himalaya_envelopes[1].id)
+
+      vim.wo.winbar = ''
+    end)
+  end)
+
+  -- ── resize + cumulative cache integration ─────────────────────
+
+  describe('resize with cumulative cache', function()
+    it('skips Phase 2 when cumulative cache covers new page', function()
+      -- Fetch page 1 and page 2 to build cumulative cache (10 envelopes)
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      -- Now cache has 10 envelopes (IDs 1-10), page=2, page_size=5
+      assert.are.equal(10, #vim.b.himalaya_envelopes)
+
+      -- Grow window to 11 (winheight=10) → all 10 in cache
+      vim.api.nvim_win_set_height(0, 11)
+      last_request_json_opts = nil
+      email.resize_listing()
+
+      -- Phase 2 should NOT fire — cumulative cache covers page 1 with 10 envelopes
+      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      assert.is_nil(last_request_json_opts, 'Phase 2 should not fire when cumulative cache covers page')
+
+      vim.wo.winbar = ''
+      email.cancel_resize()
+    end)
+
+    it('resize after page navigation uses extended cache', function()
+      -- Fetch page 1, then navigate to page 2, building cumulative cache
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      -- Cache: 10 envelopes (0..9), page=2, page_size=5
+      -- Shrink to 4 (winheight=3) → cursor on row 1 (ID 6), global=5
+      -- new_page = floor(5/3)+1 = 2, page covers 3..5
+      -- Overlap with cache (0..9) = 3..5 → 3 envelopes
+      vim.api.nvim_win_set_height(0, 4)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+      last_request_json_opts = nil
+      email.resize_listing()
+
+      -- Envelopes displayed, Phase 2 skipped (cache covers full page)
+      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      assert.is_nil(last_request_json_opts, 'Phase 2 should not fire — extended cache covers page')
+      assert.are.equal(3, #rendered_envs)
+
+      vim.wo.winbar = ''
+      email.cancel_resize()
+    end)
+
+    it('shrink-then-grow within cumulative cache bounds triggers zero Phase 2 calls', function()
+      -- Build cumulative cache of 10 envelopes
+      local ps = 5
+      mock_request_sync_data = make_envelopes(1, ps)
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+      vim.wo.winbar = 'hdr'
+      vim.api.nvim_win_set_height(0, ps + 1)
+
+      email.list_with('test', 'INBOX', 1, '')
+      mock_request_sync_data = make_envelopes(6, ps)
+      email.list_with('test', 'INBOX', 2, '')
+
+      assert.are.equal(10, #vim.b.himalaya_envelopes)
+
+      local phase2_count = 0
+      local orig_json = package.loaded['himalaya.request'].json
+      package.loaded['himalaya.request'].json = function(opts)
+        phase2_count = phase2_count + 1
+        return orig_json(opts)
+      end
+
+      -- Shrink to 4 (winheight=3)
+      vim.api.nvim_win_set_height(0, 4)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+      email.resize_listing()
+
+      -- Grow to 9 (winheight=8, still within 10-envelope cache)
+      vim.api.nvim_win_set_height(0, 9)
+      email.resize_listing()
+
+      -- Wait for any timers to fire
+      vim.wait(250, function() return phase2_count > 0 end, 50)
+      assert.are.equal(0, phase2_count, 'zero Phase 2 calls within cumulative cache bounds')
+
+      package.loaded['himalaya.request'].json = orig_json
+      vim.wo.winbar = ''
+      email.cancel_resize()
     end)
   end)
 end)

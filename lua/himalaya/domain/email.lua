@@ -4,6 +4,7 @@ local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local probe = require('himalaya.domain.email.probe')
+local cache = require('himalaya.domain.email.cache')
 local perf = require('himalaya.perf')
 
 local M = {}
@@ -131,11 +132,22 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   local display_query = qry == '' and 'all' or qry
   vim.cmd(string.format('silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]', buftype, folder, display_query, page, total_str))
   vim.bo.modifiable = true
-  vim.b.himalaya_envelopes = data
   vim.b.himalaya_page = page
   vim.b.himalaya_page_size = page_size
   vim.b.himalaya_query = qry
-  vim.b.himalaya_cache_offset = (page - 1) * page_size
+
+  local new_offset = (page - 1) * page_size
+  if vim.b.himalaya_cache_key ~= cache_key then
+    vim.b.himalaya_envelopes = data
+    vim.b.himalaya_cache_offset = new_offset
+  else
+    local merged, merged_offset = cache.merge(
+      vim.b.himalaya_envelopes, vim.b.himalaya_cache_offset or 0,
+      data, new_offset)
+    vim.b.himalaya_envelopes = merged
+    vim.b.himalaya_cache_offset = merged_offset
+  end
+  vim.b.himalaya_cache_key = cache_key
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
   -- Set winbar first so page_size() reflects actual visible area
@@ -231,13 +243,14 @@ end
 --- @return table[] display subset
 local function display_slice(envelopes)
   local ps = page_size()
-  if #envelopes <= ps then
-    return envelopes
-  end
+  local cur_page = vim.b.himalaya_page or 1
+  local cache_offset = vim.b.himalaya_cache_offset or 0
+  local page_start = (cur_page - 1) * ps
+  local idx = math.max(1, page_start - cache_offset + 1)
+  local last = math.min(#envelopes, idx + ps - 1)
+  if idx == 1 and last == #envelopes then return envelopes end
   local sliced = {}
-  for i = 1, ps do
-    sliced[i] = envelopes[i]
-  end
+  for i = idx, last do sliced[#sliced + 1] = envelopes[i] end
   return sliced
 end
 
