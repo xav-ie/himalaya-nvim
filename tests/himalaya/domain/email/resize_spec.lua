@@ -573,6 +573,142 @@ describe('himalaya.domain.email resize_listing', function()
 
       email.cancel_resize()
     end)
+
+    it('respects cursor movement after Phase 2 replaces cache during reading on grow', function()
+      -- Scenario: 20 envelopes on page 1, cursor on email 19 (row 19).
+      -- Open reading → listing shrinks to 8.
+      -- Phase 1: email 19 at global 18, page = floor(18/8)+1 = 3.
+      --   Page 3 covers global 16-23, overlap with cache (0-19) = 16-19 → 4 entries.
+      --   4 < 8 → sparse page → Phase 2 fires.
+      -- Phase 2 re-fetches page 3 with page_size 8 → server returns 8 envelopes (IDs 17-24).
+      -- Cache is replaced with Phase 2 data. User moves cursor to email 22.
+      -- Close reading → listing grows back to 20.
+      -- Grow should compute from Phase 2 cache (IDs 17-24, offset 16)
+      -- with cursor on email 22, NOT revert to original page 1 data.
+      vim.api.nvim_win_set_height(0, 20)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 20)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 20
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(20)
+      vim.api.nvim_win_set_cursor(0, {19, 0})
+
+      -- Phase 2 will return server data for page 3 (IDs 17-24)
+      mock_request_sync_data = make_envelopes(17, 8)
+
+      -- Step 1: open reading → listing shrinks to 8
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 8)
+      email.resize_listing()
+
+      -- Phase 1: sparse page (4 entries in overlap), Phase 2 timer starts
+      assert.are.equal(3, vim.b.himalaya_page)
+      assert.are.equal(8, vim.b.himalaya_page_size)
+
+      -- Wait for Phase 2 to fire and complete (mock_request_sync_data makes it synchronous)
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire for sparse page')
+
+      -- After Phase 2: cache replaced with IDs 17-24
+      assert.are.equal(16, vim.b.himalaya_cache_offset)
+      assert.are.equal(8, vim.b.himalaya_page_size)
+      assert.are.equal(8, #vim.b.himalaya_envelopes, 'Phase 2 should replace cache with 8 entries')
+      assert.are.equal('17', vim.b.himalaya_envelopes[1].id, 'first cached envelope should be ID 17')
+
+      -- Verify email 19 is selected (Phase 2 cursor restoration)
+      local cl = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('19', rendered_envs[cl].id)
+
+      -- Step 2: user moves cursor to email 22 (position 6 in Phase 2 data)
+      local target_row
+      for i, env in ipairs(rendered_envs) do
+        if env.id == '22' then target_row = i; break end
+      end
+      assert.is_not_nil(target_row, 'email 22 should be in Phase 2 display')
+      vim.api.nvim_win_set_cursor(0, {target_row, 0})
+
+      -- Step 3: close reading → listing grows back to 20
+      close_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      rendered_envs = nil
+      last_request_json_opts = nil
+      email.resize_listing()
+      email.cancel_resize()
+
+      -- Grow Phase 1: cache has 8 entries (17-24), cache_offset=16
+      -- Cursor on email 22, cursor_row=6 in cache
+      -- selected_global = 16 + 6 - 1 = 21
+      -- new_page = floor(21/20) + 1 = 2
+      -- overlap: start=max(16,20)=20, end=min(24,40)=24
+      -- display = cache[5..8] = 4 entries (IDs 21-24)
+      -- cursor_line = 21 - 20 + 1 = 2
+      assert.is_not_nil(rendered_envs)
+      assert.are.equal(2, vim.b.himalaya_page)
+      local grow_cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('22', rendered_envs[grow_cursor].id)
+    end)
+
+    it('grow Phase 2 after reading close restores cursor to moved-to email', function()
+      -- Same setup as above but also lets Phase 2 of the grow complete.
+      -- Verifies that Phase 2's on_list_with correctly uses saved_cursor_id
+      -- to place cursor on the email the user moved to during reading.
+      vim.api.nvim_win_set_height(0, 20)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 20)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 20
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(20)
+      vim.api.nvim_win_set_cursor(0, {19, 0})
+
+      -- Phase 2 during reading will return IDs 17-24 for page 3
+      mock_request_sync_data = make_envelopes(17, 8)
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 8)
+      email.resize_listing()
+
+      -- Wait for reading Phase 2 to complete
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'reading Phase 2 should fire')
+
+      -- Move cursor to email 22
+      local target_row
+      for i, env in ipairs(rendered_envs) do
+        if env.id == '22' then target_row = i; break end
+      end
+      assert.is_not_nil(target_row)
+      vim.api.nvim_win_set_cursor(0, {target_row, 0})
+
+      -- Close reading, grow
+      close_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      rendered_envs = nil
+      last_request_json_opts = nil
+
+      -- Set mock data for grow's Phase 2: page 2 with page_size 20
+      mock_request_sync_data = make_envelopes(21, 20)
+
+      email.resize_listing()
+
+      -- Wait for grow Phase 2 to fire and complete
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      assert.is_not_nil(last_request_json_opts, 'grow Phase 2 should fire')
+
+      -- Phase 2 should request page 2 with page_size 20
+      assert.are.equal(20, last_request_json_opts.args[3], 'grow Phase 2 page_size')
+      assert.are.equal(2, last_request_json_opts.args[4], 'grow Phase 2 page')
+
+      -- After Phase 2 on_list_with: cursor should be on email 22
+      assert.are.equal(2, vim.b.himalaya_page)
+      local cursor = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('22', rendered_envs[cursor].id)
+
+      email.cancel_resize()
+    end)
   end)
 
   -- ── page_size initialisation ─────────────────────────────────────

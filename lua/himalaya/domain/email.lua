@@ -952,7 +952,7 @@ function M.resize_listing()
       -- since nvim_win_get_height may include the winbar row while
       -- page_size()/winheight(0) used in Phase 1 excludes it).
       local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
-      saved_cursor_id = M._get_email_id_from_line(
+      local cursor_id = M._get_email_id_from_line(
         vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
       local account = account_state.current()
       local folder_cur = folder_state.current()
@@ -966,6 +966,7 @@ function M.resize_listing()
         on_data = function(data)
           resize_job = nil
           if not vim.api.nvim_win_is_valid(listing_win) then return end
+          saved_cursor_id = cursor_id
           vim.api.nvim_win_call(listing_win, function()
             on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
           end)
