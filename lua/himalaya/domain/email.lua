@@ -83,7 +83,8 @@ end
 --- Detect whether current buffer is an envelope listing buffer.
 --- @return boolean
 local function in_listing_buffer()
-  return vim.b.himalaya_buffer_type == 'listing'
+  local bt = vim.b.himalaya_buffer_type
+  return bt == 'listing' or bt == 'thread-listing'
 end
 
 --- Compute the page size (visible envelope rows) for the current window.

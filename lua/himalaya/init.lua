@@ -118,6 +118,14 @@ function M._register_filetypes()
       require('himalaya.ui.writing').setup(ev.buf)
     end,
   })
+
+  vim.api.nvim_create_autocmd('FileType', {
+    group = group,
+    pattern = 'himalaya-thread-listing',
+    callback = function(ev)
+      require('himalaya.ui.thread_listing').setup(ev.buf)
+    end,
+  })
 end
 
 return M

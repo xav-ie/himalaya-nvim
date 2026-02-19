@@ -14,7 +14,8 @@ end
 
 --- Resolve the email ID from context: listing buffer → cursor line, else → current read ID.
 local function context_email_id()
-  if vim.b.himalaya_buffer_type == 'listing' then
+  local bt = vim.b.himalaya_buffer_type
+  if bt == 'listing' or bt == 'thread-listing' then
     local email = require('himalaya.domain.email')
     return email._get_email_id_from_line(vim.api.nvim_get_current_line())
   end

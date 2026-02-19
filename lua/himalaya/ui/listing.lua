@@ -180,6 +180,9 @@ function M.setup(bufnr)
       email.flag_remove(first, last)
     end, 'email-flag-remove-visual' },
     { 'n', 'g/',   email.set_list_envelopes_query,     'email-set-list-envelopes-query' },
+    { 'n', 'gt',   function()
+      require('himalaya.domain.email.thread_listing').list()
+    end, 'thread-listing-toggle' },
   })
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
