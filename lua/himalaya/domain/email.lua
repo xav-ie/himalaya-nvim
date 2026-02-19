@@ -136,9 +136,21 @@ local function on_list_with(account, folder, page, page_size, qry, data)
   vim.b.himalaya_cache_offset = (page - 1) * page_size
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(data, M._bufwidth())
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+  -- Set winbar first so page_size() reflects actual visible area
   listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, data)
+  -- After winbar is set, visible area may have shrunk — truncate if needed
+  local actual_ps = math.max(1, vim.fn.winheight(0))
+  local display = data
+  if #data > actual_ps then
+    display = {}
+    for i = 1, actual_ps do display[i] = data[i] end
+    local trimmed = {}
+    for i = 1, actual_ps do trimmed[i] = result.lines[i] end
+    result.lines = trimmed
+    vim.b.himalaya_page_size = actual_ps
+  end
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+  listing.apply_seen_highlights(bufnr, display)
   vim.b.himalaya_buffer_type = 'listing'
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
@@ -146,7 +158,7 @@ local function on_list_with(account, folder, page, page_size, qry, data)
     local target = saved_cursor_id
     saved_cursor_id = nil
     saved_view = nil
-    for i, env in ipairs(data) do
+    for i, env in ipairs(display) do
       if tostring(env.id) == target then
         pcall(vim.api.nvim_win_set_cursor, 0, {i, 0})
         break
@@ -854,9 +866,34 @@ function M.resize_listing()
   if not old_page_size then
     vim.b.himalaya_page_size = new_page_size
   elseif reading then
-    -- While reading, just track the new page_size and fall through to
-    -- display_slice truncation. No page change, no Phase 2 re-fetch.
+    -- Cursor-aware truncation: no page change, no Phase 2 re-fetch.
     vim.b.himalaya_page_size = new_page_size
+    local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
+    local display, cursor_in_display
+    if #envelopes <= new_page_size then
+      display = envelopes
+      cursor_in_display = cursor_row
+    else
+      -- Slice centered around cursor
+      local half = math.floor(new_page_size / 2)
+      local start = math.max(1, cursor_row - half)
+      local finish = math.min(#envelopes, start + new_page_size - 1)
+      start = math.max(1, finish - new_page_size + 1)
+      display = {}
+      for i = start, finish do display[#display + 1] = envelopes[i] end
+      cursor_in_display = cursor_row - start + 1
+    end
+    local renderer = require('himalaya.ui.renderer')
+    local listing = require('himalaya.ui.listing')
+    local bufnr = vim.api.nvim_get_current_buf()
+    local result = renderer.render(display, M._bufwidth())
+    vim.bo[bufnr].modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+    listing.apply_header(bufnr, result.header)
+    listing.apply_seen_highlights(bufnr, display)
+    vim.bo[bufnr].modifiable = false
+    pcall(vim.api.nvim_win_set_cursor, 0, {cursor_in_display, 0})
+    return
   elseif new_page_size ~= old_page_size then
     -- Phase 1: synchronous overlap display
     local old_page = vim.b.himalaya_page or 1

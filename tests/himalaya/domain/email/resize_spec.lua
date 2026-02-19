@@ -172,8 +172,35 @@ describe('himalaya.domain.email resize_listing', function()
       close_reading_window()
     end)
 
-    it('truncates display without changing page when reading', function()
-      vim.api.nvim_win_set_height(0, 5)
+    it('truncates display around cursor when reading', function()
+      vim.api.nvim_win_set_height(0, 10)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {8, 0})
+
+      -- Opening a split halves the listing window
+      open_reading_window()
+      email.resize_listing()
+
+      -- Page stays 1 (no Phase 1 page change)
+      assert.are.equal(1, vim.b.himalaya_page)
+      -- Display is truncated
+      assert.is_not_nil(rendered_envs)
+      -- Envelope 8 must be in the rendered slice
+      local found = false
+      for _, env in ipairs(rendered_envs) do
+        if env.id == '8' then found = true; break end
+      end
+      assert.is_true(found, 'envelope 8 must be in rendered slice')
+    end)
+
+    it('preserves cursor on selected email during reading truncation', function()
+      vim.api.nvim_win_set_height(0, 10)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
       vim.b.himalaya_page = 1
@@ -186,13 +213,27 @@ describe('himalaya.domain.email resize_listing', function()
       open_reading_window()
       email.resize_listing()
 
-      -- Page stays 1 (no Phase 1 page change)
-      assert.are.equal(1, vim.b.himalaya_page)
-      -- But display is truncated via display_slice
-      assert.is_not_nil(rendered_envs)
-      assert.is_true(#rendered_envs <= 5)
-      -- First envelopes shown (display_slice takes from the front)
-      assert.are.equal('1', rendered_envs[1].id)
+      -- The cursor line should point to envelope 8 in the rendered output
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('8', rendered_envs[cursor_line].id)
+    end)
+
+    it('cursor on row 2 stays on same email during reading', function()
+      vim.api.nvim_win_set_height(0, 10)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {2, 0})
+
+      open_reading_window()
+      email.resize_listing()
+
+      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+      assert.are.equal('2', rendered_envs[cursor_line].id)
     end)
 
     it('does not start Phase 2 timer when reading', function()
@@ -801,7 +842,9 @@ describe('himalaya.domain.email resize_listing', function()
     end)
 
     it('sets page and page_size buffer variables', function()
-      local envs = make_envelopes(1, 7)
+      -- list_with subtracts 1 from winheight when winbar is empty (first load)
+      local ps = vim.fn.winheight(0) - 1
+      local envs = make_envelopes(1, ps)  -- realistic: CLI returns at most ps
       mock_request_sync_data = envs
 
       vim.b.himalaya_buffer_type = 'listing'
@@ -810,8 +853,47 @@ describe('himalaya.domain.email resize_listing', function()
       email.list_with('test', 'INBOX', 3, '')
 
       assert.are.equal(3, vim.b.himalaya_page)
-      -- list_with subtracts 1 from winheight when winbar is empty (first load)
-      assert.are.equal(vim.fn.winheight(0) - 1, vim.b.himalaya_page_size)
+      assert.are.equal(ps, vim.b.himalaya_page_size)
+    end)
+
+    it('truncates buffer after winbar reduces visible area', function()
+      -- Override apply_header to actually set winbar (simulates real behavior)
+      local orig_apply_header = package.loaded['himalaya.ui.listing'].apply_header
+      package.loaded['himalaya.ui.listing'].apply_header = function(bufnr, header)
+        for _, winid in ipairs(vim.api.nvim_list_wins()) do
+          if vim.api.nvim_win_get_buf(winid) == bufnr then
+            vim.wo[winid].winbar = header
+          end
+        end
+      end
+
+      -- Window height = 6. Without winbar, winheight = 6.
+      -- list_with subtracts 1 (no winbar) → ps = 5 → fetches 5 envelopes.
+      -- on_list_with sets winbar → winheight drops to 5.
+      -- page_size() = 5, #data = 5 → no truncation needed.
+      -- But if CLI returned 6 (e.g., a re-fetch without the hack), truncation catches it.
+      vim.api.nvim_win_set_height(0, 6)
+      local envs = make_envelopes(1, 6)  -- more than visible area
+      mock_request_sync_data = envs
+
+      vim.b.himalaya_buffer_type = 'listing'
+      seed_buffer_lines(1)
+
+      -- Simulate a re-fetch path (winbar not set, full 6 envelopes returned)
+      -- by temporarily overriding page_size check in list_with
+      vim.wo.winbar = 'already-set'  -- skip list_with subtraction
+      email.list_with('test', 'INBOX', 1, '')
+      -- After list_with, on_list_with sets new winbar via our mock.
+      -- apply_header sets winbar → winheight drops by 1 → page_size() = 5
+      -- on_list_with should truncate to 5 lines
+
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal(5, #lines)
+      assert.are.equal(5, vim.b.himalaya_page_size)
+
+      -- Restore original mock
+      package.loaded['himalaya.ui.listing'].apply_header = orig_apply_header
+      vim.wo.winbar = ''
     end)
 
     it('restores cursor to saved_cursor_id after re-fetch', function()
