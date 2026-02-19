@@ -23,6 +23,15 @@ function M.total_pages_str(cache_key, page_size)
   return tostring(math.ceil(total / page_size))
 end
 
+--- Return the known total envelope count for a cache key, or nil if unknown.
+--- @param cache_key string
+--- @return number|nil
+function M.total_count(cache_key)
+  local total = totals[cache_key]
+  if not total or total < 0 then return nil end
+  return total
+end
+
 --- Reset totals when account, folder, or query changes.
 --- @param acct_flag string
 --- @param folder string
