@@ -950,7 +950,9 @@ function M.resize_listing()
         end
       end
       if not listing_win then return end
-      -- Read cursor and page size from the listing window (focus may be elsewhere)
+      -- Read cursor and page size from the listing buffer (not the window,
+      -- since nvim_win_get_height may include the winbar row while
+      -- page_size()/winheight(0) used in Phase 1 excludes it).
       local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
       saved_cursor_id = M._get_email_id_from_line(
         vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
@@ -958,7 +960,7 @@ function M.resize_listing()
       local folder_cur = folder_state.current()
       local cur_query = vim.b[bufnr].himalaya_query or ''
       local cur_page = vim.b[bufnr].himalaya_page or 1
-      local ps = math.max(1, vim.api.nvim_win_get_height(listing_win))
+      local ps = vim.b[bufnr].himalaya_page_size
       resize_job = request.json({
         cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
         args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
@@ -967,7 +969,7 @@ function M.resize_listing()
           resize_job = nil
           if not vim.api.nvim_win_is_valid(listing_win) then return end
           vim.api.nvim_win_call(listing_win, function()
-            on_list_with(account, folder_cur, cur_page, page_size(), cur_query, data)
+            on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
           end)
         end,
       })

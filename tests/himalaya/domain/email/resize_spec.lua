@@ -515,6 +515,41 @@ describe('himalaya.domain.email resize_listing', function()
 
       assert.are.equal('41', vim.b.himalaya_reading_cursor_id)
     end)
+
+    it('Phase 2 re-fetch for sparse reading page uses Phase 1 page_size', function()
+      -- Reproduces real bug: 42 envelopes, cursor on email 41, shrink to 20.
+      -- Phase 1: page 3 (start=40), only 2 emails in overlap.
+      -- Phase 2 must fetch with page_size=20 (from Phase 1), not window height
+      -- (which could differ due to winbar inclusion in nvim_win_get_height).
+      vim.api.nvim_win_set_height(0, 42)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 42)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 42
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(42)
+      vim.api.nvim_win_set_cursor(0, {41, 0})
+
+      open_reading_window()
+      vim.api.nvim_win_set_height(0, 20)
+      email.resize_listing()
+
+      assert.are.equal(3, vim.b.himalaya_page)
+      assert.are.equal(20, vim.b.himalaya_page_size)
+
+      -- Wait for Phase 2 timer to fire
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire for sparse page')
+      -- args: { folder, account_flag, page_size, page, query }
+      assert.are.equal(20, last_request_json_opts.args[3],
+        'Phase 2 page_size must match Phase 1')
+      assert.are.equal(3, last_request_json_opts.args[4],
+        'Phase 2 page must match Phase 1')
+
+      email.cancel_resize()
+    end)
   end)
 
   -- ── page_size initialisation ─────────────────────────────────────
@@ -1213,6 +1248,66 @@ describe('himalaya.domain.email resize_listing', function()
       assert.has_no.errors(function()
         email.resize_listing()
       end)
+
+      email.cancel_resize()
+    end)
+
+    it('uses buffer page_size in re-fetch request, not window height', function()
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {1, 0})
+
+      email.resize_listing()
+
+      local phase1_ps = vim.b.himalaya_page_size
+      local phase1_page = vim.b.himalaya_page
+
+      -- Wait for Phase 2 timer to fire
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+
+      assert.is_not_nil(last_request_json_opts, 'Phase 2 request should fire')
+      -- args: { folder, account_flag, page_size, page, query }
+      assert.are.equal(phase1_ps, last_request_json_opts.args[3],
+        'Phase 2 page_size must match Phase 1')
+      assert.are.equal(phase1_page, last_request_json_opts.args[4],
+        'Phase 2 page must match Phase 1')
+
+      email.cancel_resize()
+    end)
+
+    it('passes consistent page_size to on_list_with in Phase 2', function()
+      -- Cursor on row 8 → global 7, shrink to 5 → page 2 (start=5)
+      vim.api.nvim_win_set_height(0, 5)
+      vim.b.himalaya_buffer_type = 'listing'
+      vim.b.himalaya_envelopes = make_envelopes(1, 10)
+      vim.b.himalaya_page = 1
+      vim.b.himalaya_page_size = 10
+      vim.b.himalaya_cache_offset = 0
+      vim.b.himalaya_query = ''
+      seed_buffer_lines(10)
+      vim.api.nvim_win_set_cursor(0, {8, 0})
+
+      -- Phase 2 will call on_list_with which sets cache_offset = (page-1)*ps
+      mock_request_sync_data = make_envelopes(6, 5)
+
+      email.resize_listing()
+
+      local phase1_ps = vim.b.himalaya_page_size
+      local phase1_page = vim.b.himalaya_page
+
+      -- Wait for Phase 2 to fire and process response
+      vim.wait(300, function() return last_request_json_opts ~= nil end)
+
+      -- on_list_with should have set cache_offset = (page-1) * page_size
+      -- using the same page_size that Phase 1 computed
+      assert.are.equal((phase1_page - 1) * phase1_ps, vim.b.himalaya_cache_offset,
+        'cache_offset must be consistent with Phase 1 page_size')
 
       email.cancel_resize()
     end)
