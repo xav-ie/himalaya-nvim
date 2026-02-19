@@ -67,6 +67,9 @@ function M.json(opts)
   return job.run(cmd, {
     stdin = opts.stdin,
     on_exit = on_exit(cmd, opts, function(stdout)
+      if stdout:match('^%s*$') then
+        return {}
+      end
       local ok, data = pcall(vim.json.decode, stdout)
       if not ok then
         if not opts.silent then
