@@ -430,6 +430,7 @@ function M.delete(first_line, last_line)
     vim.o.cmdheight = math.max(saved_cmdheight, 2)
     local choice = vim.fn.confirm(string.format('Delete email(s) %s?', ids), '&Yes\n&No', 1)
     vim.o.cmdheight = saved_cmdheight
+    vim.cmd('redraw | echo')
     if choice ~= 1 then
       return
     end
@@ -501,6 +502,7 @@ function M.move(target_folder, first_line, last_line)
     vim.o.cmdheight = math.max(saved_cmdheight, 2)
     local choice = vim.fn.confirm(string.format('Move email(s) %s?', ids), '&Yes\n&No', 1)
     vim.o.cmdheight = saved_cmdheight
+    vim.cmd('redraw | echo')
     if choice ~= 1 then
       return
     end
