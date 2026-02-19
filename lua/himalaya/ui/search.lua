@@ -72,7 +72,8 @@ end
 
 --- Open the search popup. Calls callback(query_string) on submit.
 --- @param callback fun(query: string)
-function M.open(callback)
+--- @param prev_query? string  Previous query to restore in the query field.
+function M.open(callback, prev_query)
   local buf = vim.api.nvim_create_buf(false, true)
   local num_lines = #FIELDS
 
@@ -480,8 +481,17 @@ function M.open(callback)
     end, map_opts)
   end
 
-  -- Start in insert mode on line 0
-  vim.api.nvim_win_set_cursor(win, { 1, 0 })
+  -- Restore previous query and start on the query line for quick clearing,
+  -- or fall back to the subject line for fresh searches.
+  if prev_query and prev_query ~= '' then
+    propagating = true
+    set_line(QUERY_LINE, prev_query)
+    propagating = false
+    query_subscribed = false
+    vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
+  else
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+  end
   vim.cmd('startinsert')
 end
 

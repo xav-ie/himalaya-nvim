@@ -943,7 +943,7 @@ function M.set_list_envelopes_query()
   search.open(function(final_query)
     query = final_query
     M.list()
-  end)
+  end, query)
 end
 
 --- Accessor for current_id (used by compose module).
