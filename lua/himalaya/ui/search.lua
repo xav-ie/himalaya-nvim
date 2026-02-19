@@ -37,12 +37,11 @@ local FIELD_HL = {
 }
 
 -- Field definitions: each field maps to a buffer line.
--- `keyword`  = the himalaya query keyword (nil for search/query meta-lines)
+-- `keyword`  = the himalaya query keyword (nil for the query meta-line)
 -- `quote`    = wrap value in double quotes (text patterns need it for multi-word)
 -- `sep`      = place a virtual separator line below this field
 -- `complete` = 'flag' | 'when' — enables Tab-completion on this line
 local FIELDS = {
-  { label = ' search: ' },
   { label = 'subject: ', keyword = 'subject', quote = true },
   { label = '   body: ', keyword = 'body',    quote = true },
   { label = '   from: ', keyword = 'from',    quote = true },
@@ -58,7 +57,8 @@ for i, f in ipairs(FIELDS) do
   if f.complete == 'when' then WHEN_LINE = i - 1 end
 end
 
-local SEARCH_LINE = 0
+local SUBJECT_LINE = 0
+local BODY_LINE = 1
 local QUERY_LINE = #FIELDS - 1
 
 --- Open the search popup. Calls callback(query_string) on submit.
@@ -68,7 +68,6 @@ function M.open(callback)
   local num_lines = #FIELDS
 
   -- Reactive state
-  local subject_subscribed = true
   local body_subscribed = true
   local query_subscribed = true
   local propagating = false
@@ -221,18 +220,10 @@ function M.open(callback)
   --- Update underline highlights on linked field values.
   local function update_value_hl()
     vim.api.nvim_buf_clear_namespace(buf, value_hl_ns, 0, -1)
-    if subject_subscribed then
-      local len = #get_line(1)
-      if len > 0 then
-        vim.api.nvim_buf_set_extmark(buf, value_hl_ns, 1, 0, {
-          end_col = len, hl_group = linked_value_hl.subject,
-        })
-      end
-    end
     if body_subscribed then
-      local len = #get_line(2)
+      local len = #get_line(BODY_LINE)
       if len > 0 then
-        vim.api.nvim_buf_set_extmark(buf, value_hl_ns, 2, 0, {
+        vim.api.nvim_buf_set_extmark(buf, value_hl_ns, BODY_LINE, 0, {
           end_col = len, hl_group = linked_value_hl.body,
         })
       end
@@ -330,14 +321,14 @@ function M.open(callback)
         return
       end
 
-      if first_line == SEARCH_LINE then
+      if first_line == SUBJECT_LINE then
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
-          local search_val = get_line(SEARCH_LINE)
+          local subject_val = get_line(SUBJECT_LINE)
           propagating = true
-          if subject_subscribed then set_line(1, search_val) end
-          if body_subscribed then set_line(2, search_val) end
+          if body_subscribed then set_line(BODY_LINE, subject_val) end
           propagating = false
+          query_subscribed = true
           update_value_hl()
           recompose_query()
         end)
@@ -363,36 +354,22 @@ function M.open(callback)
         vim.schedule(function()
           if not vim.api.nvim_buf_is_valid(buf) then return end
           if edit_gen[fl] ~= gen then return end
-          -- Re-link subject when cleared
-          if fl == 1 then
-            local val = get_line(1)
-            if val == '' and not subject_subscribed then
-              subject_subscribed = true
-              local search_val = get_line(SEARCH_LINE)
-              if search_val ~= '' then
-                propagating = true
-                set_line(1, search_val)
-                propagating = false
-              end
-            elseif subject_subscribed then
-              subject_subscribed = false
-            end
-          end
           -- Re-link body when cleared
-          if fl == 2 then
-            local val = get_line(2)
+          if fl == BODY_LINE then
+            local val = get_line(BODY_LINE)
             if val == '' and not body_subscribed then
               body_subscribed = true
-              local search_val = get_line(SEARCH_LINE)
-              if search_val ~= '' then
+              local subject_val = get_line(SUBJECT_LINE)
+              if subject_val ~= '' then
                 propagating = true
-                set_line(2, search_val)
+                set_line(BODY_LINE, subject_val)
                 propagating = false
               end
             elseif body_subscribed then
               body_subscribed = false
             end
           end
+          query_subscribed = true
           update_value_hl()
           recompose_query()
         end)
