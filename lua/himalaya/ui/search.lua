@@ -6,16 +6,16 @@ local M = {}
 -- `sep`      = place a virtual separator line below this field
 -- `complete` = list of completion candidates for this field
 local FIELDS = {
-  { label = 'search: ' },
+  { label = 'search:  ' },
   { label = 'subject: ', keyword = 'subject', quote = true },
-  { label = 'body: ',    keyword = 'body',    quote = true },
-  { label = 'from: ',    keyword = 'from',    quote = true },
-  { label = 'to: ',      keyword = 'to',      quote = true },
-  { label = 'date: ',    keyword = 'date' },
-  { label = 'before: ',  keyword = 'before' },
-  { label = 'after: ',   keyword = 'after' },
-  { label = 'flag: ',    keyword = 'flag',    sep = true, complete = true },
-  { label = 'query: ' },
+  { label = 'body:    ', keyword = 'body',    quote = true },
+  { label = 'from:    ', keyword = 'from',    quote = true },
+  { label = 'to:      ', keyword = 'to',      quote = true },
+  { label = 'date:    ', keyword = 'date' },
+  { label = 'before:  ', keyword = 'before' },
+  { label = 'after:   ', keyword = 'after' },
+  { label = 'flag:    ', keyword = 'flag',    sep = true, complete = true },
+  { label = 'query:   ' },
 }
 
 local FLAG_LINE -- set after FIELDS is defined
@@ -54,11 +54,6 @@ function M.open(callback)
     }
     if field.sep then
       opts.virt_lines = { { { string.rep('\u{2500}', 56), 'FloatBorder' } } }
-    end
-    if field.complete then
-      opts.virt_text[#opts.virt_text + 1] = {
-        '  <Tab> to complete', 'NonText',
-      }
     end
     vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, opts)
   end
