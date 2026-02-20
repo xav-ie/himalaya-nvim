@@ -13,6 +13,7 @@ local thread_query = ''        -- search query for thread mode
 local current_page = 1
 local list_generation = 0      -- incremented on each list(); stale callbacks bail out
 local list_job = nil           -- in-flight thread fetch job handle
+local enrich_job = nil         -- in-flight enrich_with_flags job handle
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -102,13 +103,14 @@ end
 local function enrich_with_flags(acct, folder, listing_win, gen)
   if not all_display_rows or #all_display_rows == 0 then return end
 
-  request.json({
+  enrich_job = request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page 1',
     args = { folder, account_flag(acct), #all_display_rows },
     msg = 'Fetching flags',
     silent = true,
     is_stale = function() return gen ~= list_generation end,
     on_data = function(envs)
+      enrich_job = nil
       local id_map = {}
       for _, env in ipairs(envs) do
         id_map[tostring(env.id)] = env
@@ -139,10 +141,11 @@ function M.list(account, opts)
   local acct = account_state.current()
   local folder = folder_state.current()
 
-  -- Kill any in-flight fetch so its callback never fires.
+  -- Kill any in-flight fetches so their callbacks never fire.
   list_generation = list_generation + 1
   local my_gen = list_generation
   if list_job then list_job:kill(); list_job = nil end
+  if enrich_job then enrich_job:kill(); enrich_job = nil end
 
   -- Capture the listing window now so async callbacks render here even
   -- if a picker or other floating window has focus when they fire.
