@@ -187,20 +187,17 @@ function M.build(edges, opts)
     end
   end
 
-  -- Phase 6: Compute is_last_child
-  for i, row in ipairs(display_rows) do
+  -- Phase 6: Compute is_last_child (backward pass, O(n))
+  local last_at_depth = {}
+  for i = #display_rows, 1, -1 do
+    local row = display_rows[i]
     if row.depth > 0 then
-      row.is_last_child = true
-      for j = i + 1, #display_rows do
-        local other = display_rows[j]
-        if other.depth < row.depth then
-          break
-        end
-        if other.depth == row.depth then
-          row.is_last_child = false
-          break
-        end
-      end
+      row.is_last_child = not last_at_depth[row.depth]
+      last_at_depth[row.depth] = true
+    end
+    -- Crossing into a shallower depth resets deeper subtree tracking
+    for d in pairs(last_at_depth) do
+      if d > row.depth then last_at_depth[d] = nil end
     end
   end
 

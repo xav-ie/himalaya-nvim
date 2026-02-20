@@ -159,10 +159,16 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
 	end
 	local flags_w = num_slots * 2
 	local date_w = 4 -- minimum: fits "DATE" header
+	-- format_date with a fixed strftime format produces constant-width output,
+	-- so formatting one sample is sufficient instead of formatting all N dates.
 	for _, item in ipairs(items) do
 		local env = get_env_fn(item)
-		local len = #M.format_date(tostring(env.date or ""), cfg)
-		if len > date_w then date_w = len end
+		local raw = tostring(env.date or "")
+		if raw ~= "" then
+			local len = #M.format_date(raw, cfg)
+			if len > date_w then date_w = len end
+			break
+		end
 	end
 	local gutters = cfg.gutters
 	-- With gutters:    " col │ col │ col │ col │ col" → 1 + 4×3 = 13

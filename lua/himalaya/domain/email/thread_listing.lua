@@ -8,6 +8,7 @@ local M = {}
 
 -- Module-local state
 local all_display_rows = nil   -- full tree from last fetch
+local id_to_index = nil        -- email id (string) → 1-based index in all_display_rows
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
@@ -16,6 +17,15 @@ local list_job = nil           -- in-flight thread fetch job handle
 local enrich_job = nil         -- in-flight enrich_with_flags job handle
 
 local account_flag = account_state.flag
+
+--- Rebuild the id→index lookup table from all_display_rows.
+local function rebuild_id_index()
+  id_to_index = {}
+  if not all_display_rows then return end
+  for i, row in ipairs(all_display_rows) do
+    id_to_index[tostring(row.env.id)] = i
+  end
+end
 
 --- Render one page of the cached thread display rows into the current buffer.
 --- @param page number
@@ -159,6 +169,7 @@ function M.list(account, opts)
       local rows = tree.build(data, { reverse = reverse })
       tree.build_prefix(rows, { reverse = reverse })
       all_display_rows = rows
+      rebuild_id_index()
 
       if not vim.api.nvim_win_is_valid(listing_win) then return end
       vim.api.nvim_win_call(listing_win, function()
@@ -216,6 +227,7 @@ end
 --- Switch back to flat listing mode, preserving folder/account context.
 function M.toggle_to_flat()
   all_display_rows = nil
+  id_to_index = nil
   last_edges = nil
   vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   require('himalaya.domain.email').list()
@@ -231,6 +243,7 @@ function M.toggle_reverse()
     local rows = tree.build(last_edges, { reverse = reverse })
     tree.build_prefix(rows, { reverse = reverse })
     all_display_rows = rows
+    rebuild_id_index()
     M.render_page(1)
   else
     M.list()
@@ -259,15 +272,7 @@ function M.resize()
   local cursor_email_id = email_mod._get_email_id_from_line(vim.api.nvim_get_current_line())
 
   -- Find its global (1-based) index in all_display_rows
-  local global_idx = 1
-  if cursor_email_id ~= '' then
-    for i, row in ipairs(all_display_rows) do
-      if tostring(row.env.id) == cursor_email_id then
-        global_idx = i
-        break
-      end
-    end
-  end
+  local global_idx = (cursor_email_id ~= '' and id_to_index and id_to_index[cursor_email_id]) or 1
 
   -- Compute page size using the same formula as render_page
   local new_ps = math.max(1, vim.fn.winheight(0))
@@ -293,16 +298,15 @@ end
 function M._mark_seen(email_id)
   if not all_display_rows then return end
 
-  for _, row in ipairs(all_display_rows) do
-    if tostring(row.env.id) == tostring(email_id) then
-      local flags = row.env.flags or {}
-      for _, f in ipairs(flags) do
-        if f == 'Seen' then return end
-      end
-      table.insert(flags, 'Seen')
-      row.env.flags = flags
-      break
+  local idx = id_to_index and id_to_index[tostring(email_id)]
+  if idx then
+    local row = all_display_rows[idx]
+    local flags = row.env.flags or {}
+    for _, f in ipairs(flags) do
+      if f == 'Seen' then return end
     end
+    table.insert(flags, 'Seen')
+    row.env.flags = flags
   end
 
   -- Apply the seen highlight to the specific buffer line without
@@ -337,6 +341,7 @@ end
 --- Test-only accessor to set module-local state.
 function M._set_state(rows, page)
   all_display_rows = rows
+  rebuild_id_index()
   current_page = page
 end
 

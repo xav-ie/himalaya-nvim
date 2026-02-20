@@ -64,7 +64,7 @@ end
 --- @param bufnr number
 --- @param header string
 function M.apply_header(bufnr, header)
-  for _, winid in ipairs(vim.api.nvim_list_wins()) do
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_buf(winid) == bufnr then
       local pad = string.rep(' ', gutter_width(winid, bufnr))
       -- Escape percent signs and other statusline special chars
@@ -127,7 +127,7 @@ function M.setup(bufnr)
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
   local function on_resize()
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
       if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
         vim.api.nvim_win_call(winid, function()
           email.resize_listing()
