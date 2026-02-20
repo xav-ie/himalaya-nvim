@@ -17,6 +17,8 @@ local saved_cursor_id = nil   -- email ID for cursor restoration after re-fetch
 local resize_timer = nil      -- vim.uv timer for debounced re-fetch
 local resize_job = nil        -- in-flight resize re-fetch job handle
 local resize_generation = 0   -- incremented on kill; stale callbacks check this
+local fetch_generation = 0    -- incremented on each list_with(); stale callbacks bail out
+local fetch_job = nil         -- in-flight list_with job handle
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -234,6 +236,10 @@ function M.list_with(account, folder, page, qry)
     resize_job:kill()
     resize_job = nil
   end
+  -- Kill any in-flight list fetch so its callback never fires.
+  fetch_generation = fetch_generation + 1
+  local my_gen = fetch_generation
+  if fetch_job then fetch_job:kill(); fetch_job = nil end
   -- Cancel any running probe so its database lock is released before the
   -- new CLI fetch.  Without this, rapid page navigation (e.g. gn right
   -- after opening the inbox) hits "could not acquire lock" errors.
@@ -252,7 +258,7 @@ function M.list_with(account, folder, page, qry)
   local fetch_ps = ps * 2
   local cli_page = math.ceil(page / 2)
   local fetch_offset = (cli_page - 1) * fetch_ps
-  request.json({
+  fetch_job = request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
       folder,
@@ -262,7 +268,9 @@ function M.list_with(account, folder, page, qry)
       qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
+    is_stale = function() return my_gen ~= fetch_generation end,
     on_data = function(data)
+      fetch_job = nil
       on_list_with(account, folder, page, ps, qry, data, fetch_offset)
     end,
   })
