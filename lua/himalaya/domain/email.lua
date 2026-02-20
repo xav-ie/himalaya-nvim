@@ -496,7 +496,7 @@ function M.delete(first_line, last_line)
   local cfg = config.get()
   if cfg.always_confirm then
     local id_count = #vim.split(vim.trim(ids), '%s+')
-    local answer = vim.fn.inputdialog(string.format('Delete %d email(s)? [Y/n] ', id_count), '', '_cancel_')
+    local answer = vim.fn.inputdialog(string.format('Delete %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'), '', '_cancel_')
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
@@ -555,7 +555,7 @@ function M.move(target_folder, first_line, last_line)
   local cfg = config.get()
   if cfg.always_confirm then
     local id_count = #vim.split(vim.trim(ids), '%s+')
-    local answer = vim.fn.inputdialog(string.format('Move %d email(s)? [Y/n] ', id_count), '', '_cancel_')
+    local answer = vim.fn.inputdialog(string.format('Move %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'), '', '_cancel_')
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
