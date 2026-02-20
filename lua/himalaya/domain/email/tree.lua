@@ -215,8 +215,8 @@ local TREE_TOP  = "\xe2\x94\x8c" -- ┌
 --- linear continuation nodes inherit the ancestor branch continuation (│)
 --- or plain indent (  ) depending on whether an active branch exists.
 ---
---- In reverse mode, connectors are mirrored: └─ for the first/top branch
---- child, ┌─ for all subsequent children (mirrors └─ going up).
+--- In reverse mode, connectors are mirrored: ┌─ for the first/top branch
+--- child, ├─ for middle, └─ for the last/bottom child.
 --- @param rows table[] Display rows from M.build()
 --- @param opts? table  Optional: { reverse = bool }
 --- @return table[] Same rows with .prefix added
@@ -234,11 +234,13 @@ function M.build_prefix(rows, opts)
     if vd > 0 then
       if row.is_branch_child then
         if reverse then
-          -- └─ for first child at this VD (top), ┌─ for the rest
-          if stack[vd] == nil then
+          -- ┌─ first (top), ├─ middle, └─ last (bottom)
+          if stack[vd] == nil and not row.is_last_child then
+            prefix = prefix .. (TREE_TOP .. TREE_H)
+          elseif row.is_last_child then
             prefix = prefix .. (TREE_END .. TREE_H)
           else
-            prefix = prefix .. (TREE_TOP .. TREE_H)
+            prefix = prefix .. (TREE_FORK .. TREE_H)
           end
         else
           prefix = prefix .. (row.is_last_child and (TREE_END .. TREE_H) or (TREE_FORK .. TREE_H))
