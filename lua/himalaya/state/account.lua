@@ -40,6 +40,7 @@ function M.list()
       table.insert(names, entry.name)
     end
   end
+  table.sort(names)
 
   cached_accounts = names
   return cached_accounts
