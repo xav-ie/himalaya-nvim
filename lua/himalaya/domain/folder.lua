@@ -20,7 +20,25 @@ function M.open_picker(callback)
     args = { account_flag(account) },
     msg = 'Listing folders',
     on_data = function(data)
-      pickers.select(callback, data)
+      -- Sort folders alphabetically for deterministic order
+      table.sort(data, function(a, b) return a.name < b.name end)
+
+      -- Rotate so the folder after the current one is first
+      local current = folder_state.current()
+      local start = 1
+      for i, f in ipairs(data) do
+        if f.name == current then
+          start = i + 1
+          break
+        end
+      end
+      local rotated = {}
+      for i = 0, #data - 1 do
+        local idx = ((start - 1 + i) % #data) + 1
+        rotated[#rotated + 1] = data[idx]
+      end
+
+      pickers.select(callback, rotated)
     end,
   })
 end
