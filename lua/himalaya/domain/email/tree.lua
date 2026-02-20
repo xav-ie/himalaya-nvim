@@ -91,9 +91,9 @@ function M.build(edges, opts)
       local ea = date_to_epoch(a.date or '')
       local eb = date_to_epoch(b.date or '')
       if ea ~= eb then
-        return reverse and (ea > eb) or (ea < eb)
+        if reverse then return ea > eb else return ea < eb end
       end
-      return reverse and (tostring(a.id) > tostring(b.id)) or (tostring(a.id) < tostring(b.id))
+      if reverse then return tostring(a.id) > tostring(b.id) else return tostring(a.id) < tostring(b.id) end
     end)
   end
 
