@@ -446,12 +446,9 @@ function M.delete(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local saved_cmdheight = vim.o.cmdheight
-    vim.o.cmdheight = math.max(saved_cmdheight, 2)
-    local choice = vim.fn.confirm(string.format('Delete email(s) %s?', ids), '&Yes\n&No', 1)
-    vim.o.cmdheight = saved_cmdheight
+    local answer = vim.fn.input(string.format('Delete email(s) %s? [Y/n] ', ids))
     vim.cmd('redraw | echo')
-    if choice ~= 1 then
+    if answer ~= '' and answer:lower() ~= 'y' then
       return
     end
   end
@@ -518,12 +515,9 @@ function M.move(target_folder, first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local saved_cmdheight = vim.o.cmdheight
-    vim.o.cmdheight = math.max(saved_cmdheight, 2)
-    local choice = vim.fn.confirm(string.format('Move email(s) %s?', ids), '&Yes\n&No', 1)
-    vim.o.cmdheight = saved_cmdheight
+    local answer = vim.fn.input(string.format('Move email(s) %s? [Y/n] ', ids))
     vim.cmd('redraw | echo')
-    if choice ~= 1 then
+    if answer ~= '' and answer:lower() ~= 'y' then
       return
     end
   end
