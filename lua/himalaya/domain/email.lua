@@ -26,10 +26,11 @@ local contact_cache_items = {} -- formatted items from last contact command
 local account_flag = account_state.flag
 
 --- Extract numeric email ID from a listing line.
+--- Delegates to ui.listing; kept for backward compatibility.
 --- @param line string
 --- @return string
 function M._get_email_id_from_line(line)
-  return line:match('%d+') or ''
+  return require('himalaya.ui.listing').get_email_id_from_line(line)
 end
 
 --- Get email ID from line under cursor.
@@ -159,12 +160,12 @@ end
 --- Compute the page size (visible envelope rows) for the current window.
 --- @return number
 local function page_size()
-  return math.max(1, vim.fn.winheight(0))
+  return require('himalaya.ui.listing').effective_page_size()
 end
 
 --- Get the relevant email ID depending on context (listing vs read buffer).
 --- @return string
-local function context_email_id()
+function M.context_email_id()
   if in_listing_buffer() then
     return get_email_id_under_cursor()
   else
@@ -226,7 +227,7 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   -- Set winbar first so page_size() reflects actual visible area
   listing.apply_header(bufnr, result.header)
   -- After winbar is set, visible area may have shrunk — truncate if needed
-  local actual_ps = math.max(1, vim.fn.winheight(0))
+  local actual_ps = listing.effective_page_size()
   local display = page_data
   if #page_data > actual_ps then
     display = {}
@@ -347,7 +348,7 @@ local function mark_envelope_seen(email_id)
 
   if listing_type == 'thread-listing' then
     local tl = require('himalaya.domain.email.thread_listing')
-    tl._mark_seen(email_id)
+    tl.mark_seen_optimistic(email_id)
     return
   end
 
@@ -685,7 +686,7 @@ end
 function M.download_attachments()
   local account = account_state.current()
   local folder = folder_state.current()
-  local id = context_email_id()
+  local id = M.context_email_id()
   request.plain({
     cmd = 'attachment download %s --folder %s %s',
     args = { account_flag(account), folder, id },

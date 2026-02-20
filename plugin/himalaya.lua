@@ -3,7 +3,7 @@ if vim.g.himalaya_loaded then
 end
 
 local himalaya = require('himalaya')
-himalaya._register_commands()
-himalaya._register_filetypes()
+himalaya.register_commands()
+himalaya.register_filetypes()
 
 vim.g.himalaya_loaded = true

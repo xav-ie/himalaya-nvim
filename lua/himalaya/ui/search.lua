@@ -200,7 +200,8 @@ function M.open(callback, prev_query, current_folder)
   vim.api.nvim_buf_set_var(buf, '_himalaya_folder_line', FOLDER_LINE)
   vim.bo[buf].completefunc = 'v:lua._himalaya_search_completefunc'
   -- Global completefunc wrapper (scoped to this buffer via buf-local var).
-  if not _G._himalaya_search_completefunc then
+  -- Always assign so changes take effect without restarting Neovim.
+  do
     function _G._himalaya_search_completefunc(findstart, base)
       local b = vim.api.nvim_get_current_buf()
       local row = vim.fn.line('.') - 1 -- 0-based

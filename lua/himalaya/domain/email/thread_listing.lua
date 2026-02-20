@@ -39,12 +39,7 @@ function M.render_page(page, opts)
   local thread_renderer = require('himalaya.ui.thread_renderer')
   local listing = require('himalaya.ui.listing')
 
-  local ps = math.max(1, vim.fn.winheight(0))
-  -- On first load the winbar hasn't been set yet, so winheight still
-  -- includes that row.  Reserve one line for the header winbar.
-  if vim.wo.winbar == '' then
-    ps = math.max(1, ps - 1)
-  end
+  local ps = listing.effective_page_size()
 
   local total_pages = math.max(1, math.ceil(#all_display_rows / ps))
   page = math.max(1, math.min(page, total_pages))
@@ -70,7 +65,7 @@ function M.render_page(page, opts)
   listing.apply_header(bufnr, result.header)
 
   -- After winbar is set, visible area may have shrunk — truncate if needed
-  local actual_ps = math.max(1, vim.fn.winheight(0))
+  local actual_ps = listing.effective_page_size()
   if #slice > actual_ps then
     local trimmed = {}
     for i = 1, actual_ps do trimmed[i] = result.lines[i] end
@@ -180,11 +175,11 @@ function M.list(account, opts)
 
       if not vim.api.nvim_win_is_valid(listing_win) then return end
       vim.api.nvim_win_call(listing_win, function()
+        local listing_ui = require('himalaya.ui.listing')
         if opts.restore_cursor_line then
           -- Restore cursor to same line position (like dd in normal buffers).
           -- Compute which page that line falls on after re-fetch.
-          local ps = math.max(1, vim.fn.winheight(0))
-          if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+          local ps = listing_ui.effective_page_size()
           local global_idx = math.min(opts.restore_cursor_line + (current_page - 1) * ps, #rows)
           global_idx = math.max(1, global_idx)
           local page = math.floor((global_idx - 1) / ps) + 1
@@ -199,8 +194,7 @@ function M.list(account, opts)
               break
             end
           end
-          local ps = math.max(1, vim.fn.winheight(0))
-          if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+          local ps = listing_ui.effective_page_size()
           local page = math.floor((target_idx - 1) / ps) + 1
           local cursor_in_page = target_idx - (page - 1) * ps
           M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
@@ -275,17 +269,14 @@ function M.resize()
   if not all_display_rows then return end
 
   -- Identify the email under cursor
-  local email_mod = require('himalaya.domain.email')
-  local cursor_email_id = email_mod._get_email_id_from_line(vim.api.nvim_get_current_line())
+  local listing = require('himalaya.ui.listing')
+  local cursor_email_id = listing.get_email_id_from_line(vim.api.nvim_get_current_line())
 
   -- Find its global (1-based) index in all_display_rows
   local global_idx = (cursor_email_id ~= '' and id_to_index and id_to_index[cursor_email_id]) or 1
 
   -- Compute page size using the same formula as render_page
-  local new_ps = math.max(1, vim.fn.winheight(0))
-  if vim.wo.winbar == '' then
-    new_ps = math.max(1, new_ps - 1)
-  end
+  local new_ps = listing.effective_page_size()
 
   -- Compute which page the email is on and cursor position within that page
   local new_page = math.floor((global_idx - 1) / new_ps) + 1
@@ -302,7 +293,7 @@ end
 --- (smaller) page size with the old page number, clobbering the cursor
 --- position that the WinResized handler needs to compute the correct page.
 --- @param email_id string
-function M._mark_seen(email_id)
+function M.mark_seen_optimistic(email_id)
   if not all_display_rows then return end
 
   local idx = id_to_index and id_to_index[tostring(email_id)]
@@ -319,7 +310,7 @@ function M._mark_seen(email_id)
   -- Apply the seen highlight to the specific buffer line without
   -- re-rendering.  The WinResized handler will do the full page
   -- recalculation and re-render with correct highlights.
-  local email_mod = require('himalaya.domain.email')
+  local listing_mod = require('himalaya.ui.listing')
   local ns_seen = vim.api.nvim_create_namespace('himalaya_seen')
   local eid = tostring(email_id)
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -329,7 +320,7 @@ function M._mark_seen(email_id)
       if ok and bt == 'thread-listing' then
         local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
         for i, line in ipairs(lines) do
-          if email_mod._get_email_id_from_line(line) == eid then
+          if listing_mod.get_email_id_from_line(line) == eid then
             vim.api.nvim_buf_set_extmark(buf, ns_seen, i - 1, 0, {
               end_row = i,
               hl_eol = true,

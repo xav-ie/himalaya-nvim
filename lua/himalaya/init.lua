@@ -13,7 +13,7 @@ function M.setup(opts)
   end
 end
 
-function M._register_commands()
+function M.register_commands()
   local email = require('himalaya.domain.email')
   local compose = require('himalaya.domain.email.compose')
   local folder = require('himalaya.domain.folder')
@@ -96,7 +96,7 @@ function M._register_commands()
   end, { nargs = '*', range = true })
 end
 
-function M._register_filetypes()
+function M.register_filetypes()
   local group = vim.api.nvim_create_augroup('himalaya', { clear = true })
 
   vim.api.nvim_create_autocmd('FileType', {

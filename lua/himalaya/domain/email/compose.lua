@@ -9,14 +9,8 @@ local draft = ''
 
 local account_flag = account_state.flag
 
---- Resolve the email ID from context: listing buffer → cursor line, else → current read ID.
 local function context_email_id()
-  local bt = vim.b.himalaya_buffer_type
-  if bt == 'listing' or bt == 'thread-listing' then
-    local email = require('himalaya.domain.email')
-    return email._get_email_id_from_line(vim.api.nvim_get_current_line())
-  end
-  return require('himalaya.domain.email')._get_current_id()
+  return require('himalaya.domain.email').context_email_id()
 end
 
 --- Set buffer content, replacing carriage returns and trailing blank line.

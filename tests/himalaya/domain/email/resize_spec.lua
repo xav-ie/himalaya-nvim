@@ -113,6 +113,8 @@ describe('himalaya.domain.email resize_listing', function()
       apply_seen_highlights = function() end,
       apply_syntax = function() end,
       gutter_width = function() return 0 end,
+      get_email_id_from_line = function(line) return line:match('%d+') or '' end,
+      effective_page_size = function() return math.max(1, vim.fn.winheight(0)) end,
     }
 
     email = require('himalaya.domain.email')

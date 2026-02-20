@@ -7,6 +7,24 @@ local M = {}
 
 local ns = vim.api.nvim_create_namespace('himalaya_seen')
 
+--- Extract numeric email ID from a listing line.
+--- @param line string
+--- @return string
+function M.get_email_id_from_line(line)
+  return line:match('%d+') or ''
+end
+
+--- Compute the effective page size (visible rows) for the current window.
+--- Accounts for winbar: if not yet set, reserves one line for it.
+--- @return number
+function M.effective_page_size()
+  local ps = math.max(1, vim.fn.winheight(0))
+  if vim.wo.winbar == '' then
+    ps = math.max(1, ps - 1)
+  end
+  return ps
+end
+
 --- Define highlight groups for the email listing view.
 function M.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaSeparator', { default = true, link = 'VertSplit' })

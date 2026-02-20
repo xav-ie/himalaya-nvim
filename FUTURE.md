@@ -171,64 +171,17 @@ All performance items have been completed.
 *Completed items removed: `account_flag` dedup, shared keybinds, shared
 renderer layout, config DI, paging extraction, function decomposition,
 `resolve_target_ids` helper, `on_resize`/`do_resize` dead indirection,
-`nargs` fix on zero-argument commands, `gutter_width` consolidation.*
+`nargs` fix on zero-argument commands, `gutter_width` consolidation,
+`context_email_id` dedup, `effective_page_size()` shared helper,
+`get_email_id_from_line` moved to UI layer, underscore-prefix renames,
+`_G._himalaya_search_completefunc` guard removal,
+`set_page(0)` clamping + `request.on_exit` path tests.*
 
-### 1. Deduplicate `context_email_id`
-
-`email.lua:173-178` and `compose.lua:13-19` both implement the same
-listing-vs-read-buffer email ID resolution. Exporting
-`email.context_email_id()` and calling it from compose eliminates the
-duplication.
-
-**Files:** `domain/email.lua:173`, `domain/email/compose.lua:13`
-
-### 2. Extract Shared `effective_page_size()` Helper
-
-The two-line `math.max(1, winheight) + winbar guard` pattern appears 6
-times across `email.lua` and `thread_listing.lua`. A shared helper
-(in `paging.lua` or a new `ui/layout.lua`) would centralize it.
-
-**Files:** `domain/email.lua:167,280`, `domain/email/thread_listing.lua:31,168,184,273`
-
-### 3. Move `_get_email_id_from_line` to UI Layer
-
-`_get_email_id_from_line` is a UI/parsing concern living in the domain
-module (`email.lua`). `thread_listing.lua` cross-requires `email`
-specifically for it. Moving to `ui/listing.lua` would clean up the
-module boundary. (`_bufwidth` was already consolidated into
-`listing.gutter_width`.)
-
-**Files:** `domain/email.lua:29-31`
-
-### 4. Rename Misleading Underscore-Prefixed Public Functions
-
-`_mark_seen` in `thread_listing.lua` is called from production code
-(`email.lua:341`), not just tests. `_register_commands` /
-`_register_filetypes` in `init.lua` are initialization entry points.
-Renaming to drop the underscore (or to something descriptive like
-`mark_seen_optimistic`) aligns with the codebase convention that `_`
-means test-only.
-
-**Files:** `domain/email/thread_listing.lua:293`, `init.lua:16,99`
-
-### 5. Test Coverage Gaps
+### Remaining Test Coverage Gaps
 
 Untested modules/functions with non-trivial logic:
 
-- `compose.process_draft` — the most complex function with a confirmed
-  bug, zero tests
-- `domain/email/probe.lua` — stale-job handling untested
-  (totals/persistence/doubling sequence covered)
+- `compose.process_draft` — the most complex function, zero tests
 - `ui/search.lua` — reactive state machine, no tests
 - `mark_envelope_seen` thread-listing dispatch branch — not covered
-- `state/folder.lua` — `set()` page reset and `set_page(0)` clamping
-  untested
-- `request.lua` — `on_exit` error/parse paths untested
-
-### 6. Remove `_G._himalaya_search_completefunc` Global Leak
-
-`search.lua:203-252` sets a Lua global for `completefunc`. The `if not`
-guard prevents updates without restart. Either always assign (remove
-guard) or use `vim.fn.complete()` directly to eliminate the global.
-
-**Files:** `ui/search.lua:203-252`
+- `domain/email/probe.lua` — stale-job handling untested
