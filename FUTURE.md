@@ -179,9 +179,5 @@ renderer layout, config DI, paging extraction, function decomposition,
 
 ### Remaining Test Coverage Gaps
 
-Untested modules/functions with non-trivial logic:
-
-- `compose.process_draft` — the most complex function, zero tests
-- `ui/search.lua` — reactive state machine, no tests
-- `mark_envelope_seen` thread-listing dispatch branch — not covered
-- `domain/email/probe.lua` — stale-job handling untested
+- `ui/search.lua` — reactive state machine uses local closures inside
+  `M.open()`; needs extraction of pure functions before testing

@@ -54,6 +54,32 @@ describe('himalaya.domain.email', function()
     end)
   end)
 
+  describe('mark_envelope_seen', function()
+    it('dispatches to thread_listing for thread-listing buffers', function()
+      local marked_id
+      package.loaded['himalaya.domain.email.thread_listing'] = {
+        mark_seen_optimistic = function(id) marked_id = id end,
+      }
+
+      -- Set up current buffer as thread-listing
+      vim.api.nvim_buf_set_var(0, 'himalaya_buffer_type', 'thread-listing')
+      email._mark_envelope_seen('42')
+
+      assert.are.equal('42', marked_id)
+      vim.api.nvim_buf_del_var(0, 'himalaya_buffer_type')
+    end)
+
+    it('does not dispatch when no listing buffer exists', function()
+      local marked_id
+      package.loaded['himalaya.domain.email.thread_listing'] = {
+        mark_seen_optimistic = function(id) marked_id = id end,
+      }
+
+      email._mark_envelope_seen('42')
+      assert.is_nil(marked_id)
+    end)
+  end)
+
   describe('bufwidth', function()
     it('returns a positive number', function()
       local width = email._bufwidth()

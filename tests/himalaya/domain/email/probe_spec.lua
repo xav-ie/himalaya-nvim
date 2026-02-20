@@ -136,6 +136,59 @@ describe('himalaya.domain.email.probe', function()
     end)
   end)
 
+  describe('stale-job handling', function()
+    it('bails out and calls cancel callback when generation changes', function()
+      local captured_on_data
+      package.loaded['himalaya.domain.email.probe'] = nil
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          captured_on_data = opts.on_data
+          return { kill = function() end }
+        end,
+      }
+      local p = require('himalaya.domain.email.probe')
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      p.start('acct', 'inbox', 50, 1, '', bufnr)
+
+      -- cancel() increments generation, making the captured callback stale
+      local cancel_called = false
+      p.cancel(function() cancel_called = true end)
+
+      -- Invoke the now-stale on_data — should bail out
+      local full_page = {}
+      for i = 1, 50 do full_page[i] = {} end
+      captured_on_data(full_page)
+
+      assert.is_true(cancel_called)
+      assert.is_nil(p.total_count('acct\0inbox\0'))
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('does not bail out when generation is current', function()
+      local captured_on_data
+      package.loaded['himalaya.domain.email.probe'] = nil
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          captured_on_data = opts.on_data
+          return { kill = function() end }
+        end,
+      }
+      local p = require('himalaya.domain.email.probe')
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      p.start('acct', 'inbox', 50, 1, '', bufnr)
+
+      -- Invoke on_data without cancelling — should process normally
+      -- Return partial page (3 items) to set exact total
+      captured_on_data({{}, {}, {}})
+
+      -- Total should be (2-1)*50 + 3 = 53
+      assert.are.equal(53, p.total_count('acct\0inbox\0'))
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
   describe('total_pages_str', function()
     it('returns ? when unknown', function()
       assert.are.equal('?', probe.total_pages_str('unknown\0key\0', 50))
