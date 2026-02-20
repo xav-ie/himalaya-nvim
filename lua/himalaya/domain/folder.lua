@@ -59,6 +59,7 @@ function M.select_next_page()
   if not ps then return end
   -- Partial page means we're already on the last page.
   if vim.api.nvim_buf_line_count(0) < ps then
+    vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
     return
   end
   -- When the probe knows the exact total, prevent going past the last page
@@ -69,6 +70,7 @@ function M.select_next_page()
     local probe = require('himalaya.domain.email.probe')
     local total = probe.total_count(cache_key)
     if total and page >= math.ceil(total / ps) then
+      vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
       return
     end
   end
@@ -77,6 +79,10 @@ function M.select_next_page()
 end
 
 function M.select_previous_page()
+  if folder_state.current_page() <= 1 then
+    vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
+    return
+  end
   folder_state.previous_page()
   require('himalaya.domain.email').list()
 end

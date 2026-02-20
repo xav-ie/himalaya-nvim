@@ -8,6 +8,10 @@ with **(quick win)** can typically be done in under 30 minutes each.
 
 ## UI/UX
 
+*Completed/removed items: search folder field stale on reopen,
+page boundary navigation feedback, search popup key hints (declined),
+HimalayaSeen link target (declined).*
+
 ### 1. Draft Prompt Fires on Every BufLeave
 
 `writing.lua:33` triggers `compose.process_draft()` on `BufLeave`,
@@ -43,15 +47,7 @@ straightforward.
 
 **Files:** `domain/email.lua:259-308`, `ui/listing.lua:66`
 
-### 4. Search Popup Has No Key Hints **(quick win)**
-
-The search float has `<Tab>` completion, `<C-x>` negation toggle, and
-`<CR>` submit, but none of these are documented in the popup. Adding a
-`footer` to `nvim_open_win` (Neovim 0.10+) is a 2-line change.
-
-**Files:** `ui/search.lua:153`
-
-### 5. No Next/Previous Email Navigation in Reading Buffer
+### 4. No Next/Previous Email Navigation in Reading Buffer
 
 The reading buffer has reply, forward, copy, move, delete, and
 browser-open bindings but no way to advance to the adjacent email
@@ -61,19 +57,7 @@ behavior.
 
 **Files:** `ui/reading.lua:21`, `domain/email.lua`
 
-### 6. Search Folder Field Stale on Reopen **(quick win)**
-
-When restoring `last_state` in search.lua, the folder field uses the
-previous search's folder rather than `current_folder`. If the user
-changed folder via `gm` between searches, the search targets the wrong
-folder.
-
-**Fix:** Override the saved folder field with `current_folder` when
-`last_state` exists.
-
-**Files:** `ui/search.lua:541-567`
-
-### 7. Compose Opens in Wrong Window
+### 5. Compose Opens in Wrong Window
 
 `compose.lua:39-53` opens reply/forward in the current window when
 multiple windows exist (via `edit`), which replaces the listing. It
@@ -81,7 +65,7 @@ should prefer the reading window to keep the listing visible.
 
 **Files:** `domain/email/compose.lua:39-53`
 
-### 8. Flag Picker Uses Freetext Input
+### 6. Flag Picker Uses Freetext Input
 
 `email.lua:606,640` uses `vim.fn.input` for flag add/remove with no
 indication of which flags are already set. Replacing with `vim.ui.select`
@@ -90,7 +74,7 @@ discoverable.
 
 **Files:** `domain/email.lua:606,640`
 
-### 9. Keybind Discoverability — No Help Float
+### 7. Keybind Discoverability — No Help Float
 
 All actions use `g`-prefix keybinds (gw, gr, gR, gf, etc.) with no
 built-in help. A `?` binding that opens a float listing all active
@@ -99,7 +83,7 @@ on every binding. Optional `which-key` integration could also be added.
 
 **Files:** `keybinds.lua`, `ui/listing.lua`, `ui/reading.lua`
 
-### 10. Thread/Flat Toggle Loses Cursor Position
+### 8. Thread/Flat Toggle Loses Cursor Position
 
 `gt` toggle between flat and thread modes always jumps to page 1 line 1.
 Both modes have cursor-restoration infrastructure (`saved_cursor_id`,
@@ -108,25 +92,7 @@ passing it to the target mode's list function would preserve context.
 
 **Files:** `domain/email/thread_listing.lua:217`, `ui/listing.lua:123`
 
-### 11. Page Boundary Navigation Has No Feedback **(quick win)**
-
-Pressing `gp` on page 1 or `gn` on the last page gives no feedback.
-Adding a brief `vim.notify('Already on last page', INFO)` at the
-early-return points would tell the user the command registered.
-
-**Files:** `domain/folder.lua:62,73`
-
-### 12. HimalayaSeen Links to Normal **(quick win)**
-
-`listing.lua:19` defaults `HimalayaSeen` to `{ link = 'Normal' }`.
-In some colorschemes Normal is styled, making seen emails more prominent
-than unseen. `{ link = 'Comment' }` is conventionally dimmed in all
-colorschemes and is a better default. Adding an explicit
-`HimalayaUnseen` group would also help.
-
-**Files:** `ui/listing.lua:19`
-
-### 13. Thread Flags Column Blinks on Initial Render
+### 9. Thread Flags Column Blinks on Initial Render
 
 Thread listing renders empty flags columns, then re-renders with real
 flags after `enrich_with_flags` completes. A placeholder or using the
@@ -134,7 +100,7 @@ thread-fetch flags as initial data would eliminate the flash.
 
 **Files:** `domain/email/thread_listing.lua:97`, `ui/thread_renderer.lua:18`
 
-### 14. Raw CLI Errors in Notifications
+### 10. Raw CLI Errors in Notifications
 
 `request.lua:43` fires two separate `vim.notify` calls (one for the
 failure message, one for raw stderr). The CLI stderr often contains
@@ -144,7 +110,7 @@ error patterns would be more useful. `log.debug` also sends to
 
 **Files:** `request.lua:43`, `log.lua:11`
 
-### 15. Send Has No Preview or Validation
+### 11. Send Has No Preview or Validation
 
 `compose.process_draft` sends immediately on `s<CR>` with no
 confirmation showing recipients/subject. No warning on empty To: or

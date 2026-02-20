@@ -560,6 +560,11 @@ function M.open(callback, prev_query, current_folder)
     for i, val in ipairs(last_state.values) do
       set_line(i - 1, val)
     end
+    -- Override restored folder with the current folder so switching
+    -- folders between searches doesn't target the wrong one.
+    if current_folder and current_folder ~= '' then
+      set_line(FOLDER_LINE, current_folder)
+    end
     propagating = false
     for k, v in pairs(last_state.negated) do negated[k] = v end
     body_subscribed = last_state.body_subscribed
