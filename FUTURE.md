@@ -177,7 +177,4 @@ renderer layout, config DI, paging extraction, function decomposition,
 `_G._himalaya_search_completefunc` guard removal,
 `set_page(0)` clamping + `request.on_exit` path tests.*
 
-### Remaining Test Coverage Gaps
-
-- `ui/search.lua` — reactive state machine uses local closures inside
-  `M.open()`; needs extraction of pure functions before testing
+All architecture items have been completed.

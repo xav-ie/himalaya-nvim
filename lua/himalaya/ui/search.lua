@@ -64,6 +64,8 @@ local BODY_LINE = 2
 local QUERY_LINE = #FIELDS - 1
 
 --- Build the negated variant of a field label (same width, leading space → '!').
+--- @param label string
+--- @return string
 local function negate_label(label)
   local spaces, rest = label:match('^( *)(.*)')
   if #spaces > 0 then
@@ -71,6 +73,65 @@ local function negate_label(label)
   end
   return '!' .. label:sub(1, -2)
 end
+M._negate_label = negate_label
+
+--- Format a single field condition for the query string.
+--- Text-pattern fields escape spaces with backslash for multi-word support.
+--- @param field table  field definition from FIELDS
+--- @param val string
+--- @return string
+function M._format_condition(field, val)
+  if field.quote then
+    return field.keyword .. ' ' .. val:gsub(' ', '\\ ')
+  end
+  return field.keyword .. ' ' .. val
+end
+
+--- Build query segments from field values and negation state.
+--- Subject/body fields are OR-grouped; all other keyword fields are AND-combined.
+--- @param values string[]  1-based array aligned with FIELDS
+--- @param neg table<number, boolean>  0-based line index → negated
+--- @return table[] segments  array of {text=string, hl?=string}
+function M._build_query_segments(values, neg)
+  local or_segs = {}
+  local and_segs = {}
+  for i, field in ipairs(FIELDS) do
+    local val = values[i] or ''
+    if val ~= '' then
+      if field.complete == 'when' then
+        local text = neg[i - 1] and ('not ' .. val) or val
+        and_segs[#and_segs + 1] = { text = text, hl = FIELD_HL.when }
+      elseif field.keyword then
+        local cond = M._format_condition(field, val)
+        if neg[i - 1] then cond = 'not ' .. cond end
+        local hl = FIELD_HL[field.keyword]
+        if field.keyword == 'subject' or field.keyword == 'body' then
+          or_segs[#or_segs + 1] = { text = cond, hl = hl }
+        else
+          and_segs[#and_segs + 1] = { text = cond, hl = hl }
+        end
+      end
+    end
+  end
+  local segments = {}
+  if #or_segs > 0 then
+    local need_parens = #and_segs > 0 and #or_segs > 1
+    if need_parens then segments[#segments + 1] = { text = '(' } end
+    for j, seg in ipairs(or_segs) do
+      if j > 1 then segments[#segments + 1] = { text = ' or ' } end
+      segments[#segments + 1] = seg
+    end
+    if need_parens then segments[#segments + 1] = { text = ')' } end
+  end
+  for _, seg in ipairs(and_segs) do
+    if #segments > 0 then segments[#segments + 1] = { text = ' and ' } end
+    segments[#segments + 1] = seg
+  end
+  return segments
+end
+
+--- Expose FIELDS for testing.
+M._FIELDS = FIELDS
 
 -- Saved state from the last submitted search (persists across popup opens).
 local last_state = nil
@@ -263,15 +324,6 @@ function M.open(callback, prev_query, current_folder)
     vim.api.nvim_buf_set_text(buf, line_idx, 0, line_idx, #old, { text })
   end
 
-  --- Format a single field condition for the query string.
-  --- Text-pattern fields escape spaces with backslash for multi-word support.
-  local function format_condition(field, val)
-    if field.quote then
-      return field.keyword .. ' ' .. val:gsub(' ', '\\ ')
-    end
-    return field.keyword .. ' ' .. val
-  end
-
   --- Update underline highlights on linked field values.
   local function update_value_hl()
     vim.api.nvim_buf_clear_namespace(buf, value_hl_ns, 0, -1)
@@ -291,44 +343,9 @@ function M.open(callback, prev_query, current_folder)
   --- is colored with its field highlight on the query line.
   local function recompose_query()
     if not query_subscribed then return end
-    local or_segs = {}
-    local and_segs = {}
-    for i, field in ipairs(FIELDS) do
-      if field.complete == 'when' then
-        local val = get_line(i - 1)
-        if val ~= '' then
-          local text = negated[i - 1] and ('not ' .. val) or val
-          and_segs[#and_segs + 1] = { text = text, hl = FIELD_HL.when }
-        end
-      elseif field.keyword then
-        local val = get_line(i - 1)
-        if val ~= '' then
-          local cond = format_condition(field, val)
-          if negated[i - 1] then cond = 'not ' .. cond end
-          local hl = FIELD_HL[field.keyword]
-          if field.keyword == 'subject' or field.keyword == 'body' then
-            or_segs[#or_segs + 1] = { text = cond, hl = hl }
-          else
-            and_segs[#and_segs + 1] = { text = cond, hl = hl }
-          end
-        end
-      end
-    end
-    -- Build segments with separators
-    local segments = {}
-    if #or_segs > 0 then
-      local need_parens = #and_segs > 0 and #or_segs > 1
-      if need_parens then segments[#segments + 1] = { text = '(' } end
-      for j, seg in ipairs(or_segs) do
-        if j > 1 then segments[#segments + 1] = { text = ' or ' } end
-        segments[#segments + 1] = seg
-      end
-      if need_parens then segments[#segments + 1] = { text = ')' } end
-    end
-    for _, seg in ipairs(and_segs) do
-      if #segments > 0 then segments[#segments + 1] = { text = ' and ' } end
-      segments[#segments + 1] = seg
-    end
+    local values = {}
+    for i = 1, #FIELDS do values[i] = get_line(i - 1) end
+    local segments = M._build_query_segments(values, negated)
     -- Build final string and track highlight positions
     local texts = {}
     local hl_ranges = {}
