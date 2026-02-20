@@ -116,7 +116,7 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
         job = nil
         saved_args = nil
       else
-        run_probe(acct_flag, folder, page_size, probe_page + 1, qry, bufnr)
+        run_probe(acct_flag, folder, page_size, math.min(probe_page * 2, 10), qry, bufnr)
         return
       end
       if vim.api.nvim_buf_is_valid(bufnr) then

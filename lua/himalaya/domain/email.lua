@@ -20,6 +20,8 @@ local resize_job = nil        -- in-flight resize re-fetch job handle
 local resize_generation = 0   -- incremented on kill; stale callbacks check this
 local fetch_generation = 0    -- incremented on each list_with(); stale callbacks bail out
 local fetch_job = nil         -- in-flight list_with job handle
+local contact_cache_base = '' -- base string for cached contact completions
+local contact_cache_items = {} -- formatted items from last contact command
 
 local account_flag = account_state.flag
 
@@ -734,14 +736,29 @@ function M.complete_contact(findstart, base)
 
     return start - 1 -- 0-based for omnifunc
   else
+    -- Filter from cache when the query refines a previous one
+    if #contact_cache_items > 0 and #base >= #contact_cache_base
+        and base:sub(1, #contact_cache_base) == contact_cache_base then
+      local filtered = {}
+      local lower_base = base:lower()
+      for _, item in ipairs(contact_cache_items) do
+        if item:lower():find(lower_base, 1, true) then
+          filtered[#filtered + 1] = item
+        end
+      end
+      return filtered
+    end
+
     local cfg = config.get()
     local cmd = cfg.complete_contact_cmd:gsub('%%s', base)
     local output = vim.fn.system(cmd)
     local lines = vim.split(output, '\n', { trimempty = true })
     local items = {}
     for _, line in ipairs(lines) do
-      table.insert(items, M._line_to_complete_item(line))
+      items[#items + 1] = M._line_to_complete_item(line)
     end
+    contact_cache_base = base
+    contact_cache_items = items
     return items
   end
 end

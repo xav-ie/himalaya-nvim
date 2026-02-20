@@ -85,6 +85,57 @@ describe('himalaya.domain.email.probe', function()
     end)
   end)
 
+  describe('probe sequence', function()
+    local probed_pages
+
+    local function setup_mock(partial_at)
+      probed_pages = {}
+      package.loaded['himalaya.domain.email.probe'] = nil
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          local probe_page = opts.args[4]
+          local page_size = opts.args[3]
+          table.insert(probed_pages, probe_page)
+          if partial_at and probe_page == partial_at then
+            opts.on_data({{}, {}, {}})
+          else
+            local full = {}
+            for i = 1, page_size do full[i] = {} end
+            opts.on_data(full)
+          end
+          return {}
+        end,
+      }
+      return require('himalaya.domain.email.probe')
+    end
+
+    it('uses exponential doubling from page 1', function()
+      local p = setup_mock()
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      p.start('acct', 'inbox', 50, 1, '', bufnr)
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      assert.are.same({2, 4, 8, 10}, probed_pages)
+    end)
+
+    it('uses exponential doubling from page 3', function()
+      local p = setup_mock()
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      p.start('acct', 'inbox', 50, 3, '', bufnr)
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      assert.are.same({4, 8, 10}, probed_pages)
+    end)
+
+    it('stops on partial page during doubling', function()
+      local p = setup_mock(4)
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      p.start('acct', 'inbox', 50, 1, '', bufnr)
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      assert.are.same({2, 4}, probed_pages)
+      assert.are.equal(153, p.total_count('acct\0inbox\0'))
+    end)
+  end)
+
   describe('total_pages_str', function()
     it('returns ? when unknown', function()
       assert.are.equal('?', probe.total_pages_str('unknown\0key\0', 50))

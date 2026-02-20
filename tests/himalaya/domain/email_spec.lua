@@ -72,4 +72,51 @@ describe('himalaya.domain.email', function()
       assert.are.equal('"John Doe"<user@example.com>', result)
     end)
   end)
+
+  describe('complete_contact caching', function()
+    local system_calls
+    local orig_system
+
+    before_each(function()
+      system_calls = {}
+      local cfg = require('himalaya.config').get()
+      cfg.complete_contact_cmd = 'contacts %s'
+      orig_system = vim.fn.system
+      vim.fn.system = function(cmd)
+        table.insert(system_calls, cmd)
+        if cmd:find('jo') then
+          return 'john@ex.com\tJohn Doe\njoan@ex.com\tJoan Smith\n'
+        elseif cmd:find('ma') then
+          return 'mary@ex.com\tMary Jones\n'
+        end
+        return ''
+      end
+    end)
+
+    after_each(function()
+      vim.fn.system = orig_system
+    end)
+
+    it('calls external command on first query', function()
+      local items = email.complete_contact(0, 'jo')
+      assert.are.equal(1, #system_calls)
+      assert.are.equal(2, #items)
+    end)
+
+    it('filters from cache when query is refined', function()
+      email.complete_contact(0, 'jo')
+      assert.are.equal(1, #system_calls)
+      local items = email.complete_contact(0, 'john')
+      assert.are.equal(1, #system_calls)
+      assert.are.equal(1, #items)
+      assert.is_truthy(items[1]:find('John Doe'))
+    end)
+
+    it('calls external command when query is not a refinement', function()
+      email.complete_contact(0, 'jo')
+      assert.are.equal(1, #system_calls)
+      email.complete_contact(0, 'ma')
+      assert.are.equal(2, #system_calls)
+    end)
+  end)
 end)

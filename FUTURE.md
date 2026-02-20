@@ -171,25 +171,10 @@ sends.
 epoch cache, `is_last_child` O(n) backward pass, `apply_header`
 tab-scoped window scan, thread `resize()` O(1) id-to-index lookup,
 `sign_getplaced` API, `enrich_with_flags` 200-envelope cap,
-probe totals persistence, perf instrumentation spans.*
+probe totals persistence, perf instrumentation spans,
+`complete_contact` prefix cache, probe exponential doubling.*
 
-### 1. `complete_contact` Uses Blocking `vim.fn.system`
-
-`email.lua:772` runs the contact-lookup command synchronously. For slow
-backends (LDAP, remote notmuch) this freezes Neovim during completion.
-Switching to `vim.system` (async) with a cached-result pattern would
-eliminate the freeze.
-
-**Files:** `domain/email.lua:748-779`
-
-### 2. Probe Sequential Chain (Up to 9 Subprocesses)
-
-`probe.lua:66-119` fires one CLI subprocess per page sequentially. An
-exponential doubling strategy (probe page 2, 4, 8, 10) would reduce
-worst-case round-trips from 9 to 4. A `--count-only` CLI flag would
-eliminate them entirely.
-
-**Files:** `domain/email/probe.lua:66-119`
+All performance items have been completed.
 
 
 ## Architecture & Code Quality
