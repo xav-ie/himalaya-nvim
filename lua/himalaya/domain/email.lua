@@ -211,6 +211,7 @@ end
 function M.list(account)
   if account then
     account_state.select(account)
+    folder_state.set_page(1)
   end
   local acct = account_state.current()
   local folder = folder_state.current()
@@ -452,9 +453,9 @@ function M.delete(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local answer = vim.fn.input(string.format('Delete email(s) %s? [Y/n] ', ids))
+    local answer = vim.fn.inputdialog(string.format('Delete email(s) %s? [Y/n] ', ids), '', '\x00')
     vim.cmd('redraw | echo')
-    if answer ~= '' and answer:lower() ~= 'y' then
+    if answer == '\x00' or (answer ~= '' and answer:lower() ~= 'y') then
       return
     end
   end
@@ -522,9 +523,9 @@ function M.move(target_folder, first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local answer = vim.fn.input(string.format('Move email(s) %s? [Y/n] ', ids))
+    local answer = vim.fn.inputdialog(string.format('Move email(s) %s? [Y/n] ', ids), '', '\x00')
     vim.cmd('redraw | echo')
-    if answer ~= '' and answer:lower() ~= 'y' then
+    if answer == '\x00' or (answer ~= '' and answer:lower() ~= 'y') then
       return
     end
   end
