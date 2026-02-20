@@ -8,9 +8,10 @@ M.FLAG_ORDER = FLAG_ORDER
 
 --- Map JSON flags array + has_attachment to compact symbols.
 --- @param envelope table
+--- @param cfg? table  optional config (defaults to config.get())
 --- @return string
-function M.format_flags(envelope)
-	local cfg_flags = config.get().flags
+function M.format_flags(envelope, cfg)
+	local cfg_flags = (cfg or config.get()).flags
 	local raw = envelope.flags or {}
 	local seen, answered, flagged = false, false, false
 
@@ -58,10 +59,11 @@ end
 --- and reformats using strftime-style tokens. Converts to local time.
 --- Returns the raw string when no date_format is configured.
 --- @param raw string
+--- @param cfg? table  optional config (defaults to config.get())
 --- @return string
-function M.format_date(raw)
+function M.format_date(raw, cfg)
 	perf.count("format_date")
-	local fmt = config.get().date_format
+	local fmt = (cfg or config.get()).date_format
 	if not fmt or raw == "" then
 		return raw
 	end
@@ -140,9 +142,11 @@ M.BOX_CROSS = BOX_CROSS
 --- @param items table[] input array (envelopes or display_rows)
 --- @param total_width number available display width
 --- @param get_env_fn function(item): envelope  extracts envelope from each item
+--- @param cfg? table  optional config (defaults to config.get())
 --- @return table { id_w, flags_w, date_w, subject_w, from_w, row_fmt, header, separator }
-function M.compute_layout(items, total_width, get_env_fn)
-	local cfg_flags = config.get().flags
+function M.compute_layout(items, total_width, get_env_fn, cfg)
+	cfg = cfg or config.get()
+	local cfg_flags = cfg.flags
 	local id_w = 2 -- minimum: fits "ID" header
 	for _, item in ipairs(items) do
 		local env = get_env_fn(item)
@@ -157,10 +161,10 @@ function M.compute_layout(items, total_width, get_env_fn)
 	local date_w = 4 -- minimum: fits "DATE" header
 	for _, item in ipairs(items) do
 		local env = get_env_fn(item)
-		local len = #M.format_date(tostring(env.date or ""))
+		local len = #M.format_date(tostring(env.date or ""), cfg)
 		if len > date_w then date_w = len end
 	end
-	local gutters = config.get().gutters
+	local gutters = cfg.gutters
 	-- With gutters:    " col │ col │ col │ col │ col" → 1 + 4×3 = 13
 	-- Without gutters: "col│col│col│col│col"          → 4×1 = 4
 	local overhead = gutters and 13 or 4
@@ -215,15 +219,17 @@ local function env_identity(item) return item end
 --- Remaining space split 60/40 between SUBJECT and FROM
 --- @param envelopes table[]
 --- @param total_width number
+--- @param cfg? table  optional config (defaults to config.get())
 --- @return table
-function M.render(envelopes, total_width)
+function M.render(envelopes, total_width, cfg)
 	perf.start("renderer.render")
-	local layout = M.compute_layout(envelopes, total_width, env_identity)
+	cfg = cfg or config.get()
+	local layout = M.compute_layout(envelopes, total_width, env_identity, cfg)
 
 	local lines = {}
 	for _, env in ipairs(envelopes) do
 		local id = tostring(env.id or "")
-		local flags = M.format_flags(env)
+		local flags = M.format_flags(env, cfg)
 		local subject = env.subject or ""
 		local from = ""
 		if env.from and env.from ~= vim.NIL then
@@ -233,7 +239,7 @@ function M.render(envelopes, total_width)
 				from = M.format_from(env.from[1])
 			end
 		end
-		local date = M.format_date(env.date or "")
+		local date = M.format_date(env.date or "", cfg)
 
 		local line = string.format(
 			layout.row_fmt,

@@ -11,9 +11,10 @@ local function get_env(row) return row.env end
 --- Tree connector prefixes appear inside the SUBJECT column.
 --- @param display_rows table[] Array of {env, depth, is_last_child, prefix, thread_idx}
 --- @param total_width number
+--- @param cfg? table  optional config (defaults to config.get())
 --- @return table {header=string, separator=string, lines=string[]}
-function M.render(display_rows, total_width)
-  local layout = renderer.compute_layout(display_rows, total_width, get_env)
+function M.render(display_rows, total_width, cfg)
+  local layout = renderer.compute_layout(display_rows, total_width, get_env, cfg)
   local empty_flags = string.rep(' ', layout.flags_w)
 
   local lines = {}
@@ -40,11 +41,11 @@ function M.render(display_rows, total_width)
       end
     end
 
-    local date = renderer.format_date(env.date or '')
+    local date = renderer.format_date(env.date or '', cfg)
 
     local line = string.format(layout.row_fmt,
       renderer.fit(tostring(env.id or ''), layout.id_w),
-      env.flags and renderer.format_flags(env) or empty_flags,
+      env.flags and renderer.format_flags(env, cfg) or empty_flags,
       full_subject,
       renderer.fit(from, layout.from_w),
       renderer.fit(date, layout.date_w))
