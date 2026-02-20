@@ -288,9 +288,13 @@ end
 --- Updates the cached envelope data, re-renders the line, and re-applies highlights.
 --- @param email_id string
 local function mark_envelope_seen(email_id)
+  -- Find the visible listing buffer in the current tab.  Searching windows
+  -- instead of all buffers avoids picking up a stale flat-listing buffer
+  -- left behind when the user switched to thread mode.
   local listing_bufnr, listing_type
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) then
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if vim.api.nvim_win_is_valid(winid) then
+      local bufnr = vim.api.nvim_win_get_buf(winid)
       local ok, bt = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_buffer_type')
       if ok and (bt == 'listing' or bt == 'thread-listing') then
         listing_bufnr = bufnr
