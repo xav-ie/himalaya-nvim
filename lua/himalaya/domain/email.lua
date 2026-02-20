@@ -87,6 +87,17 @@ local function in_listing_buffer()
   return bt == 'listing' or bt == 'thread-listing'
 end
 
+--- Re-fetch the current listing, dispatching to thread or flat mode as appropriate.
+--- @param account string
+--- @param folder string
+local function refresh_listing(account, folder)
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').list()
+  else
+    M.list_with(account, folder, folder_state.current_page(), query)
+  end
+end
+
 --- Compute the page size (visible envelope rows) for the current window.
 --- @return number
 local function page_size()
@@ -446,7 +457,7 @@ function M.delete(first_line, last_line)
     msg = 'Deleting email',
     on_data = function()
       saved_view = vim.fn.winsaveview()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -478,7 +489,7 @@ function M.copy(target_folder, first_line, last_line)
     },
     msg = 'Copying email',
     on_data = function()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -522,7 +533,7 @@ function M.move(target_folder, first_line, last_line)
     },
     msg = 'Moving email',
     on_data = function()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -576,7 +587,7 @@ function M.flag_add(first_line, last_line)
     args = { account_flag(account), folder, flags, ids },
     msg = 'Adding flags: ' .. flags .. ' to email',
     on_data = function()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -610,7 +621,7 @@ function M.flag_remove(first_line, last_line)
     args = { account_flag(account), folder, flags, ids },
     msg = 'Removing flags:' .. flags .. ' from email',
     on_data = function()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -637,7 +648,7 @@ function M.mark_seen(first_line, last_line)
     msg = 'Marking as seen',
     on_data = function()
       saved_view = vim.fn.winsaveview()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end
@@ -664,7 +675,7 @@ function M.mark_unseen(first_line, last_line)
     msg = 'Marking as unseen',
     on_data = function()
       saved_view = vim.fn.winsaveview()
-      M.list_with(account, folder, folder_state.current_page(), query)
+      refresh_listing(account, folder)
     end,
   })
 end

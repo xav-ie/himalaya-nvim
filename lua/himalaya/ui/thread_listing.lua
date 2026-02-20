@@ -53,7 +53,56 @@ function M.setup(bufnr)
       account = account or require('himalaya.domain.account')
       account.select()
     end, 'account-select' },
-    { 'n', 'dd',   email.delete,                      'email-delete' },
+    { 'n', 'gA',   email.download_attachments,         'email-download-attachments' },
+    { 'n', 'gC',   email.select_folder_then_copy,      'email-select-folder-then-copy' },
+    { 'v', 'gC',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.select_folder_then_copy(first, last)
+    end, 'email-select-folder-then-copy-visual' },
+    { 'n', 'gM',   email.select_folder_then_move,      'email-select-folder-then-move' },
+    { 'v', 'gM',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.select_folder_then_move(first, last)
+    end, 'email-select-folder-then-move-visual' },
+    { 'n', 'dd',   email.delete,                       'email-delete' },
+    { 'v', 'd',    function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.delete(first, last)
+    end, 'email-delete-visual' },
+    { 'n', 'gs',   email.mark_seen,                     'email-mark-seen' },
+    { 'v', 'gs',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.mark_seen(first, last)
+    end, 'email-mark-seen-visual' },
+    { 'n', 'gS',   email.mark_unseen,                   'email-mark-unseen' },
+    { 'v', 'gS',   function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.mark_unseen(first, last)
+    end, 'email-mark-unseen-visual' },
+    { 'n', 'gFa',  email.flag_add,                     'email-flag-add' },
+    { 'v', 'gFa',  function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.flag_add(first, last)
+    end, 'email-flag-add-visual' },
+    { 'n', 'gFr',  email.flag_remove,                  'email-flag-remove' },
+    { 'v', 'gFr',  function()
+      local first = vim.fn.line('v')
+      local last = vim.fn.line('.')
+      if first > last then first, last = last, first end
+      email.flag_remove(first, last)
+    end, 'email-flag-remove-visual' },
   })
 
   local augroup = vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
