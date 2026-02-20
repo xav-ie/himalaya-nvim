@@ -160,6 +160,8 @@ end
 
 --- Switch back to flat listing mode, preserving folder/account context.
 function M.toggle_to_flat()
+  all_display_rows = nil
+  vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   require('himalaya.domain.email').list()
 end
 

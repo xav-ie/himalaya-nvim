@@ -192,6 +192,44 @@ describe('himalaya.domain.email.thread_listing', function()
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
 
+    it('toggle_to_flat clears state and deregisters resize autocmds', function()
+      local rows = {}
+      for i = 1, 5 do
+        rows[i] = {
+          env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+        }
+      end
+      thread_listing._set_state(rows, 1)
+
+      -- Register autocmds like the UI setup does
+      local augroup = vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
+      vim.api.nvim_create_autocmd('VimResized', { group = augroup, callback = function() end })
+      local before = vim.api.nvim_get_autocmds({ group = 'HimalayaThreadListing' })
+      assert.is_true(#before > 0)
+
+      -- Stub email.list to avoid async request
+      local email_mod = require('himalaya.domain.email')
+      local orig_list = email_mod.list
+      email_mod.list = function() end
+
+      thread_listing.toggle_to_flat()
+
+      -- Augroup should be cleared
+      local after = vim.api.nvim_get_autocmds({ group = 'HimalayaThreadListing' })
+      assert.are.equal(0, #after)
+
+      -- resize should be a no-op (all_display_rows cleared)
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_set_current_buf(bufnr)
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {'unchanged'})
+      thread_listing.resize()
+      assert.are.equal('unchanged', vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)[1])
+
+      email_mod.list = orig_list
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
     it('is a no-op when no display rows are loaded', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_set_current_buf(bufnr)
