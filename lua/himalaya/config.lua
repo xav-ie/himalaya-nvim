@@ -32,6 +32,13 @@ function M.get()
   return current
 end
 
+--- Set a single config key.
+--- @param key string
+--- @param value any
+function M.set(key, value)
+  current[key] = value
+end
+
 function M._reset()
   current = vim.deepcopy(defaults)
 end

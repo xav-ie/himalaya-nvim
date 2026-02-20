@@ -8,6 +8,7 @@ local cache = require('himalaya.domain.email.cache')
 local paging = require('himalaya.domain.email.paging')
 local perf = require('himalaya.perf')
 local job = require('himalaya.job')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -86,15 +87,7 @@ end
 --- Check whether an email reading window is open in the current tab.
 --- @return boolean
 local function is_reading_email()
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_is_valid(winid) then
-      local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
-      if bname:find('Himalaya/read email', 1, true) then
-        return true
-      end
-    end
-  end
-  return false
+  return win.find_by_name('Himalaya/read email') ~= nil
 end
 
 --- Render envelopes into a listing buffer: set lines, header, and seen highlights.
@@ -358,19 +351,8 @@ local function mark_envelope_seen(email_id)
   -- Find the visible listing buffer in the current tab.  Searching windows
   -- instead of all buffers avoids picking up a stale flat-listing buffer
   -- left behind when the user switched to thread mode.
-  local listing_bufnr, listing_type
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_is_valid(winid) then
-      local bufnr = vim.api.nvim_win_get_buf(winid)
-      local ok, bt = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_buffer_type')
-      if ok and (bt == 'listing' or bt == 'thread-listing') then
-        listing_bufnr = bufnr
-        listing_type = bt
-        break
-      end
-    end
-  end
-  if not listing_bufnr then return end
+  local listing_winid, listing_bufnr, listing_type = win.find_by_buftype({ 'listing', 'thread-listing' })
+  if not listing_winid then return end
 
   if listing_type == 'thread-listing' then
     local tl = require('himalaya.domain.email.thread_listing')
@@ -395,18 +377,15 @@ local function mark_envelope_seen(email_id)
 
   vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
 
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
-      vim.api.nvim_win_call(winid, function()
-        local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
-        local cur_page = vim.b.himalaya_page or 1
-        local ps = vim.b.himalaya_page_size or line_count
-        local cache_offset = vim.b.himalaya_cache_offset or 0
-        local visible = paging.cache_slice(envelopes, cur_page, ps, cache_offset, line_count)
-        render_listing_buffer(listing_bufnr, visible)
-      end)
-      break
-    end
+  if listing_winid then
+    vim.api.nvim_win_call(listing_winid, function()
+      local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
+      local cur_page = vim.b.himalaya_page or 1
+      local ps = vim.b.himalaya_page_size or line_count
+      local cache_offset = vim.b.himalaya_cache_offset or 0
+      local visible = paging.cache_slice(envelopes, cur_page, ps, cache_offset, line_count)
+      render_listing_buffer(listing_bufnr, visible)
+    end)
   end
 end
 
@@ -440,16 +419,10 @@ function M.read()
 
       -- Reuse existing email window in current tab to avoid resize jitter
       local reused = false
-      for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-        if vim.api.nvim_win_is_valid(winid) then
-          local buf = vim.api.nvim_win_get_buf(winid)
-          local bname = vim.api.nvim_buf_get_name(buf)
-          if bname:find('Himalaya/read email', 1, true) then
-            vim.api.nvim_set_current_win(winid)
-            reused = true
-            break
-          end
-        end
+      local reading_win = win.find_by_name('Himalaya/read email')
+      if reading_win then
+        vim.api.nvim_set_current_win(reading_win)
+        reused = true
       end
 
       if not reused then
@@ -828,13 +801,7 @@ local function schedule_phase2_refetch(bufnr)
     resize_timer = nil
     if not vim.api.nvim_buf_is_valid(bufnr) then return end
     -- Find the window still showing the listing buffer
-    local listing_win = nil
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-        listing_win = winid
-        break
-      end
-    end
+    local listing_win = win.find_by_bufnr(bufnr)
     if not listing_win then return end
     local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
     local cursor_id = M._get_email_id_from_line(

@@ -1,5 +1,6 @@
 local keybinds = require('himalaya.keybinds')
 local thread_listing = require('himalaya.domain.email.thread_listing')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -46,13 +47,11 @@ function M.setup(bufnr)
 
   local augroup = vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   local function on_resize()
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-        vim.api.nvim_win_call(winid, function()
-          thread_listing.resize()
-        end)
-        break
-      end
+    local winid = win.find_by_bufnr(bufnr)
+    if winid then
+      vim.api.nvim_win_call(winid, function()
+        thread_listing.resize()
+      end)
     end
   end
   vim.api.nvim_create_autocmd('VimResized', {

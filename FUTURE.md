@@ -165,60 +165,17 @@ renderer layout, config DI, paging extraction, function decomposition,
 `get_email_id_from_line` moved to UI layer, underscore-prefix renames,
 `_G._himalaya_search_completefunc` guard removal,
 `set_page(0)` clamping + `request.on_exit` path tests,
-`found_reading` dead variable in `open_write_buffer`.*
+`found_reading` dead variable in `open_write_buffer`,
+window traversal dedup → `ui/win.lua` helper,
+dead code `flags.complete()` + `autoload/` directory,
+`config.set()` for proper mutation + `toggle_reverse` fix,
+`search.open` account flag bypass,
+`probe.on_cancel_cb` double-cancel callback loss,
+`folder.select_next_page` buffer type dispatch.*
 
-### 1. Duplicated "find reading/listing window" traversal (9 occurrences)
-
-Multiple modules iterate `nvim_tabpage_list_wins`, check validity, get
-buffer, and match on `himalaya_buffer_type` or buffer name. Some check
-the buffer type var, some check the name — inconsistent detection.
-
-**Files:** `domain/email.lua` (4×), `domain/email/compose.lua` (1×),
-`domain/email/thread_listing.lua` (1×), `ui/listing.lua` (2×),
-`ui/reading.lua` (1×)
-
-### 2. Dead code: `flags.complete()` and `autoload/` directory
-
-`flags.complete()` returns a newline-joined string for VimScript. It is
-never called from Lua code (flag operations now use `vim.ui.select`).
-The entire `autoload/` directory is vestigial.
-
-**Files:** `domain/email/flags.lua:13-15`, `autoload/`
-
-### 3. `config.get()` returns mutable reference
-
-Any module can accidentally mutate the config table.
-`thread_listing.toggle_reverse()` already does this intentionally,
-bypassing `config.setup()`.
-
-**Files:** `config.lua:31`, `domain/email/thread_listing.lua:261-262`
-
-### 4. `search.open` bypasses `account_state.flag()`
-
-Manually constructs `'--account ' .. account` instead of using the
-shared helper. Would diverge if `flag()` is ever updated.
-
-**Files:** `ui/search.lua:245`
-
-### 5. Missing test coverage
+### 1. Missing test coverage
 
 No tests for: `perf.lua`, `domain/account.lua` (picker rotation),
 `ui/thread_listing.lua` (setup/keybinds), picker modules beyond native.
 UI setup test files (`listing_spec`, `reading_spec`, `writing_spec`) are
 minimal stubs.
-
-### 6. `probe.on_cancel_cb` can be silently overwritten
-
-If `probe.cancel(callback)` is called twice rapidly, the first callback
-is discarded without ever firing. Could leave the UI in a permanent
-"loading..." state.
-
-**Files:** `domain/email/probe.lua:12, 92-106, 166-174`
-
-### 7. `folder.select_next_page` doesn't check buffer type
-
-The `HimalayaNextPage` command calls `folder.select_next_page()`
-unconditionally. In thread mode, it uses flat-listing line-count
-heuristics against thread buffer content.
-
-**Files:** `domain/folder.lua:58-63`, `init.lua:79`

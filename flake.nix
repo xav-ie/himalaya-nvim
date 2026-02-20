@@ -36,6 +36,7 @@
             name = "himalaya";
             namePrefix = "";
             src = self;
+            nvimRequireCheck = "himalaya";
             # buildInputs = with pkgs; [ himalaya ];
             # postPatch = with pkgs; ''
             #   substituteInPlace plugin/himalaya.vim \

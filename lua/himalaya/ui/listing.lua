@@ -2,6 +2,7 @@ local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
 local folder = require('himalaya.domain.folder')
 local perf = require('himalaya.perf')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -81,14 +82,11 @@ end
 --- @param bufnr number
 --- @param header string
 function M.apply_header(bufnr, header)
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_get_buf(winid) == bufnr then
-      local pad = string.rep(' ', M.gutter_width(winid, bufnr))
-      -- Escape percent signs and other statusline special chars
-      local escaped = header:gsub('%%', '%%%%')
-      vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
-    end
-  end
+  local winid = win.find_by_bufnr(bufnr)
+  if not winid then return end
+  local pad = string.rep(' ', M.gutter_width(winid, bufnr))
+  local escaped = header:gsub('%%', '%%%%')
+  vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
 end
 
 --- Apply extmark-based highlights to dim seen (read) envelope lines.
@@ -145,13 +143,11 @@ function M.setup(bufnr)
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
   local function on_resize()
-    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-        vim.api.nvim_win_call(winid, function()
-          email.resize_listing()
-        end)
-        break
-      end
+    local winid = win.find_by_bufnr(bufnr)
+    if winid then
+      vim.api.nvim_win_call(winid, function()
+        email.resize_listing()
+      end)
     end
   end
   vim.api.nvim_create_autocmd('VimResized', {

@@ -6,6 +6,7 @@ local tree = require('himalaya.domain.email.tree')
 local probe = require('himalaya.domain.email.probe')
 local perf = require('himalaya.perf')
 local job = require('himalaya.job')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -270,9 +271,8 @@ end
 --- Toggle reverse thread order (newest replies first).
 --- Rebuilds from cached edges synchronously (no network round-trip).
 function M.toggle_reverse()
-  local cfg = config.get()
-  cfg.thread_reverse = not cfg.thread_reverse
-  local reverse = cfg.thread_reverse
+  local reverse = not config.get().thread_reverse
+  config.set('thread_reverse', reverse)
   if last_edges then
     local rows = tree.build(last_edges, { reverse = reverse })
     tree.build_prefix(rows, { reverse = reverse })
@@ -346,25 +346,18 @@ function M.mark_seen_optimistic(email_id)
   local listing_mod = require('himalaya.ui.listing')
   local ns_seen = vim.api.nvim_create_namespace('himalaya_seen')
   local eid = tostring(email_id)
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_is_valid(winid) then
-      local buf = vim.api.nvim_win_get_buf(winid)
-      local ok, bt = pcall(vim.api.nvim_buf_get_var, buf, 'himalaya_buffer_type')
-      if ok and bt == 'thread-listing' then
-        local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-        for i, line in ipairs(lines) do
-          if listing_mod.get_email_id_from_line(line) == eid then
-            vim.api.nvim_buf_set_extmark(buf, ns_seen, i - 1, 0, {
-              end_row = i,
-              hl_eol = true,
-              hl_group = 'HimalayaSeen',
-              priority = 200,
-            })
-            break
-          end
-        end
-        return
-      end
+  local _, buf = win.find_by_buftype('thread-listing')
+  if not buf then return end
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  for i, line in ipairs(lines) do
+    if listing_mod.get_email_id_from_line(line) == eid then
+      vim.api.nvim_buf_set_extmark(buf, ns_seen, i - 1, 0, {
+        end_row = i,
+        hl_eol = true,
+        hl_group = 'HimalayaSeen',
+        priority = 200,
+      })
+      break
     end
   end
 end

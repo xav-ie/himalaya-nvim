@@ -55,6 +55,11 @@ function M.set(folder)
 end
 
 function M.select_next_page()
+  local in_thread = vim.b.himalaya_buffer_type == 'thread-listing'
+  if in_thread then
+    require('himalaya.domain.email.thread_listing').next_page()
+    return
+  end
   local ps = vim.b.himalaya_page_size
   if not ps then return end
   -- Partial page means we're already on the last page.
@@ -79,6 +84,11 @@ function M.select_next_page()
 end
 
 function M.select_previous_page()
+  local in_thread = vim.b.himalaya_buffer_type == 'thread-listing'
+  if in_thread then
+    require('himalaya.domain.email.thread_listing').previous_page()
+    return
+  end
   if folder_state.current_page() <= 1 then
     vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
     return

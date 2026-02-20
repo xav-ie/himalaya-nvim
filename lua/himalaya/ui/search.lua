@@ -242,7 +242,7 @@ function M.open(callback, prev_query, current_folder)
   require('himalaya.request').json({
     cmd = 'folder list %s',
     args = {
-      account_state.current() ~= '' and ('--account ' .. account_state.current()) or '',
+      account_state.flag(account_state.current()),
     },
     msg = 'Listing folders',
     silent = true,

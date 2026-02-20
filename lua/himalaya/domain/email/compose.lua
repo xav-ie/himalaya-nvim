@@ -2,6 +2,7 @@ local request = require('himalaya.request')
 local log = require('himalaya.log')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -37,14 +38,9 @@ local function open_write_buffer(msg, content)
     vim.cmd(string.format('silent! botright split %s', bufname))
   else
     -- Prefer the reading window so the listing stays visible
-    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if vim.api.nvim_win_is_valid(winid) then
-        local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
-        if bname:find('Himalaya/read email', 1, true) then
-          vim.api.nvim_set_current_win(winid)
-          break
-        end
-      end
+    local reading_win = win.find_by_name('Himalaya/read email')
+    if reading_win then
+      vim.api.nvim_set_current_win(reading_win)
     end
     vim.cmd(string.format('silent! edit %s', bufname))
   end

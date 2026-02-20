@@ -10,8 +10,4 @@ function M.complete_list()
   return all
 end
 
-function M.complete(arg_lead, cmd_line, cursor_pos)
-  return table.concat(M.complete_list(), '\n')
-end
-
 return M

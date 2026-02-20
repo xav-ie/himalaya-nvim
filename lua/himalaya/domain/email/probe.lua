@@ -169,6 +169,13 @@ function M.cancel(callback)
     return
   end
   generation = generation + 1
+  -- Fire any previously-queued callback before overwriting, so
+  -- callers are never silently discarded.
+  if on_cancel_cb then
+    local old = on_cancel_cb
+    on_cancel_cb = nil
+    old()
+  end
   on_cancel_cb = callback
   job:kill()
 end
