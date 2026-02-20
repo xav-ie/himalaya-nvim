@@ -3,19 +3,8 @@
 Improvement ideas for himalaya-vim, organized by category. Items marked
 with **(quick win)** can typically be done in under 30 minutes each.
 
-## Bugs
-
-### 1. `vim.fn.delete(draft)` Deletes Wrong Variable in `process_draft`
-
-`compose.lua:147` calls `vim.fn.delete(draft)` in the send `on_data`
-callback, but `draft` is the module-local string holding email content,
-not a file path. The intended target is `draft_file` (the temp file).
-The call silently does nothing, leaking temp files. The draft branch
-on the line below correctly uses `vim.fn.delete(draft_file)`.
-
-**Fix:** Change `vim.fn.delete(draft)` to `vim.fn.delete(draft_file)`.
-
-**Files:** `domain/email/compose.lua:147`
+*Completed bugs: `vim.fn.delete(draft)` wrong variable in
+`process_draft`.*
 
 ## UI/UX
 
@@ -228,8 +217,8 @@ Untested modules/functions with non-trivial logic:
 
 - `compose.process_draft` — the most complex function with a confirmed
   bug, zero tests
-- `domain/email/probe.lua` — probe loop logic, stale-job handling
-  (basic totals/persistence tested, sequential probe chain untested)
+- `domain/email/probe.lua` — stale-job handling untested
+  (totals/persistence/doubling sequence covered)
 - `ui/search.lua` — reactive state machine, no tests
 - `mark_envelope_seen` thread-listing dispatch branch — not covered
 - `state/folder.lua` — `set()` page reset and `set_page(0)` clamping
