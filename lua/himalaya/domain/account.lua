@@ -26,8 +26,14 @@ function M.open_picker(callback)
 end
 
 function M.select()
+  local in_thread = vim.b.himalaya_buffer_type == 'thread-listing'
   M.open_picker(function(name)
-    require('himalaya.domain.email').list(name)
+    if in_thread then
+      require('himalaya.state.account').select(name)
+      require('himalaya.domain.email.thread_listing').list()
+    else
+      require('himalaya.domain.email').list(name)
+    end
   end)
 end
 
