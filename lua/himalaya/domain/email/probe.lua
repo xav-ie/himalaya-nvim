@@ -98,8 +98,19 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
         local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
         if ok and ok2 then
           local display_qry = qry == '' and 'all' or qry
-          vim.api.nvim_buf_set_name(bufnr,
-            string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, M.total_pages_str(cache_key, cur_page_size)))
+          local new_name = string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, M.total_pages_str(cache_key, cur_page_size))
+          -- Wipe stale envelope buffers that would conflict with the rename.
+          -- Rapid account switching can leave orphan listing buffers when
+          -- on_list_with's async callback fires while a picker has focus.
+          for _, b in ipairs(vim.api.nvim_list_bufs()) do
+            if b ~= bufnr and vim.api.nvim_buf_is_valid(b) then
+              local bname = vim.api.nvim_buf_get_name(b)
+              if bname:find('Himalaya/envelopes', 1, true) then
+                vim.cmd('silent! bwipeout ' .. b)
+              end
+            end
+          end
+          vim.api.nvim_buf_set_name(bufnr, new_name)
           vim.cmd('redraw')
         end
       end
