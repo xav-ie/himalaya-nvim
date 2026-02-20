@@ -145,7 +145,7 @@ function M.list(account, opts)
     on_data = function(data)
       last_edges = data
       local rows = tree.build(data, { reverse = reverse_threads })
-      tree.build_prefix(rows)
+      tree.build_prefix(rows, { reverse = reverse_threads })
       all_display_rows = rows
 
       if not vim.api.nvim_win_is_valid(listing_win) then return end

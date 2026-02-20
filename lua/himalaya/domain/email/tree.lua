@@ -207,15 +207,22 @@ local TREE_V    = "\xe2\x94\x82" -- │
 local TREE_H    = "\xe2\x94\x80" -- ─
 local TREE_FORK = "\xe2\x94\x9c" -- ├
 local TREE_END  = "\xe2\x94\x94" -- └
+local TREE_TOP  = "\xe2\x94\x8c" -- ┌
 
 --- Compute compact tree connector prefix strings for each row.
 --- Uses visual_depth (which only increments at branch points) so linear
 --- chains stay flat.  Branch children get traditional ├─/└─ connectors;
 --- linear continuation nodes inherit the ancestor branch continuation (│)
 --- or plain indent (  ) depending on whether an active branch exists.
+---
+--- In reverse mode, branch connectors are mirrored: ┌─ for the first
+--- child (top), ├─ for middle, └─ for the last child (bottom).
 --- @param rows table[] Display rows from M.build()
+--- @param opts? table  Optional: { reverse = bool }
 --- @return table[] Same rows with .prefix added
-function M.build_prefix(rows)
+function M.build_prefix(rows, opts)
+  opts = opts or {}
+  local reverse = opts.reverse or false
   local stack = {}
   for _, row in ipairs(rows) do
     local vd = row.visual_depth or row.depth
@@ -226,13 +233,22 @@ function M.build_prefix(rows)
     end
     if vd > 0 then
       if row.is_branch_child then
-        -- Branch child: traditional tree connector
-        prefix = prefix .. (row.is_last_child and (TREE_END .. TREE_H) or (TREE_FORK .. TREE_H))
+        if reverse then
+          -- Mirrored connectors: ┌─ first, ├─ middle, └─ last
+          if not stack[vd] and not row.is_last_child then
+            prefix = prefix .. (TREE_TOP .. TREE_H)
+          elseif row.is_last_child then
+            prefix = prefix .. (TREE_END .. TREE_H)
+          else
+            prefix = prefix .. (TREE_FORK .. TREE_H)
+          end
+        else
+          prefix = prefix .. (row.is_last_child and (TREE_END .. TREE_H) or (TREE_FORK .. TREE_H))
+        end
         stack[vd] = not row.is_last_child
       else
         -- Linear continuation: piggyback on active branch or plain indent
         prefix = prefix .. (stack[vd] and (TREE_V .. ' ') or '  ')
-        -- Don't modify stack — let branch continuation persist
       end
     end
     row.prefix = prefix
