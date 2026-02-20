@@ -35,12 +35,20 @@ function M.list()
   end
 
   local names = {}
+  local default_name = nil
   for _, entry in ipairs(entries) do
     if entry.name then
       table.insert(names, entry.name)
+      if entry.default then
+        default_name = entry.name
+      end
     end
   end
   table.sort(names)
+
+  if current_account == '' and default_name then
+    current_account = default_name
+  end
 
   cached_accounts = names
   return cached_accounts
