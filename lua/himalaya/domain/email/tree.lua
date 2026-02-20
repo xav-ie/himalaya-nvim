@@ -132,18 +132,23 @@ function M.build(edges, opts)
     -- DFS: compute depth from graph position (parent depth + 1)
     -- visual_depth only increments at branch points (parent has 2+ children),
     -- minimum 1 for non-root nodes.
+    -- visited set guards against cycles in malformed edge data.
+    local visited = { [rid] = true }
     local function dfs(parent_id, depth, parent_vd)
       local kids = children_of[parent_id]
       if not kids then return end
       local is_branch = #kids > 1
       for _, kid in ipairs(kids) do
         local cid = tostring(kid.id)
-        local vd = is_branch and (parent_vd + 1) or parent_vd
-        vd = math.max(1, vd)
-        g.nodes[#g.nodes + 1] = { env = kid, depth = depth, visual_depth = vd, is_branch_child = is_branch }
-        local kep = date_to_epoch(kid.date or '')
-        if kep > g.latest_epoch then g.latest_epoch = kep end
-        dfs(cid, depth + 1, vd)
+        if not visited[cid] then
+          visited[cid] = true
+          local vd = is_branch and (parent_vd + 1) or parent_vd
+          vd = math.max(1, vd)
+          g.nodes[#g.nodes + 1] = { env = kid, depth = depth, visual_depth = vd, is_branch_child = is_branch }
+          local kep = date_to_epoch(kid.date or '')
+          if kep > g.latest_epoch then g.latest_epoch = kep end
+          dfs(cid, depth + 1, vd)
+        end
       end
     end
 

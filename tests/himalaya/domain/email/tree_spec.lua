@@ -520,6 +520,30 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal('', rows[4].prefix)
     end)
 
+    it('cycle in edges does not stack overflow', function()
+      -- A→B and B→A form a cycle; build must not recurse infinitely
+      local edges = {
+        { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
+        { {id='1', from='A'}, {id='2', from='B', subject='Reply', date='2024-01-02 10:00:00+00:00'}, 1 },
+        { {id='2', from='B'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 1 },
+      }
+      local rows = tree.build(edges)
+      -- Should produce rows without crashing; exact structure is
+      -- implementation-defined but both nodes must appear at most once.
+      assert.is_true(#rows >= 1)
+      assert.is_true(#rows <= 2)
+    end)
+
+    it('self-referencing edge does not stack overflow', function()
+      local edges = {
+        { {id='0'}, {id='1', from='A', subject='Self', date='2024-01-01 10:00:00+00:00'}, 0 },
+        { {id='1', from='A'}, {id='1', from='A', subject='Self', date='2024-01-01 10:00:00+00:00'}, 1 },
+      }
+      local rows = tree.build(edges)
+      assert.are.equal(1, #rows)
+      assert.are.equal('1', tostring(rows[1].env.id))
+    end)
+
     it('normal mode is unchanged when reverse is false', function()
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
