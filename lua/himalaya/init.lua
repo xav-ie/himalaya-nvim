@@ -41,11 +41,11 @@ function M._register_commands()
 
   vim.api.nvim_create_user_command('HimalayaCopy', function()
     email.select_folder_then_copy()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaMove', function()
     email.select_folder_then_move()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaDelete', function(opts)
     email.delete(opts.line1, opts.line2)
@@ -53,23 +53,23 @@ function M._register_commands()
 
   vim.api.nvim_create_user_command('HimalayaWrite', function()
     compose.write()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaReply', function()
     compose.reply()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaReplyAll', function()
     compose.reply_all()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaForward', function()
     compose.forward()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaFolders', function()
     folder.select()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaFolder', function(opts)
     folder.set(opts.fargs[1])
@@ -77,15 +77,15 @@ function M._register_commands()
 
   vim.api.nvim_create_user_command('HimalayaNextPage', function()
     folder.select_next_page()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaPreviousPage', function()
     folder.select_previous_page()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaAttachments', function()
     email.download_attachments()
-  end, { nargs = '*' })
+  end, { nargs = '0' })
 
   vim.api.nvim_create_user_command('HimalayaFlagAdd', function(opts)
     email.flag_add(opts.line1, opts.line2)
