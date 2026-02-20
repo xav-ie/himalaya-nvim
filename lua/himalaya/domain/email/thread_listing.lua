@@ -10,7 +10,7 @@ local all_display_rows = nil   -- full tree from last fetch
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
-local reverse_threads = require('himalaya.config').get().thread_reverse
+local reverse_threads -- resolved lazily from config
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -128,6 +128,9 @@ end
 --- @param account? string
 --- @param opts? table  Optional: { restore_email_id = string, restore_cursor_line = number }
 function M.list(account, opts)
+  if reverse_threads == nil then
+    reverse_threads = require('himalaya.config').get().thread_reverse or false
+  end
   opts = opts or {}
   if account then
     account_state.select(account)
@@ -212,6 +215,9 @@ end
 --- Toggle reverse thread order (newest replies first).
 --- Rebuilds from cached edges synchronously (no network round-trip).
 function M.toggle_reverse()
+  if reverse_threads == nil then
+    reverse_threads = require('himalaya.config').get().thread_reverse or false
+  end
   reverse_threads = not reverse_threads
   if last_edges then
     local rows = tree.build(last_edges, { reverse = reverse_threads })
