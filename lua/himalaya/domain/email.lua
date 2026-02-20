@@ -90,10 +90,16 @@ end
 --- Re-fetch the current listing, dispatching to thread or flat mode as appropriate.
 --- @param account string
 --- @param folder string
-local function refresh_listing(account, folder)
+--- @param opts? table  Optional: { restore_cursor_line = number }
+local function refresh_listing(account, folder, opts)
+  opts = opts or {}
   if vim.b.himalaya_buffer_type == 'thread-listing' then
-    local cursor_id = get_email_id_under_cursor()
-    require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
+    if opts.restore_cursor_line then
+      require('himalaya.domain.email.thread_listing').list(nil, { restore_cursor_line = opts.restore_cursor_line })
+    else
+      local cursor_id = get_email_id_under_cursor()
+      require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
+    end
   else
     M.list_with(account, folder, folder_state.current_page(), query)
   end
@@ -453,6 +459,7 @@ function M.delete(first_line, last_line)
     end
   end
 
+  local cursor_line = vim.fn.line('.')
   local account = account_state.current()
   local folder = folder_state.current()
   probe.cancel()
@@ -462,7 +469,7 @@ function M.delete(first_line, last_line)
     msg = 'Deleting email',
     on_data = function()
       saved_view = vim.fn.winsaveview()
-      refresh_listing(account, folder)
+      refresh_listing(account, folder, { restore_cursor_line = cursor_line })
     end,
   })
 end
@@ -522,6 +529,7 @@ function M.move(target_folder, first_line, last_line)
     end
   end
 
+  local cursor_line = vim.fn.line('.')
   local account = account_state.current()
   local folder = folder_state.current()
   probe.cancel()
@@ -535,7 +543,7 @@ function M.move(target_folder, first_line, last_line)
     },
     msg = 'Moving email',
     on_data = function()
-      refresh_listing(account, folder)
+      refresh_listing(account, folder, { restore_cursor_line = cursor_line })
     end,
   })
 end

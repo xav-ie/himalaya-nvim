@@ -120,7 +120,7 @@ end
 
 --- Fetch threads and render.
 --- @param account? string
---- @param opts? table  Optional: { restore_email_id = string }
+--- @param opts? table  Optional: { restore_email_id = string, restore_cursor_line = number }
 function M.list(account, opts)
   opts = opts or {}
   if account then
@@ -138,7 +138,17 @@ function M.list(account, opts)
       tree.build_prefix(rows)
       all_display_rows = rows
 
-      if opts.restore_email_id and opts.restore_email_id ~= '' then
+      if opts.restore_cursor_line then
+        -- Restore cursor to same line position (like dd in normal buffers).
+        -- Compute which page that line falls on after re-fetch.
+        local ps = math.max(1, vim.fn.winheight(0))
+        if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+        local global_idx = math.min(opts.restore_cursor_line + (current_page - 1) * ps, #rows)
+        global_idx = math.max(1, global_idx)
+        local page = math.floor((global_idx - 1) / ps) + 1
+        local cursor_in_page = global_idx - (page - 1) * ps
+        M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+      elseif opts.restore_email_id and opts.restore_email_id ~= '' then
         -- Find the target email and compute its page + line
         local target_idx = 1
         for i, row in ipairs(rows) do
