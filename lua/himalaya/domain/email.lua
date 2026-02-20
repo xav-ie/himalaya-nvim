@@ -792,6 +792,55 @@ function M._line_to_complete_item(line)
   return name .. string.format('<%s>', email_addr)
 end
 
+--- Schedule Phase 2: debounced re-fetch after resize settles.
+--- Cancels any pending timer/job, then after 150ms fetches fresh data
+--- for the current page to fill any sparse overlap from Phase 1.
+--- @param bufnr number  listing buffer number
+local function schedule_phase2_refetch(bufnr)
+  if resize_timer then resize_timer:stop() end
+  if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
+
+  resize_timer = vim.uv.new_timer()
+  resize_timer:start(150, 0, vim.schedule_wrap(function()
+    resize_timer = nil
+    if not vim.api.nvim_buf_is_valid(bufnr) then return end
+    -- Find the window still showing the listing buffer
+    local listing_win = nil
+    for _, winid in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
+        listing_win = winid
+        break
+      end
+    end
+    if not listing_win then return end
+    local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
+    local cursor_id = M._get_email_id_from_line(
+      vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
+    local account = account_state.current()
+    local folder_cur = folder_state.current()
+    local cur_query = vim.b[bufnr].himalaya_query or ''
+    local cur_page = vim.b[bufnr].himalaya_page or 1
+    local ps = vim.b[bufnr].himalaya_page_size
+    resize_generation = resize_generation + 1
+    local my_gen = resize_generation
+    resize_job = request.json({
+      cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+      args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
+      msg = 'Refetching page after resize',
+      silent = true,
+      is_stale = function() return my_gen ~= resize_generation end,
+      on_data = function(data)
+        resize_job = nil
+        if not vim.api.nvim_win_is_valid(listing_win) then return end
+        saved_cursor_id = cursor_id
+        vim.api.nvim_win_call(listing_win, function()
+          on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
+        end)
+      end,
+    })
+  end))
+end
+
 --- Handle listing window resize: two-phase overlap display + deferred re-fetch.
 --- Phase 1 synchronously renders the overlap between old cache and new page
 --- boundaries (jitter-free). Phase 2 debounces a full re-fetch after 150ms.
@@ -880,51 +929,7 @@ function M.resize_listing()
     end
 
     -- Phase 2: deferred re-fetch (debounced 150ms)
-    if resize_timer then resize_timer:stop() end
-    if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
-
-    resize_timer = vim.uv.new_timer()
-    resize_timer:start(150, 0, vim.schedule_wrap(function()
-      resize_timer = nil
-      if not vim.api.nvim_buf_is_valid(bufnr) then return end
-      -- Find the window still showing the listing buffer
-      local listing_win = nil
-      for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-          listing_win = winid
-          break
-        end
-      end
-      if not listing_win then return end
-      -- Read cursor and page size from the listing buffer (not the window,
-      -- since nvim_win_get_height may include the winbar row while
-      -- page_size()/winheight(0) used in Phase 1 excludes it).
-      local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
-      local cursor_id = M._get_email_id_from_line(
-        vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
-      local account = account_state.current()
-      local folder_cur = folder_state.current()
-      local cur_query = vim.b[bufnr].himalaya_query or ''
-      local cur_page = vim.b[bufnr].himalaya_page or 1
-      local ps = vim.b[bufnr].himalaya_page_size
-      resize_generation = resize_generation + 1
-      local my_gen = resize_generation
-      resize_job = request.json({
-        cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-        args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
-        msg = 'Refetching page after resize',
-        silent = true,
-        is_stale = function() return my_gen ~= resize_generation end,
-        on_data = function(data)
-          resize_job = nil
-          if not vim.api.nvim_win_is_valid(listing_win) then return end
-          saved_cursor_id = cursor_id
-          vim.api.nvim_win_call(listing_win, function()
-            on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
-          end)
-        end,
-      })
-    end))
+    schedule_phase2_refetch(bufnr)
     perf.stop("resize_listing_total")
     perf.report()
     return
