@@ -11,6 +11,8 @@ local all_display_rows = nil   -- full tree from last fetch
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
+local list_generation = 0      -- incremented on each list(); stale callbacks bail out
+local list_job = nil           -- in-flight thread fetch job handle
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -96,7 +98,8 @@ end
 --- @param acct string
 --- @param folder string
 --- @param listing_win number  window to render in (avoids E36 if picker has focus)
-local function enrich_with_flags(acct, folder, listing_win)
+--- @param gen number  generation at time of request; bail if stale
+local function enrich_with_flags(acct, folder, listing_win, gen)
   if not all_display_rows or #all_display_rows == 0 then return end
 
   request.json({
@@ -104,6 +107,7 @@ local function enrich_with_flags(acct, folder, listing_win)
     args = { folder, account_flag(acct), #all_display_rows },
     msg = 'Fetching flags',
     silent = true,
+    is_stale = function() return gen ~= list_generation end,
     on_data = function(envs)
       local id_map = {}
       for _, env in ipairs(envs) do
@@ -134,15 +138,23 @@ function M.list(account, opts)
   end
   local acct = account_state.current()
   local folder = folder_state.current()
+
+  -- Kill any in-flight fetch so its callback never fires.
+  list_generation = list_generation + 1
+  local my_gen = list_generation
+  if list_job then list_job:kill(); list_job = nil end
+
   -- Capture the listing window now so async callbacks render here even
   -- if a picker or other floating window has focus when they fire.
   local listing_win = vim.api.nvim_get_current_win()
 
-  request.json({
+  list_job = request.json({
     cmd = 'envelope thread --folder %s %s %s',
     args = { folder, account_flag(acct), thread_query },
     msg = string.format('Fetching %s threads', folder),
+    is_stale = function() return my_gen ~= list_generation end,
     on_data = function(data)
+      list_job = nil
       last_edges = data
       local reverse = config.get().thread_reverse
       local rows = tree.build(data, { reverse = reverse })
@@ -179,7 +191,7 @@ function M.list(account, opts)
           M.render_page(1)
         end
 
-        enrich_with_flags(acct, folder, listing_win)
+        enrich_with_flags(acct, folder, listing_win, my_gen)
       end)
     end,
   })
