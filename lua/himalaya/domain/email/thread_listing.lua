@@ -20,8 +20,10 @@ end
 
 --- Render one page of the cached thread display rows into the current buffer.
 --- @param page number
-function M.render_page(page)
+--- @param opts? table  Optional: { restore_cursor = {line, col} }
+function M.render_page(page, opts)
   if not all_display_rows then return end
+  opts = opts or {}
 
   local email = require('himalaya.domain.email')
   local thread_renderer = require('himalaya.ui.thread_renderer')
@@ -75,8 +77,16 @@ function M.render_page(page)
   vim.b.himalaya_buffer_type = 'thread-listing'
   vim.bo.filetype = 'himalaya-thread-listing'
   vim.bo.modified = false
+
+  -- Cursor positioning: restore_cursor preserves selection across
+  -- resize/enrich re-renders; default goes to first line.
   vim.fn.winrestview({ topline = 1 })
-  vim.cmd('0')
+  if opts.restore_cursor then
+    local lnum = math.min(opts.restore_cursor[1], vim.api.nvim_buf_line_count(bufnr))
+    pcall(vim.api.nvim_win_set_cursor, 0, { lnum, opts.restore_cursor[2] or 0 })
+  else
+    vim.cmd('0')
+  end
 end
 
 --- Enrich display rows with flags from a secondary envelope list fetch.
@@ -103,9 +113,7 @@ local function enrich_with_flags(acct, folder)
           row.env.has_attachment = rich.has_attachment
         end
       end
-      local view = vim.fn.winsaveview()
-      M.render_page(current_page)
-      vim.fn.winrestview(view)
+      M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(0) })
     end,
   })
 end
@@ -171,9 +179,8 @@ end
 --- Preserves cursor position so the selected email stays highlighted.
 function M.resize()
   if not all_display_rows then return end
-  local view = vim.fn.winsaveview()
-  M.render_page(current_page)
-  vim.fn.winrestview(view)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  M.render_page(current_page, { restore_cursor = cursor })
 end
 
 --- Test-only accessor to set module-local state.
