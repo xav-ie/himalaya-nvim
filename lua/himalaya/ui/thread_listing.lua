@@ -59,24 +59,24 @@ function M.setup(bufnr)
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
-      vim.cmd('normal! \\<Esc>')
       email.select_folder_then_copy(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-select-folder-then-copy-visual' },
     { 'n', 'gM',   email.select_folder_then_move,      'email-select-folder-then-move' },
     { 'v', 'gM',   function()
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
-      vim.cmd('normal! \\<Esc>')
       email.select_folder_then_move(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-select-folder-then-move-visual' },
     { 'n', 'dd',   email.delete,                       'email-delete' },
     { 'v', 'd',    function()
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
-      vim.cmd('normal! \\<Esc>')
       email.delete(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-delete-visual' },
     { 'n', 'gs',   email.mark_seen,                     'email-mark-seen' },
     { 'v', 'gs',   function()
@@ -84,6 +84,7 @@ function M.setup(bufnr)
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
       email.mark_seen(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-mark-seen-visual' },
     { 'n', 'gS',   email.mark_unseen,                   'email-mark-unseen' },
     { 'v', 'gS',   function()
@@ -91,6 +92,7 @@ function M.setup(bufnr)
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
       email.mark_unseen(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-mark-unseen-visual' },
     { 'n', 'gFa',  email.flag_add,                     'email-flag-add' },
     { 'v', 'gFa',  function()
@@ -98,6 +100,7 @@ function M.setup(bufnr)
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
       email.flag_add(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-flag-add-visual' },
     { 'n', 'gFr',  email.flag_remove,                  'email-flag-remove' },
     { 'v', 'gFr',  function()
@@ -105,6 +108,7 @@ function M.setup(bufnr)
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
       email.flag_remove(first, last)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
     end, 'email-flag-remove-visual' },
   })
 
