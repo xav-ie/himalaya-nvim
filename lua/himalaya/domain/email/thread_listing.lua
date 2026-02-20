@@ -10,7 +10,13 @@ local all_display_rows = nil   -- full tree from last fetch
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
-local reverse_threads -- resolved lazily from config
+--- Get reverse_threads state, lazily initializing from config on first access.
+local function get_reverse()
+  if vim.g.himalaya_thread_reverse == nil then
+    vim.g.himalaya_thread_reverse = require('himalaya.config').get().thread_reverse or false
+  end
+  return vim.g.himalaya_thread_reverse
+end
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -128,15 +134,13 @@ end
 --- @param account? string
 --- @param opts? table  Optional: { restore_email_id = string, restore_cursor_line = number }
 function M.list(account, opts)
-  if reverse_threads == nil then
-    reverse_threads = require('himalaya.config').get().thread_reverse or false
-  end
   opts = opts or {}
   if account then
     account_state.select(account)
   end
   local acct = account_state.current()
   local folder = folder_state.current()
+  local reverse = get_reverse()
   -- Capture the listing window now so async callbacks render here even
   -- if a picker or other floating window has focus when they fire.
   local listing_win = vim.api.nvim_get_current_win()
@@ -147,8 +151,8 @@ function M.list(account, opts)
     msg = string.format('Fetching %s threads', folder),
     on_data = function(data)
       last_edges = data
-      local rows = tree.build(data, { reverse = reverse_threads })
-      tree.build_prefix(rows, { reverse = reverse_threads })
+      local rows = tree.build(data, { reverse = reverse })
+      tree.build_prefix(rows, { reverse = reverse })
       all_display_rows = rows
 
       if not vim.api.nvim_win_is_valid(listing_win) then return end
@@ -215,13 +219,11 @@ end
 --- Toggle reverse thread order (newest replies first).
 --- Rebuilds from cached edges synchronously (no network round-trip).
 function M.toggle_reverse()
-  if reverse_threads == nil then
-    reverse_threads = require('himalaya.config').get().thread_reverse or false
-  end
-  reverse_threads = not reverse_threads
+  vim.g.himalaya_thread_reverse = not get_reverse()
+  local reverse = get_reverse()
   if last_edges then
-    local rows = tree.build(last_edges, { reverse = reverse_threads })
-    tree.build_prefix(rows, { reverse = reverse_threads })
+    local rows = tree.build(last_edges, { reverse = reverse })
+    tree.build_prefix(rows, { reverse = reverse })
     all_display_rows = rows
     M.render_page(1)
   else
