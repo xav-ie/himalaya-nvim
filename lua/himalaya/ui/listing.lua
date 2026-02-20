@@ -135,6 +135,7 @@ function M.setup(bufnr)
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
+      vim.cmd('normal! \\<Esc>')
       email.select_folder_then_copy(first, last)
     end, 'email-select-folder-then-copy-visual' },
     { 'n', 'gM',   email.select_folder_then_move,      'email-select-folder-then-move' },
@@ -142,6 +143,7 @@ function M.setup(bufnr)
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
+      vim.cmd('normal! \\<Esc>')
       email.select_folder_then_move(first, last)
     end, 'email-select-folder-then-move-visual' },
     { 'n', 'dd',   email.delete,                       'email-delete' },
@@ -149,6 +151,7 @@ function M.setup(bufnr)
       local first = vim.fn.line('v')
       local last = vim.fn.line('.')
       if first > last then first, last = last, first end
+      vim.cmd('normal! \\<Esc>')
       email.delete(first, last)
     end, 'email-delete-visual' },
     { 'n', 'gs',   email.mark_seen,                     'email-mark-seen' },
