@@ -5,6 +5,7 @@ local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local probe = require('himalaya.domain.email.probe')
 local cache = require('himalaya.domain.email.cache')
+local paging = require('himalaya.domain.email.paging')
 local perf = require('himalaya.perf')
 
 local M = {}
@@ -148,16 +149,7 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   end
   vim.b.himalaya_cache_key = cache_key
 
-  -- Extract the display page's slice from (possibly larger) fetched data.
-  local display_page_start = (page - 1) * page_size
-  local data_idx_start = display_page_start - new_offset
-  local page_data = data
-  if data_idx_start > 0 or #data > page_size then
-    page_data = {}
-    for i = data_idx_start + 1, math.min(#data, data_idx_start + page_size) do
-      page_data[#page_data + 1] = data[i]
-    end
-  end
+  local page_data = paging.fetch_page_slice(data, page, page_size, new_offset)
 
   local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(page_data, M._bufwidth())
@@ -273,16 +265,7 @@ end
 --- @param envelopes table[] full cached envelope list
 --- @return table[] display subset
 local function display_slice(envelopes)
-  local ps = page_size()
-  local cur_page = vim.b.himalaya_page or 1
-  local cache_offset = vim.b.himalaya_cache_offset or 0
-  local page_start = (cur_page - 1) * ps
-  local idx = math.max(1, page_start - cache_offset + 1)
-  local last = math.min(#envelopes, idx + ps - 1)
-  if idx == 1 and last == #envelopes then return envelopes end
-  local sliced = {}
-  for i = idx, last do sliced[#sliced + 1] = envelopes[i] end
-  return sliced
+  return paging.cache_slice(envelopes, vim.b.himalaya_page or 1, page_size(), vim.b.himalaya_cache_offset or 0)
 end
 
 --- Optimistically mark an envelope as Seen in the listing buffer.
@@ -338,13 +321,7 @@ local function mark_envelope_seen(email_id)
         local cur_page = vim.b.himalaya_page or 1
         local ps = vim.b.himalaya_page_size or line_count
         local cache_offset = vim.b.himalaya_cache_offset or 0
-        local page_start = (cur_page - 1) * ps
-        local idx = math.max(1, page_start - cache_offset + 1)
-        local last_idx = math.min(#envelopes, idx + line_count - 1)
-        local visible = {}
-        for i = idx, last_idx do
-          visible[#visible + 1] = envelopes[i]
-        end
+        local visible = paging.cache_slice(envelopes, cur_page, ps, cache_offset, line_count)
         local result = renderer.render(visible, M._bufwidth())
         vim.bo[listing_bufnr].modifiable = true
         vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
@@ -838,18 +815,10 @@ function M.resize_listing()
       end
     end
     local selected_global = cache_start + cursor_row - 1
-    local new_page = math.floor(selected_global / new_page_size) + 1
-    local new_page_start = (new_page - 1) * new_page_size
-    local new_page_end = new_page_start + new_page_size
-
-    local overlap_start = math.max(cache_start, new_page_start)
-    local overlap_end = math.min(cache_start + #envelopes, new_page_end)
-
-    local display_envelopes = {}
-    for i = overlap_start - cache_start + 1, overlap_end - cache_start do
-      table.insert(display_envelopes, envelopes[i])
-    end
-    local cursor_line = selected_global - overlap_start + 1
+    local resize_info = paging.resize_page(cache_start, #envelopes, selected_global, new_page_size)
+    local new_page = resize_info.page
+    local display_envelopes = paging.extract_range(envelopes, cache_start, resize_info.overlap_start, resize_info.overlap_end)
+    local cursor_line = resize_info.cursor_line
 
     -- Update buffer state
     folder_state.set_page(new_page)
