@@ -118,9 +118,11 @@ local function enrich_with_flags(acct, folder)
   })
 end
 
---- Fetch threads and render the first page.
+--- Fetch threads and render.
 --- @param account? string
-function M.list(account)
+--- @param opts? table  Optional: { restore_email_id = string }
+function M.list(account, opts)
+  opts = opts or {}
   if account then
     account_state.select(account)
   end
@@ -135,7 +137,25 @@ function M.list(account)
       local rows = tree.build(data)
       tree.build_prefix(rows)
       all_display_rows = rows
-      M.render_page(1)
+
+      if opts.restore_email_id and opts.restore_email_id ~= '' then
+        -- Find the target email and compute its page + line
+        local target_idx = 1
+        for i, row in ipairs(rows) do
+          if tostring(row.env.id) == opts.restore_email_id then
+            target_idx = i
+            break
+          end
+        end
+        local ps = math.max(1, vim.fn.winheight(0))
+        if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+        local page = math.floor((target_idx - 1) / ps) + 1
+        local cursor_in_page = target_idx - (page - 1) * ps
+        M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+      else
+        M.render_page(1)
+      end
+
       enrich_with_flags(acct, folder)
     end,
   })
@@ -208,6 +228,26 @@ function M.resize()
   local cursor_in_page = global_idx - (new_page - 1) * new_ps
 
   M.render_page(new_page, { restore_cursor = { cursor_in_page, 0 } })
+end
+
+--- Optimistically mark an envelope as Seen in cached thread data and re-render.
+--- @param email_id string
+function M._mark_seen(email_id)
+  if not all_display_rows then return end
+
+  for _, row in ipairs(all_display_rows) do
+    if tostring(row.env.id) == tostring(email_id) then
+      local flags = row.env.flags or {}
+      for _, f in ipairs(flags) do
+        if f == 'Seen' then return end
+      end
+      table.insert(flags, 'Seen')
+      row.env.flags = flags
+      break
+    end
+  end
+
+  M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(0) })
 end
 
 --- Test-only accessor to set module-local state.

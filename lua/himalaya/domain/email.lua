@@ -92,7 +92,8 @@ end
 --- @param folder string
 local function refresh_listing(account, folder)
   if vim.b.himalaya_buffer_type == 'thread-listing' then
-    require('himalaya.domain.email.thread_listing').list()
+    local cursor_id = get_email_id_under_cursor()
+    require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
   else
     M.list_with(account, folder, folder_state.current_page(), query)
   end
@@ -280,17 +281,24 @@ end
 --- Updates the cached envelope data, re-renders the line, and re-applies highlights.
 --- @param email_id string
 local function mark_envelope_seen(email_id)
-  local listing_bufnr
+  local listing_bufnr, listing_type
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_valid(bufnr) then
       local ok, bt = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_buffer_type')
-      if ok and bt == 'listing' then
+      if ok and (bt == 'listing' or bt == 'thread-listing') then
         listing_bufnr = bufnr
+        listing_type = bt
         break
       end
     end
   end
   if not listing_bufnr then return end
+
+  if listing_type == 'thread-listing' then
+    local tl = require('himalaya.domain.email.thread_listing')
+    tl._mark_seen(email_id)
+    return
+  end
 
   local ok, envelopes = pcall(vim.api.nvim_buf_get_var, listing_bufnr, 'himalaya_envelopes')
   if not (ok and envelopes) then return end
