@@ -215,7 +215,7 @@ function M.toggle_reverse()
   reverse_threads = not reverse_threads
   if last_edges then
     local rows = tree.build(last_edges, { reverse = reverse_threads })
-    tree.build_prefix(rows)
+    tree.build_prefix(rows, { reverse = reverse_threads })
     all_display_rows = rows
     M.render_page(1)
   else
