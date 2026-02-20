@@ -66,11 +66,46 @@ function M.render_page(page)
   end
 
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+
+  -- Apply seen highlights from enriched flag data
+  local envs = {}
+  for _, row in ipairs(slice) do envs[#envs + 1] = row.env end
+  listing.apply_seen_highlights(bufnr, envs)
+
   vim.b.himalaya_buffer_type = 'thread-listing'
   vim.bo.filetype = 'himalaya-thread-listing'
   vim.bo.modified = false
   vim.fn.winrestview({ topline = 1 })
   vim.cmd('0')
+end
+
+--- Enrich display rows with flags from a secondary envelope list fetch.
+--- Renders immediately, then re-renders when flag data arrives.
+--- @param acct string
+--- @param folder string
+local function enrich_with_flags(acct, folder)
+  if not all_display_rows or #all_display_rows == 0 then return end
+
+  request.json({
+    cmd = 'envelope list --folder %s %s --page-size %d --page 1',
+    args = { folder, account_flag(acct), #all_display_rows },
+    msg = 'Fetching flags',
+    silent = true,
+    on_data = function(envs)
+      local id_map = {}
+      for _, env in ipairs(envs) do
+        id_map[tostring(env.id)] = env
+      end
+      for _, row in ipairs(all_display_rows) do
+        local rich = id_map[tostring(row.env.id)]
+        if rich then
+          row.env.flags = rich.flags
+          row.env.has_attachment = rich.has_attachment
+        end
+      end
+      M.render_page(current_page)
+    end,
+  })
 end
 
 --- Fetch threads and render the first page.
@@ -91,6 +126,7 @@ function M.list(account)
       tree.build_prefix(rows)
       all_display_rows = rows
       M.render_page(1)
+      enrich_with_flags(acct, folder)
     end,
   })
 end

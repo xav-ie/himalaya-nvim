@@ -7,15 +7,16 @@ local account
 
 local M = {}
 
---- Apply minimal syntax for thread listing: separators + tree connectors only.
---- No per-column coloring — thread envelopes lack flag data so we cannot
---- distinguish read/unread; leaving all text as Normal avoids confusion.
+--- Apply full 5-column syntax (same as flat listing) plus tree connector overlay.
+--- Per-column coloring is active; read/unread distinction comes from extmark-based
+--- seen highlights applied in render_page after flag enrichment.
 --- @param bufnr number
 local function apply_syntax(bufnr)
+  local listing = require('himalaya.ui.listing')
+  listing.apply_syntax(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
     vim.cmd([[
-      syntax match HimalayaSeparator /\%u2502\|\%u2500\|\%u253c/
-      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 /
+      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
     ]])
   end)
 end

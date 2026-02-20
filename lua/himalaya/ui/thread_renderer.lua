@@ -100,7 +100,7 @@ function M.render(display_rows, total_width)
 
     local line = string.format(row_fmt,
       renderer.fit(tostring(env.id or ''), id_w),
-      empty_flags,
+      env.flags and renderer.format_flags(env) or empty_flags,
       full_subject,
       renderer.fit(from, from_w),
       renderer.fit(date, date_w))

@@ -100,6 +100,45 @@ describe('himalaya.ui.thread_renderer', function()
       assert.is_truthy(result.lines[1]:find('Carol'))
     end)
 
+    it('renders actual flags when envelope has enriched flag data', function()
+      local rows = {
+        {
+          env = { id = '1', subject = 'Unseen', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00',
+                  flags = {}, has_attachment = false },
+          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+        },
+        {
+          env = { id = '2', subject = 'Seen', from = { name = 'Bob' }, date = '2024-01-02 10:00:00+00:00',
+                  flags = { 'Seen', 'Answered' }, has_attachment = true },
+          depth = 1, is_last_child = true, prefix = '\xe2\x94\x94\xe2\x94\x80', thread_idx = 1,
+        },
+      }
+      local result = thread_renderer.render(rows, 100)
+      -- Unseen email (no Seen flag): unseen symbol '*' should appear
+      assert.is_truthy(result.lines[1]:find('*', 1, true))
+      -- Seen+Answered email: answered symbol 'R' and attachment '@' should appear
+      assert.is_truthy(result.lines[2]:find('R', 1, true))
+      assert.is_truthy(result.lines[2]:find('@', 1, true))
+      -- Seen email should NOT have unseen symbol '*'
+      -- Extract flags column (between first and second │ separators)
+      local flags_col = result.lines[2]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+      assert.is_falsy(flags_col and flags_col:find('*', 1, true))
+    end)
+
+    it('renders empty flags when envelope lacks flag data', function()
+      local rows = {
+        {
+          env = { id = '1', subject = 'NoFlags', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
+          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+        },
+      }
+      local result = thread_renderer.render(rows, 80)
+      -- Extract flags column (between first and second │ separators)
+      local flags_col = result.lines[1]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+      -- Should be all spaces (no flag symbols)
+      assert.is_truthy(flags_col and flags_col:match('^%s+$'))
+    end)
+
     it('works without gutters', function()
       config.setup({ gutters = false })
       local rows = {
