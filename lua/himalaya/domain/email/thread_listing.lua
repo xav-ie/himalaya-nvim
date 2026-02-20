@@ -1,4 +1,5 @@
 local request = require('himalaya.request')
+local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local tree = require('himalaya.domain.email.tree')
@@ -10,13 +11,6 @@ local all_display_rows = nil   -- full tree from last fetch
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
---- Get reverse_threads state, lazily initializing from config on first access.
-local function get_reverse()
-  if vim.g.himalaya_thread_reverse == nil then
-    vim.g.himalaya_thread_reverse = require('himalaya.config').get().thread_reverse or false
-  end
-  return vim.g.himalaya_thread_reverse
-end
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -140,7 +134,6 @@ function M.list(account, opts)
   end
   local acct = account_state.current()
   local folder = folder_state.current()
-  local reverse = get_reverse()
   -- Capture the listing window now so async callbacks render here even
   -- if a picker or other floating window has focus when they fire.
   local listing_win = vim.api.nvim_get_current_win()
@@ -151,6 +144,7 @@ function M.list(account, opts)
     msg = string.format('Fetching %s threads', folder),
     on_data = function(data)
       last_edges = data
+      local reverse = config.get().thread_reverse
       local rows = tree.build(data, { reverse = reverse })
       tree.build_prefix(rows, { reverse = reverse })
       all_display_rows = rows
@@ -219,8 +213,9 @@ end
 --- Toggle reverse thread order (newest replies first).
 --- Rebuilds from cached edges synchronously (no network round-trip).
 function M.toggle_reverse()
-  vim.g.himalaya_thread_reverse = not get_reverse()
-  local reverse = get_reverse()
+  local cfg = config.get()
+  cfg.thread_reverse = not cfg.thread_reverse
+  local reverse = cfg.thread_reverse
   if last_edges then
     local rows = tree.build(last_edges, { reverse = reverse })
     tree.build_prefix(rows, { reverse = reverse })
