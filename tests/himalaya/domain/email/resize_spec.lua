@@ -94,7 +94,19 @@ describe('himalaya.domain.email resize_listing', function()
       total_pages_str = function() return '?' end,
       start = function() end,
       cancel = function(cb) probe_cancel_count = probe_cancel_count + 1; if cb then cb() end end,
+      cancel_sync = function() probe_cancel_count = probe_cancel_count + 1 end,
       restart = function() end,
+    }
+    package.loaded['himalaya.job'] = {
+      run = function() return nil end,
+      kill_and_wait = function(handle)
+        if not handle then return end
+        if handle.kill then handle:kill() end
+        if handle.wait then pcall(handle.wait, handle, 500) end
+      end,
+    }
+    package.loaded['himalaya.domain.email.thread_listing'] = {
+      cancel_jobs = function() end,
     }
 
     -- Renderer mock that captures the envelopes it was asked to render.

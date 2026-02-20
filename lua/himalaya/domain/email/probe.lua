@@ -173,6 +173,17 @@ function M.cancel(callback)
   job:kill()
 end
 
+--- Cancel a running probe synchronously, waiting for the process to exit.
+--- Use before starting a new CLI command to avoid database lock contention.
+function M.cancel_sync()
+  if not job then return end
+  generation = generation + 1
+  on_cancel_cb = nil
+  local j = job
+  job = nil
+  require('himalaya.job').kill_and_wait(j)
+end
+
 --- Restart a previously cancelled probe.
 function M.restart()
   if saved_args then

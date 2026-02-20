@@ -3,7 +3,9 @@ local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local tree = require('himalaya.domain.email.tree')
+local probe = require('himalaya.domain.email.probe')
 local perf = require('himalaya.perf')
+local job = require('himalaya.job')
 
 local M = {}
 
@@ -26,6 +28,14 @@ local function rebuild_id_index()
   for i, row in ipairs(all_display_rows) do
     id_to_index[tostring(row.env.id)] = i
   end
+end
+
+--- Kill all in-flight thread listing jobs synchronously.
+--- Called before any new CLI command to avoid database lock contention.
+function M.cancel_jobs()
+  list_generation = list_generation + 1
+  if list_job then job.kill_and_wait(list_job); list_job = nil end
+  if enrich_job then job.kill_and_wait(enrich_job); enrich_job = nil end
 end
 
 --- Render one page of the cached thread display rows into the current buffer.
@@ -148,11 +158,13 @@ function M.list(account, opts)
   local acct = account_state.current()
   local folder = folder_state.current()
 
-  -- Kill any in-flight fetches so their callbacks never fire.
+  -- Kill all in-flight CLI jobs (ours, flat listing's, and probe) to
+  -- avoid database lock contention on rapid mode switches.
+  require('himalaya.domain.email')._cancel_jobs()
+  probe.cancel_sync()
+  M.cancel_jobs()
   list_generation = list_generation + 1
   local my_gen = list_generation
-  if list_job then list_job:kill(); list_job = nil end
-  if enrich_job then enrich_job:kill(); enrich_job = nil end
 
   -- Capture the listing window now so async callbacks render here even
   -- if a picker or other floating window has focus when they fire.

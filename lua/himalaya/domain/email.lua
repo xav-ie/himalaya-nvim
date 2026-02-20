@@ -7,6 +7,7 @@ local probe = require('himalaya.domain.email.probe')
 local cache = require('himalaya.domain.email.cache')
 local paging = require('himalaya.domain.email.paging')
 local perf = require('himalaya.perf')
+local job = require('himalaya.job')
 
 local M = {}
 
@@ -266,72 +267,76 @@ function M.list(account, opts)
   M.list_with(acct, folder, page, query)
 end
 
+--- Kill all in-flight fetch/resize jobs synchronously.
+--- Called before any new CLI command to avoid database lock contention.
+function M._cancel_jobs()
+  fetch_generation = fetch_generation + 1
+  if fetch_job then job.kill_and_wait(fetch_job); fetch_job = nil end
+  if resize_timer then resize_timer:stop(); resize_timer = nil end
+  if resize_job then
+    resize_generation = resize_generation + 1
+    job.kill_and_wait(resize_job)
+    resize_job = nil
+  end
+end
+
 --- List envelopes with explicit parameters.
 --- @param account string
 --- @param folder string
 --- @param page number
 --- @param qry string
 function M.list_with(account, folder, page, qry)
-  if resize_timer then
-    resize_timer:stop()
-    resize_timer = nil
-  end
-  if resize_job then
-    resize_generation = resize_generation + 1
-    resize_job:kill()
-    resize_job = nil
-  end
-  -- Kill any in-flight list fetch so its callback never fires.
+  -- Kill all in-flight CLI jobs (ours, thread listing's, and probe) to
+  -- avoid database lock contention on rapid mode switches / page changes.
+  require('himalaya.domain.email.thread_listing').cancel_jobs()
+  M._cancel_jobs()
+  probe.cancel_sync()
+
   fetch_generation = fetch_generation + 1
   local my_gen = fetch_generation
-  if fetch_job then fetch_job:kill(); fetch_job = nil end
+
   -- Show loading indicator while fetching
   if in_listing_buffer() then
     vim.wo.winbar = '%#Comment# loading...%*'
   end
 
-  -- Cancel any running probe so its database lock is released before the
-  -- new CLI fetch.  Without this, rapid page navigation (e.g. gn right
-  -- after opening the inbox) hits "could not acquire lock" errors.
-  probe.cancel(function()
-    local ps = page_size()
-    -- On first load the winbar hasn't been set yet, so winheight still
-    -- includes that row.  Reserve one line for the header winbar.
-    if vim.wo.winbar == '' then
-      ps = math.max(1, ps - 1)
-    end
-    -- Double the fetch size to prime the cache with an extra page of
-    -- envelopes.  Adjust the CLI page number so the returned data always
-    -- covers the requested display page:
-    --   cli_page = ceil(page/2), fetch_ps = ps*2
-    -- Odd display pages → first half of CLI data, even → second half.
-    local fetch_ps = ps * 2
-    local cli_page = math.ceil(page / 2)
-    local fetch_offset = (cli_page - 1) * fetch_ps
-    fetch_job = request.json({
-      cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-      args = {
-        folder,
-        account_flag(account),
-        fetch_ps,
-        cli_page,
-        qry,
-      },
-      msg = string.format('Fetching %s envelopes', folder),
-      is_stale = function() return my_gen ~= fetch_generation end,
-      on_error = function()
-        fetch_job = nil
-        -- Clear loading indicator on failure
-        if in_listing_buffer() and vim.wo.winbar:find('loading') then
-          vim.wo.winbar = ''
-        end
-      end,
-      on_data = function(data)
-        fetch_job = nil
-        on_list_with(account, folder, page, ps, qry, data, fetch_offset)
-      end,
-    })
-  end)
+  local ps = page_size()
+  -- On first load the winbar hasn't been set yet, so winheight still
+  -- includes that row.  Reserve one line for the header winbar.
+  if vim.wo.winbar == '' then
+    ps = math.max(1, ps - 1)
+  end
+  -- Double the fetch size to prime the cache with an extra page of
+  -- envelopes.  Adjust the CLI page number so the returned data always
+  -- covers the requested display page:
+  --   cli_page = ceil(page/2), fetch_ps = ps*2
+  -- Odd display pages → first half of CLI data, even → second half.
+  local fetch_ps = ps * 2
+  local cli_page = math.ceil(page / 2)
+  local fetch_offset = (cli_page - 1) * fetch_ps
+  fetch_job = request.json({
+    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+    args = {
+      folder,
+      account_flag(account),
+      fetch_ps,
+      cli_page,
+      qry,
+    },
+    msg = string.format('Fetching %s envelopes', folder),
+    is_stale = function() return my_gen ~= fetch_generation end,
+    on_error = function()
+      fetch_job = nil
+      -- Clear loading indicator on failure
+      if in_listing_buffer() and vim.wo.winbar:find('loading') then
+        vim.wo.winbar = ''
+      end
+    end,
+    on_data = function(data)
+      fetch_job = nil
+      on_list_with(account, folder, page, ps, qry, data, fetch_offset)
+    end,
+  })
 end
 
 --- Slice cached envelopes to fit the current window height.
