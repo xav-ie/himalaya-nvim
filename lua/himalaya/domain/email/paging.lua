@@ -83,4 +83,16 @@ function M.extract_range(items, cache_start, range_start, range_end)
   return result
 end
 
+--- Find the 1-based index of an envelope by its ID string.
+--- Returns nil if not found.
+--- @param envelopes table[]
+--- @param email_id string
+--- @return number|nil
+function M.find_envelope_index(envelopes, email_id)
+  for i, env in ipairs(envelopes) do
+    if tostring(env.id) == email_id then return i end
+  end
+  return nil
+end
+
 return M

@@ -154,4 +154,27 @@ describe('himalaya.domain.email.paging', function()
       assert.are.equal(0, #result)
     end)
   end)
+
+  describe('find_envelope_index', function()
+    local envs = {
+      { id = '10' }, { id = '20' }, { id = '30' },
+    }
+
+    it('finds existing envelope by string id', function()
+      assert.are.equal(2, paging.find_envelope_index(envs, '20'))
+    end)
+
+    it('finds existing envelope by numeric id', function()
+      local numeric = { { id = 10 }, { id = 20 } }
+      assert.are.equal(1, paging.find_envelope_index(numeric, '10'))
+    end)
+
+    it('returns nil for missing id', function()
+      assert.is_nil(paging.find_envelope_index(envs, '99'))
+    end)
+
+    it('returns nil for empty list', function()
+      assert.is_nil(paging.find_envelope_index({}, '1'))
+    end)
+  end)
 end)

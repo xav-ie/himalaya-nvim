@@ -82,6 +82,68 @@ local function in_listing_buffer()
   return bt == 'listing' or bt == 'thread-listing'
 end
 
+--- Check whether an email reading window is open in the current tab.
+--- @return boolean
+local function is_reading_email()
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if vim.api.nvim_win_is_valid(winid) then
+      local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
+      if bname:find('Himalaya/read email', 1, true) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+--- Render envelopes into a listing buffer: set lines, header, and seen highlights.
+--- @param bufnr number
+--- @param envelopes table[]
+--- @return table  renderer result { header, separator, lines }
+local function render_listing_buffer(bufnr, envelopes)
+  local renderer = require('himalaya.ui.renderer')
+  local listing = require('himalaya.ui.listing')
+  local result = renderer.render(envelopes, M._bufwidth())
+  vim.bo[bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
+  listing.apply_header(bufnr, result.header)
+  listing.apply_seen_highlights(bufnr, envelopes)
+  vim.bo[bufnr].modifiable = false
+  return result
+end
+
+--- Update the buffer title with folder, query, page, and total info.
+--- @param folder string
+--- @param qry string
+--- @param pg number
+--- @param total_str string
+--- @param bufcmd? string  vim command to set name ('file' or 'edit', defaults to 'file')
+local function update_listing_title(folder, qry, pg, total_str, bufcmd)
+  bufcmd = bufcmd or 'file'
+  local display_query = qry == '' and 'all' or qry
+  vim.cmd(string.format('silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]', bufcmd, folder, display_query, pg, total_str))
+end
+
+--- Restore cursor position after a listing re-render.
+--- Tries saved_cursor_id first, then saved_view, then goes to line 1.
+--- @param display table[]  visible envelopes
+local function restore_cursor(display)
+  if saved_cursor_id then
+    local target = saved_cursor_id
+    saved_cursor_id = nil
+    saved_view = nil
+    local idx = paging.find_envelope_index(display, target)
+    if idx then
+      pcall(vim.api.nvim_win_set_cursor, 0, {idx, 0})
+    end
+  elseif saved_view then
+    vim.fn.winrestview(saved_view)
+    saved_view = nil
+  else
+    vim.cmd('0')
+  end
+end
+
 --- Re-fetch the current listing, dispatching to thread or flat mode as appropriate.
 --- @param account string
 --- @param folder string
@@ -128,9 +190,8 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
 
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
-  local buftype = in_listing_buffer() and 'file' or 'edit'
-  local display_query = qry == '' and 'all' or qry
-  vim.cmd(string.format('silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]', buftype, folder, display_query, page, total_str))
+  local bufcmd = in_listing_buffer() and 'file' or 'edit'
+  update_listing_title(folder, qry, page, total_str, bufcmd)
   vim.bo.modifiable = true
   vim.b.himalaya_page = page
   vim.b.himalaya_page_size = page_size
@@ -172,22 +233,7 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   vim.bo.filetype = 'himalaya-email-listing'
   vim.bo.modified = false
   vim.fn.winrestview({ topline = 1 })
-  if saved_cursor_id then
-    local target = saved_cursor_id
-    saved_cursor_id = nil
-    saved_view = nil
-    for i, env in ipairs(display) do
-      if tostring(env.id) == target then
-        pcall(vim.api.nvim_win_set_cursor, 0, {i, 0})
-        break
-      end
-    end
-  elseif saved_view then
-    vim.fn.winrestview(saved_view)
-    saved_view = nil
-  else
-    vim.cmd('0')
-  end
+  restore_cursor(display)
 
   probe.start(acct_flag, folder, page_size, page, qry, bufnr)
 end
@@ -315,19 +361,12 @@ local function mark_envelope_seen(email_id)
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_buf(winid) == listing_bufnr then
       vim.api.nvim_win_call(winid, function()
-        local renderer = require('himalaya.ui.renderer')
-        local listing = require('himalaya.ui.listing')
         local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
         local cur_page = vim.b.himalaya_page or 1
         local ps = vim.b.himalaya_page_size or line_count
         local cache_offset = vim.b.himalaya_cache_offset or 0
         local visible = paging.cache_slice(envelopes, cur_page, ps, cache_offset, line_count)
-        local result = renderer.render(visible, M._bufwidth())
-        vim.bo[listing_bufnr].modifiable = true
-        vim.api.nvim_buf_set_lines(listing_bufnr, 0, -1, false, result.lines)
-        listing.apply_header(listing_bufnr, result.header)
-        listing.apply_seen_highlights(listing_bufnr, visible)
-        vim.bo[listing_bufnr].modifiable = false
+        render_listing_buffer(listing_bufnr, visible)
       end)
       break
     end
@@ -781,17 +820,7 @@ function M.resize_listing()
   perf.reset()
   perf.start("resize_listing_total")
 
-  -- Check if listing is background (email being read).
-  local reading = false
-  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_is_valid(winid) then
-      local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
-      if bname:find('Himalaya/read email', 1, true) then
-        reading = true
-        break
-      end
-    end
-  end
+  local reading = is_reading_email()
 
   local new_page_size = page_size()
   local old_page_size = vim.b.himalaya_page_size
@@ -803,16 +832,13 @@ function M.resize_listing()
     -- Reading truncation uses the same overlap computation but skips Phase 2.
     local old_page = vim.b.himalaya_page or 1
     local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
-    local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
     -- Buffer rows may not match cache indices (e.g., after Phase 1
-    -- truncation or Phase 2 re-fetch). Extract the email ID from the
-    -- current buffer line and find its position in the cache.
+    -- truncation or Phase 2 re-fetch). Map cursor to cache position via email ID.
+    local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
     local cursor_line_text = vim.api.nvim_buf_get_lines(0, cursor_row - 1, cursor_row, false)[1] or ''
     local cursor_email_id = M._get_email_id_from_line(cursor_line_text)
     if cursor_email_id ~= '' then
-      for i, env in ipairs(envelopes) do
-        if tostring(env.id) == cursor_email_id then cursor_row = i; break end
-      end
+      cursor_row = paging.find_envelope_index(envelopes, cursor_email_id) or cursor_row
     end
     local selected_global = cache_start + cursor_row - 1
     local resize_info = paging.resize_page(cache_start, #envelopes, selected_global, new_page_size)
@@ -826,23 +852,15 @@ function M.resize_listing()
     vim.b.himalaya_page_size = new_page_size
 
     -- Render
-    local renderer = require('himalaya.ui.renderer')
-    local listing = require('himalaya.ui.listing')
     local bufnr = vim.api.nvim_get_current_buf()
     local folder_name = folder_state.current()
     local buf_query = vim.b.himalaya_query or ''
     local acct_flag = account_flag(account_state.current())
     local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. buf_query
     local total_str = probe.total_pages_str(cache_key, new_page_size)
-    local display_query = buf_query == '' and 'all' or buf_query
-    vim.cmd(string.format('silent! file Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder_name, display_query, new_page, total_str))
+    update_listing_title(folder_name, buf_query, new_page, total_str)
 
-    local result = renderer.render(display_envelopes, M._bufwidth())
-    vim.bo.modifiable = true
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-    listing.apply_header(bufnr, result.header)
-    listing.apply_seen_highlights(bufnr, display_envelopes)
-    vim.bo.modifiable = false
+    render_listing_buffer(bufnr, display_envelopes)
 
     -- Position cursor on selected email and ensure line 1 is at the top.
     -- Neovim may have shifted topline during the native resize before our
@@ -914,15 +932,8 @@ function M.resize_listing()
 
   -- Width-only change (or initial page_size set): re-render for new width
   local display_envelopes = display_slice(envelopes)
-  local renderer = require('himalaya.ui.renderer')
-  local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
-  local result = renderer.render(display_envelopes, M._bufwidth())
-  vim.bo.modifiable = true
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, display_envelopes)
-  vim.bo.modifiable = false
+  render_listing_buffer(bufnr, display_envelopes)
   vim.fn.winrestview({ topline = 1 })
   perf.stop("resize_listing_total")
   perf.report()
