@@ -178,6 +178,21 @@ local function context_email_id()
   end
 end
 
+--- Resolve the target email ID(s) for a mutating operation.
+--- In listing: uses cursor line (or visual range); in read buffer: uses current_id.
+--- @param first_line? number
+--- @param last_line? number
+--- @return string space-separated ID(s)
+local function resolve_target_ids(first_line, last_line)
+  if in_listing_buffer() and first_line and last_line then
+    return get_email_id_under_cursors(first_line, last_line)
+  elseif in_listing_buffer() then
+    return get_email_id_under_cursor()
+  else
+    return current_id
+  end
+end
+
 --- Internal callback for list_with — populates the envelope listing buffer.
 --- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*page_size)
 local function on_list_with(account, folder, page, page_size, qry, data, fetch_offset)
@@ -463,14 +478,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.delete(first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
@@ -501,14 +509,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.copy(target_folder, first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
@@ -533,14 +534,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.move(target_folder, first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
@@ -594,14 +588,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.flag_add(first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local flags = vim.fn.input('Flag to add: ', '', 'custom,himalaya#domain#email#flags#complete')
   vim.cmd('redraw | echo')
@@ -628,14 +615,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.flag_remove(first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local flags = vim.fn.input('Flag to remove: ', '', 'custom,himalaya#domain#email#flags#complete')
   vim.cmd('redraw | echo')
@@ -662,14 +642,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.mark_seen(first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
@@ -689,14 +662,7 @@ end
 --- @param first_line? number
 --- @param last_line? number
 function M.mark_unseen(first_line, last_line)
-  local ids
-  if in_listing_buffer() and first_line and last_line then
-    ids = get_email_id_under_cursors(first_line, last_line)
-  elseif in_listing_buffer() then
-    ids = get_email_id_under_cursor()
-  else
-    ids = current_id
-  end
+  local ids = resolve_target_ids(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
