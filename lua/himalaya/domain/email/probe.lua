@@ -33,27 +33,35 @@ function M.total_count(cache_key)
   return total
 end
 
---- Reset totals when account, folder, or query changes.
+--- Track context changes (no longer wipes totals — entries are keyed by
+--- (acct, folder, query) and persist across folder/account switches).
 --- @param acct_flag string
 --- @param folder string
 --- @param qry string
 function M.reset_if_changed(acct_flag, folder, qry)
-  if acct_flag ~= last_account or folder ~= last_folder or qry ~= last_query then
-    totals = {}
-    last_account = acct_flag
-    last_folder = folder
-    last_query = qry
-  end
+  last_account = acct_flag
+  last_folder = folder
+  last_query = qry
 end
 
---- Record total from initial listing data if deterministic.
+--- Record or validate total from initial listing data.
+--- When the data is a partial page, the exact total is deterministic — always
+--- set it (overwriting any stale cached value from a previous visit).
+--- When the data is a full page, invalidate any cached total that is too low
+--- so the probe re-runs and discovers the real count.
 --- @param cache_key string
 --- @param page number
 --- @param page_size number
 --- @param data_count number
 function M.set_total_from_data(cache_key, page, page_size, data_count)
-  if not totals[cache_key] and data_count < page_size then
+  if data_count < page_size then
     totals[cache_key] = (page - 1) * page_size + data_count
+  else
+    local min_items = (page - 1) * page_size + data_count
+    local cached = totals[cache_key]
+    if cached and cached > 0 and cached < min_items then
+      totals[cache_key] = nil
+    end
   end
 end
 

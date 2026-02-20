@@ -3,6 +3,7 @@ local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local folder_state = require('himalaya.state.folder')
 local tree = require('himalaya.domain.email.tree')
+local perf = require('himalaya.perf')
 
 local M = {}
 
@@ -106,10 +107,16 @@ end
 --- @param gen number  generation at time of request; bail if stale
 local function enrich_with_flags(acct, folder, listing_win, gen)
   if not all_display_rows or #all_display_rows == 0 then return end
+  perf.count('enrich_with_flags')
 
+  -- Cap the fetch at 200 envelopes. The flat list returns the most recent
+  -- emails by date, which naturally covers the top thread pages. For large
+  -- threads (500+), emails beyond the cap show empty flags until the user
+  -- pages to them — same as the initial render before enrich completes.
+  local fetch_size = math.min(#all_display_rows, 200)
   enrich_job = request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page 1',
-    args = { folder, account_flag(acct), #all_display_rows },
+    args = { folder, account_flag(acct), fetch_size },
     msg = 'Fetching flags',
     silent = true,
     is_stale = function() return gen ~= list_generation end,

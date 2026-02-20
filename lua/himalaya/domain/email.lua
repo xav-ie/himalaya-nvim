@@ -58,20 +58,13 @@ end
 --- Calculate usable buffer width (accounts for number column, fold column, sign column).
 --- @return number
 function M._bufwidth()
-  local width = vim.fn.winwidth(0)
-  local numberwidth = math.max(vim.wo.numberwidth, #tostring(vim.fn.line('$')) + 1)
-  local numwidth = (vim.wo.number or vim.wo.relativenumber) and numberwidth or 0
-  local foldwidth = tonumber(vim.wo.foldcolumn) or 0
-
-  local signwidth = 0
-  if vim.wo.signcolumn == 'yes' then
-    signwidth = 2
-  elseif vim.wo.signcolumn == 'auto' then
-    local placed = vim.fn.sign_getplaced(vim.fn.bufnr(''))
-    signwidth = (placed[1] and #placed[1].signs > 0) and 2 or 0
-  end
-
-  return width - numwidth - foldwidth - signwidth
+  perf.start('_bufwidth')
+  local listing = require('himalaya.ui.listing')
+  local winid = vim.api.nvim_get_current_win()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local width = vim.fn.winwidth(winid) - listing.gutter_width(winid, bufnr)
+  perf.stop('_bufwidth')
+  return width
 end
 
 --- Detect whether current buffer is an envelope listing buffer.

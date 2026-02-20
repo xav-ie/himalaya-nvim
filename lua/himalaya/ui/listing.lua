@@ -41,7 +41,7 @@ end
 --- @param winid number
 --- @param bufnr number
 --- @return number
-local function gutter_width(winid, bufnr)
+function M.gutter_width(winid, bufnr)
   local wo = vim.wo[winid]
   local line_count = vim.api.nvim_buf_line_count(bufnr)
   local numberwidth = math.max(wo.numberwidth, #tostring(line_count) + 1)
@@ -65,7 +65,7 @@ end
 function M.apply_header(bufnr, header)
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_buf(winid) == bufnr then
-      local pad = string.rep(' ', gutter_width(winid, bufnr))
+      local pad = string.rep(' ', M.gutter_width(winid, bufnr))
       -- Escape percent signs and other statusline special chars
       local escaped = header:gsub('%%', '%%%%')
       vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped

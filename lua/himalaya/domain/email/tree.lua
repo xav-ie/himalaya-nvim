@@ -1,3 +1,5 @@
+local perf = require('himalaya.perf')
+
 local M = {}
 
 --- Parse an ISO-ish date string to a UTC epoch number.
@@ -44,10 +46,12 @@ end
 --- @param opts? table  Optional: { reverse = bool } — reverse sorts siblings newest-first
 --- @return table[] Array of {env, depth, is_last_child, thread_idx}
 function M.build(edges, opts)
+  perf.start('tree.build')
   opts = opts or {}
   local reverse = opts.reverse or false
 
   if #edges == 0 then
+    perf.stop('tree.build')
     return {}
   end
 
@@ -216,6 +220,7 @@ function M.build(edges, opts)
     end
   end
 
+  perf.stop('tree.build')
   return display_rows
 end
 
@@ -238,6 +243,7 @@ local TREE_TOP  = "\xe2\x94\x8c" -- ┌
 --- @param opts? table  Optional: { reverse = bool }
 --- @return table[] Same rows with .prefix added
 function M.build_prefix(rows, opts)
+  perf.start('tree.build_prefix')
   opts = opts or {}
   local reverse = opts.reverse or false
   local stack = {}
@@ -268,6 +274,7 @@ function M.build_prefix(rows, opts)
     end
     row.prefix = prefix
   end
+  perf.stop('tree.build_prefix')
   return rows
 end
 

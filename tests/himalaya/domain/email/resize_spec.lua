@@ -112,6 +112,7 @@ describe('himalaya.domain.email resize_listing', function()
       apply_header = function() end,
       apply_seen_highlights = function() end,
       apply_syntax = function() end,
+      gutter_width = function() return 0 end,
     }
 
     email = require('himalaya.domain.email')

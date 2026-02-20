@@ -1,4 +1,5 @@
 local renderer = require('himalaya.ui.renderer')
+local perf = require('himalaya.perf')
 
 local M = {}
 
@@ -14,6 +15,7 @@ local function get_env(row) return row.env end
 --- @param cfg? table  optional config (defaults to config.get())
 --- @return table {header=string, separator=string, lines=string[]}
 function M.render(display_rows, total_width, cfg)
+  perf.start('thread_renderer.render')
   local layout = renderer.compute_layout(display_rows, total_width, get_env, cfg)
   local empty_flags = string.rep(' ', layout.flags_w)
 
@@ -52,6 +54,7 @@ function M.render(display_rows, total_width, cfg)
     lines[#lines + 1] = line
   end
 
+  perf.stop('thread_renderer.render')
   return { header = layout.header, separator = layout.separator, lines = lines }
 end
 
