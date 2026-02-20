@@ -195,6 +195,26 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal('3', rows[3].env.id)
     end)
 
+    it('is deterministic when threads have identical latest dates', function()
+      local edges_order1 = {
+        { {id='0'}, {id='1', from='Alice', subject='T1', date='2024-01-10 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='2', from='Bob', subject='T2', date='2024-01-10 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='3', from='Carol', subject='T3', date='2024-01-10 10:00:00+00:00'}, 0 },
+      }
+      local edges_order2 = {
+        { {id='0'}, {id='3', from='Carol', subject='T3', date='2024-01-10 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='1', from='Alice', subject='T1', date='2024-01-10 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='2', from='Bob', subject='T2', date='2024-01-10 10:00:00+00:00'}, 0 },
+      }
+      local rows1 = tree.build(edges_order1)
+      local rows2 = tree.build(edges_order2)
+      assert.are.equal(3, #rows1)
+      assert.are.equal(3, #rows2)
+      assert.are.equal(rows1[1].env.id, rows2[1].env.id)
+      assert.are.equal(rows1[2].env.id, rows2[2].env.id)
+      assert.are.equal(rows1[3].env.id, rows2[3].env.id)
+    end)
+
     it('includes non-ghost parent at depth 0 and offsets children', function()
       local edges = {
         { {id='5', from='Root Author', subject='Root', date='2024-01-01 10:00:00+00:00'},

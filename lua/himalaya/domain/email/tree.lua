@@ -138,7 +138,7 @@ function M.build(edges)
   local groups = {} -- ordered list of {nodes, latest_epoch}
   for _, tid in ipairs(thread_order) do
     local meta = thread_meta[tid]
-    local g = { nodes = {}, latest_epoch = 0 }
+    local g = { nodes = {}, latest_epoch = 0, thread_id = tid }
 
     if meta.has_non_ghost_root then
       -- Non-ghost root: add parent at depth 0, DFS children with offset 1
@@ -165,9 +165,13 @@ function M.build(edges)
     groups[#groups + 1] = g
   end
 
-  -- Phase 5: Sort groups by latest date descending (newest thread first)
+  -- Phase 5: Sort groups by latest date descending (newest thread first),
+  -- with thread_id as tiebreaker for deterministic ordering.
   table.sort(groups, function(a, b)
-    return a.latest_epoch > b.latest_epoch
+    if a.latest_epoch ~= b.latest_epoch then
+      return a.latest_epoch > b.latest_epoch
+    end
+    return a.thread_id < b.thread_id
   end)
 
   -- Phase 6: Flatten into display_rows with thread_idx
