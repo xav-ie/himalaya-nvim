@@ -93,7 +93,7 @@ describe('himalaya.domain.email resize_listing', function()
       set_total_from_data = function() end,
       total_pages_str = function() return '?' end,
       start = function() end,
-      cancel = function() probe_cancel_count = probe_cancel_count + 1 end,
+      cancel = function(cb) probe_cancel_count = probe_cancel_count + 1; if cb then cb() end end,
       restart = function() end,
     }
 

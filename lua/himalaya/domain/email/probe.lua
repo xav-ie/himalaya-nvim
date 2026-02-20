@@ -9,6 +9,7 @@ local last_query = nil
 local job = nil
 local saved_args = nil
 local generation = 0
+local on_cancel_cb = nil
 
 --- Compute total pages string from totals cache.
 --- @param cache_key string
@@ -78,9 +79,25 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
     },
     msg = string.format('Probing page %d', probe_page),
     silent = true,
-    on_error = function() job = nil; saved_args = nil end,
+    on_error = function()
+      job = nil
+      if on_cancel_cb then
+        local cb = on_cancel_cb
+        on_cancel_cb = nil
+        cb()
+      end
+    end,
     on_data = function(data)
-      if my_gen ~= generation then return end
+      if my_gen ~= generation then
+        -- Stale: process completed before kill signal arrived.
+        job = nil
+        if on_cancel_cb then
+          local cb = on_cancel_cb
+          on_cancel_cb = nil
+          cb()
+        end
+        return
+      end
       local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
       if #data < page_size then
         totals[cache_key] = (probe_page - 1) * page_size + #data
@@ -134,17 +151,18 @@ function M.start(acct_flag, folder, page_size, page, qry, bufnr)
 end
 
 --- Cancel a running probe, preserving its args for later restart.
---- Blocks until the process exits to ensure the database lock is released.
-function M.cancel()
-  if job then
-    generation = generation + 1
-    job:kill()
-    if not job:wait(3000) then
-      job:kill(9)
-      job:wait(1000)
-    end
-    job = nil
+--- Non-blocking: sends SIGTERM and invokes callback when the process exits
+--- (via on_error or stale on_data), ensuring the database lock is released
+--- before the callback runs.
+--- @param callback? function  called once the probe process has exited
+function M.cancel(callback)
+  if not job then
+    if callback then callback() end
+    return
   end
+  generation = generation + 1
+  on_cancel_cb = callback
+  job:kill()
 end
 
 --- Restart a previously cancelled probe.

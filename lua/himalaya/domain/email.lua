@@ -288,38 +288,39 @@ function M.list_with(account, folder, page, qry)
   -- Cancel any running probe so its database lock is released before the
   -- new CLI fetch.  Without this, rapid page navigation (e.g. gn right
   -- after opening the inbox) hits "could not acquire lock" errors.
-  probe.cancel()
-  local ps = page_size()
-  -- On first load the winbar hasn't been set yet, so winheight still
-  -- includes that row.  Reserve one line for the header winbar.
-  if vim.wo.winbar == '' then
-    ps = math.max(1, ps - 1)
-  end
-  -- Double the fetch size to prime the cache with an extra page of
-  -- envelopes.  Adjust the CLI page number so the returned data always
-  -- covers the requested display page:
-  --   cli_page = ceil(page/2), fetch_ps = ps*2
-  -- Odd display pages → first half of CLI data, even → second half.
-  local fetch_ps = ps * 2
-  local cli_page = math.ceil(page / 2)
-  local fetch_offset = (cli_page - 1) * fetch_ps
-  fetch_job = request.json({
-    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-    args = {
-      folder,
-      account_flag(account),
-      fetch_ps,
-      cli_page,
-      qry,
-    },
-    msg = string.format('Fetching %s envelopes', folder),
-    is_stale = function() return my_gen ~= fetch_generation end,
-    on_error = function() fetch_job = nil end,
-    on_data = function(data)
-      fetch_job = nil
-      on_list_with(account, folder, page, ps, qry, data, fetch_offset)
-    end,
-  })
+  probe.cancel(function()
+    local ps = page_size()
+    -- On first load the winbar hasn't been set yet, so winheight still
+    -- includes that row.  Reserve one line for the header winbar.
+    if vim.wo.winbar == '' then
+      ps = math.max(1, ps - 1)
+    end
+    -- Double the fetch size to prime the cache with an extra page of
+    -- envelopes.  Adjust the CLI page number so the returned data always
+    -- covers the requested display page:
+    --   cli_page = ceil(page/2), fetch_ps = ps*2
+    -- Odd display pages → first half of CLI data, even → second half.
+    local fetch_ps = ps * 2
+    local cli_page = math.ceil(page / 2)
+    local fetch_offset = (cli_page - 1) * fetch_ps
+    fetch_job = request.json({
+      cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+      args = {
+        folder,
+        account_flag(account),
+        fetch_ps,
+        cli_page,
+        qry,
+      },
+      msg = string.format('Fetching %s envelopes', folder),
+      is_stale = function() return my_gen ~= fetch_generation end,
+      on_error = function() fetch_job = nil end,
+      on_data = function(data)
+        fetch_job = nil
+        on_list_with(account, folder, page, ps, qry, data, fetch_offset)
+      end,
+    })
+  end)
 end
 
 --- Slice cached envelopes to fit the current window height.
@@ -395,19 +396,19 @@ function M.read()
   if current_id == '' or current_id == 'ID' then
     return
   end
-  probe.cancel()
   -- Capture listing window synchronously before the async request,
   -- so the callback can reliably reference it even if focus changes.
   local listing_winid = vim.api.nvim_get_current_win()
   local account = account_state.current()
   local folder = folder_state.current()
-  request.plain({
-    cmd = 'message read %s --folder %s %s',
-    args = { account_flag(account), folder, current_id },
-    msg = string.format('Fetching email %s', current_id),
-    on_error = function()
-      probe.restart()
-    end,
+  probe.cancel(function()
+    request.plain({
+      cmd = 'message read %s --folder %s %s',
+      args = { account_flag(account), folder, current_id },
+      msg = string.format('Fetching email %s', current_id),
+      on_error = function()
+        probe.restart()
+      end,
     on_data = function(data)
       -- Prepare email content into a buffer before showing it,
       -- so the split appears with content already loaded (no flash).
@@ -471,7 +472,8 @@ function M.read()
       end
       probe.restart()
     end,
-  })
+    })
+  end)
 end
 
 --- Delete email(s). Supports visual range via first_line/last_line.
@@ -492,16 +494,17 @@ function M.delete(first_line, last_line)
   local cursor_line = vim.fn.line('.')
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'message delete %s --folder %s %s',
-    args = { account_flag(account), folder, ids },
-    msg = 'Deleting email',
-    on_data = function()
-      saved_view = vim.fn.winsaveview()
-      refresh_listing(account, folder, { restore_cursor_line = cursor_line })
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'message delete %s --folder %s %s',
+      args = { account_flag(account), folder, ids },
+      msg = 'Deleting email',
+      on_data = function()
+        saved_view = vim.fn.winsaveview()
+        refresh_listing(account, folder, { restore_cursor_line = cursor_line })
+      end,
+    })
+  end)
 end
 
 --- Copy email(s) to target folder. Supports visual range via first_line/last_line.
@@ -513,20 +516,21 @@ function M.copy(target_folder, first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'message copy %s --folder %s %s %s',
-    args = {
-      account_flag(account),
-      folder,
-      target_folder,
-      ids,
-    },
-    msg = 'Copying email',
-    on_data = function()
-      refresh_listing(account, folder)
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'message copy %s --folder %s %s %s',
+      args = {
+        account_flag(account),
+        folder,
+        target_folder,
+        ids,
+      },
+      msg = 'Copying email',
+      on_data = function()
+        refresh_listing(account, folder)
+      end,
+    })
+  end)
 end
 
 --- Move email(s) to target folder (with confirmation prompt). Supports visual range via first_line/last_line.
@@ -548,20 +552,21 @@ function M.move(target_folder, first_line, last_line)
   local cursor_line = vim.fn.line('.')
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'message move %s --folder %s %s %s',
-    args = {
-      account_flag(account),
-      folder,
-      target_folder,
-      ids,
-    },
-    msg = 'Moving email',
-    on_data = function()
-      refresh_listing(account, folder, { restore_cursor_line = cursor_line })
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'message move %s --folder %s %s %s',
+      args = {
+        account_flag(account),
+        folder,
+        target_folder,
+        ids,
+      },
+      msg = 'Moving email',
+      on_data = function()
+        refresh_listing(account, folder, { restore_cursor_line = cursor_line })
+      end,
+    })
+  end)
 end
 
 --- Open folder picker then copy email(s) to selected folder. Supports visual range via first_line/last_line.
@@ -600,15 +605,16 @@ function M.flag_add(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'flag add %s --folder %s %s %s',
-    args = { account_flag(account), folder, flags, ids },
-    msg = 'Adding flags: ' .. flags .. ' to email',
-    on_data = function()
-      refresh_listing(account, folder)
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'flag add %s --folder %s %s %s',
+      args = { account_flag(account), folder, flags, ids },
+      msg = 'Adding flags: ' .. flags .. ' to email',
+      on_data = function()
+        refresh_listing(account, folder)
+      end,
+    })
+  end)
 end
 
 --- Remove flags from email(s). Supports visual range via first_line/last_line.
@@ -627,15 +633,16 @@ function M.flag_remove(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'flag remove %s --folder %s %s %s',
-    args = { account_flag(account), folder, flags, ids },
-    msg = 'Removing flags:' .. flags .. ' from email',
-    on_data = function()
-      refresh_listing(account, folder)
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'flag remove %s --folder %s %s %s',
+      args = { account_flag(account), folder, flags, ids },
+      msg = 'Removing flags:' .. flags .. ' from email',
+      on_data = function()
+        refresh_listing(account, folder)
+      end,
+    })
+  end)
 end
 
 --- Mark email(s) as seen. Supports visual range via first_line/last_line.
@@ -646,16 +653,17 @@ function M.mark_seen(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'flag add %s --folder %s Seen %s',
-    args = { account_flag(account), folder, ids },
-    msg = 'Marking as seen',
-    on_data = function()
-      saved_view = vim.fn.winsaveview()
-      refresh_listing(account, folder)
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'flag add %s --folder %s Seen %s',
+      args = { account_flag(account), folder, ids },
+      msg = 'Marking as seen',
+      on_data = function()
+        saved_view = vim.fn.winsaveview()
+        refresh_listing(account, folder)
+      end,
+    })
+  end)
 end
 
 --- Mark email(s) as unseen. Supports visual range via first_line/last_line.
@@ -666,16 +674,17 @@ function M.mark_unseen(first_line, last_line)
 
   local account = account_state.current()
   local folder = folder_state.current()
-  probe.cancel()
-  request.plain({
-    cmd = 'flag remove %s --folder %s Seen %s',
-    args = { account_flag(account), folder, ids },
-    msg = 'Marking as unseen',
-    on_data = function()
-      saved_view = vim.fn.winsaveview()
-      refresh_listing(account, folder)
-    end,
-  })
+  probe.cancel(function()
+    request.plain({
+      cmd = 'flag remove %s --folder %s Seen %s',
+      args = { account_flag(account), folder, ids },
+      msg = 'Marking as unseen',
+      on_data = function()
+        saved_view = vim.fn.winsaveview()
+        refresh_listing(account, folder)
+      end,
+    })
+  end)
 end
 
 --- Download attachments for current email.
