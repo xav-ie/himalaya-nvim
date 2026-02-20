@@ -7,10 +7,7 @@ local M = {}
 
 local draft = ''
 
-local function account_flag(account)
-  if account == '' then return '' end
-  return '--account ' .. account
-end
+local account_flag = account_state.flag
 
 --- Resolve the email ID from context: listing buffer → cursor line, else → current read ID.
 local function context_email_id()

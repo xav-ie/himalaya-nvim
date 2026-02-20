@@ -5,13 +5,7 @@ local pickers = require('himalaya.pickers')
 
 local M = {}
 
---- Return '--account <name>' when account is set, or '' to let CLI use its default.
-local function account_flag(account)
-  if account == '' then
-    return ''
-  end
-  return '--account ' .. account
-end
+local account_flag = account_state.flag
 
 function M.open_picker(callback)
   local account = account_state.current()

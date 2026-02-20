@@ -15,13 +15,7 @@ local list_generation = 0      -- incremented on each list(); stale callbacks ba
 local list_job = nil           -- in-flight thread fetch job handle
 local enrich_job = nil         -- in-flight enrich_with_flags job handle
 
---- Return '--account <name>' when account is set, or '' to let CLI use its default.
---- @param account string
---- @return string
-local function account_flag(account)
-  if account == '' then return '' end
-  return '--account ' .. account
-end
+local account_flag = account_state.flag
 
 --- Render one page of the cached thread display rows into the current buffer.
 --- @param page number

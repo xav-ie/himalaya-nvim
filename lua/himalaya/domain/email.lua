@@ -20,15 +20,7 @@ local resize_generation = 0   -- incremented on kill; stale callbacks check this
 local fetch_generation = 0    -- incremented on each list_with(); stale callbacks bail out
 local fetch_job = nil         -- in-flight list_with job handle
 
---- Return '--account <name>' when account is set, or '' to let CLI use its default.
---- @param account string
---- @return string
-local function account_flag(account)
-  if account == '' then
-    return ''
-  end
-  return '--account ' .. (account)
-end
+local account_flag = account_state.flag
 
 --- Extract numeric email ID from a listing line.
 --- @param line string

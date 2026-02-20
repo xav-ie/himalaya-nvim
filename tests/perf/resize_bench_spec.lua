@@ -98,6 +98,7 @@ describe('resize perf baseline', function()
     package.loaded['himalaya.state.account'] = {
       current = function() return 'bench' end,
       select = function() end,
+      flag = function(account) return account == '' and '' or ('--account ' .. account) end,
     }
     package.loaded['himalaya.state.folder'] = {
       current = function() return 'INBOX' end,

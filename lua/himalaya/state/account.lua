@@ -54,4 +54,14 @@ function M.list()
   return cached_accounts
 end
 
+--- Return '--account <name>' when account is set, or '' to let CLI use its default.
+--- @param account string
+--- @return string
+function M.flag(account)
+  if account == '' then
+    return ''
+  end
+  return '--account ' .. account
+end
+
 return M
