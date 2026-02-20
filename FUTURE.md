@@ -169,28 +169,11 @@ sends.
 *Completed items removed: `probe.cancel()` non-blocking callback,
 `fit()` ASCII fast path, `format_date` one-sample width, `date_to_epoch`
 epoch cache, `is_last_child` O(n) backward pass, `apply_header`
-tab-scoped window scan, thread `resize()` O(1) id-to-index lookup.*
+tab-scoped window scan, thread `resize()` O(1) id-to-index lookup,
+`sign_getplaced` API, `enrich_with_flags` 200-envelope cap,
+probe totals persistence, perf instrumentation spans.*
 
-### 1. `enrich_with_flags` Fetches All Rows
-
-`thread_listing.lua:100-102` fetches `#all_display_rows` envelopes for
-flags. For 500-row thread views this is a large redundant fetch. Limiting
-to the visible page size (typically 30-50 rows) is a 10x reduction.
-Alternatively, if the thread-fetch flags are fresh enough, skip the
-second fetch entirely.
-
-**Files:** `domain/email/thread_listing.lua:97-126`
-
-### 2. `_bufwidth` / `gutter_width` Re-Computed on Every Render
-
-`email.lua:60-76` and `listing.lua:44-61` compute identical gutter
-widths using `sign place` (a Vimscript exec). Both fire on every resize
-and render. Caching per render pass and using `vim.fn.sign_getplaced()`
-(Lua API) instead of string-splitting exec output would reduce overhead.
-
-**Files:** `domain/email.lua:60-76`, `ui/listing.lua:44-61`
-
-### 3. `complete_contact` Uses Blocking `vim.fn.system`
+### 1. `complete_contact` Uses Blocking `vim.fn.system`
 
 `email.lua:772` runs the contact-lookup command synchronously. For slow
 backends (LDAP, remote notmuch) this freezes Neovim during completion.
@@ -199,7 +182,7 @@ eliminate the freeze.
 
 **Files:** `domain/email.lua:748-779`
 
-### 4. Probe Sequential Chain (Up to 9 Subprocesses)
+### 2. Probe Sequential Chain (Up to 9 Subprocesses)
 
 `probe.lua:66-119` fires one CLI subprocess per page sequentially. An
 exponential doubling strategy (probe page 2, 4, 8, 10) would reduce
@@ -208,39 +191,15 @@ eliminate them entirely.
 
 **Files:** `domain/email/probe.lua:66-119`
 
-### 5. Persist Probe Totals Across Folder Revisits
-
-`probe.reset_if_changed()` wipes the totals table on folder/query
-change. Keying by `(account, folder, query)` and retaining entries would
-make page count instant on revisit.
-
-**Files:** `domain/email/probe.lua`
-
-### 6. Extend `perf` Instrumentation **(quick win)**
-
-Missing timers: `tree.build`, `tree.build_prefix`, `thread_renderer.render`,
-`probe.cancel()`, `_bufwidth()`, `enrich_with_flags`. Adding `perf.start/stop`
-spans would provide the empirical data to prioritize the other items.
-
-**Files:** `perf.lua`, `domain/email/tree.lua`, `domain/email/thread_listing.lua`, `domain/email/probe.lua`
 
 ## Architecture & Code Quality
 
 *Completed items removed: `account_flag` dedup, shared keybinds, shared
 renderer layout, config DI, paging extraction, function decomposition,
 `resolve_target_ids` helper, `on_resize`/`do_resize` dead indirection,
-`nargs` fix on zero-argument commands.*
+`nargs` fix on zero-argument commands, `gutter_width` consolidation.*
 
-### 1. Consolidate `gutter_width` / `_bufwidth`
-
-`email.lua:60-76` (`M._bufwidth`) and `listing.lua:44-61`
-(`gutter_width`) compute identical gutter metrics with slightly different
-signatures. Exporting `listing.gutter_width(winid, bufnr)` and
-rewriting `_bufwidth` to call it gives one source of truth.
-
-**Files:** `domain/email.lua:60-76`, `ui/listing.lua:44-61`
-
-### 2. Deduplicate `context_email_id`
+### 1. Deduplicate `context_email_id`
 
 `email.lua:173-178` and `compose.lua:13-19` both implement the same
 listing-vs-read-buffer email ID resolution. Exporting
@@ -249,7 +208,7 @@ duplication.
 
 **Files:** `domain/email.lua:173`, `domain/email/compose.lua:13`
 
-### 3. Extract Shared `effective_page_size()` Helper
+### 2. Extract Shared `effective_page_size()` Helper
 
 The two-line `math.max(1, winheight) + winbar guard` pattern appears 6
 times across `email.lua` and `thread_listing.lua`. A shared helper
@@ -257,15 +216,17 @@ times across `email.lua` and `thread_listing.lua`. A shared helper
 
 **Files:** `domain/email.lua:167,280`, `domain/email/thread_listing.lua:31,168,184,273`
 
-### 4. Move `_bufwidth` and `_get_email_id_from_line` to UI Layer
+### 3. Move `_get_email_id_from_line` to UI Layer
 
-Both are UI/parsing concerns living in the domain module (`email.lua`).
-`thread_listing.lua` cross-requires `email` specifically for these.
-Moving to `ui/listing.lua` would clean up the module boundary.
+`_get_email_id_from_line` is a UI/parsing concern living in the domain
+module (`email.lua`). `thread_listing.lua` cross-requires `email`
+specifically for it. Moving to `ui/listing.lua` would clean up the
+module boundary. (`_bufwidth` was already consolidated into
+`listing.gutter_width`.)
 
-**Files:** `domain/email.lua:29-31,60-75`
+**Files:** `domain/email.lua:29-31`
 
-### 5. Rename Misleading Underscore-Prefixed Public Functions
+### 4. Rename Misleading Underscore-Prefixed Public Functions
 
 `_mark_seen` in `thread_listing.lua` is called from production code
 (`email.lua:341`), not just tests. `_register_commands` /
@@ -276,21 +237,21 @@ means test-only.
 
 **Files:** `domain/email/thread_listing.lua:293`, `init.lua:16,99`
 
-### 6. Test Coverage Gaps
+### 5. Test Coverage Gaps
 
 Untested modules/functions with non-trivial logic:
 
 - `compose.process_draft` — the most complex function with a confirmed
   bug, zero tests
-- `domain/email/probe.lua` — probe loop logic, stale-job handling, no
-  tests at all
+- `domain/email/probe.lua` — probe loop logic, stale-job handling
+  (basic totals/persistence tested, sequential probe chain untested)
 - `ui/search.lua` — reactive state machine, no tests
 - `mark_envelope_seen` thread-listing dispatch branch — not covered
 - `state/folder.lua` — `set()` page reset and `set_page(0)` clamping
   untested
 - `request.lua` — `on_exit` error/parse paths untested
 
-### 7. Remove `_G._himalaya_search_completefunc` Global Leak
+### 6. Remove `_G._himalaya_search_completefunc` Global Leak
 
 `search.lua:203-252` sets a Lua global for `completefunc`. The `if not`
 guard prevents updates without restart. Either always assign (remove
