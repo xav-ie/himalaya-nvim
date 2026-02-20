@@ -487,9 +487,9 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal('', rows[3].prefix)    -- Root (VD=0)
     end)
 
-    it('reversed branch connectors: └─ for first/top, ├─ for last/bottom', function()
+    it('reversed branch connectors: └─ for first/top, ┌─ for last/bottom', function()
       -- Normal:   Root, ├─A, └─B
-      -- Reversed: └─B, ├─A, Root
+      -- Reversed: └─B, ┌─A, Root
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='Older', date='2024-01-02 10:00:00+00:00'}, 1 },
@@ -499,12 +499,12 @@ describe('himalaya.domain.email.tree', function()
       tree.build_prefix(rows, { reverse = true })
       -- C is first branch child (top) → └─
       assert.are.equal('\xe2\x94\x94\xe2\x94\x80', rows[1].prefix)
-      -- B is last branch child (bottom) → ├─
-      assert.are.equal('\xe2\x94\x9c\xe2\x94\x80', rows[2].prefix)
+      -- B is last branch child (bottom) → ┌─
+      assert.are.equal('\xe2\x94\x8c\xe2\x94\x80', rows[2].prefix)
       assert.are.equal('', rows[3].prefix)
     end)
 
-    it('reversed 3-way branch: └─ first/top, ├─ middle, ├─ last/bottom', function()
+    it('reversed 3-way branch: └─ first/top, ┌─ middle, ┌─ last/bottom', function()
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='X', date='2024-01-02 10:00:00+00:00'}, 1 },
@@ -515,8 +515,8 @@ describe('himalaya.domain.email.tree', function()
       tree.build_prefix(rows, { reverse = true })
       -- Reversed: D, C, B, Root
       assert.are.equal('\xe2\x94\x94\xe2\x94\x80', rows[1].prefix)  -- └─ first/top
-      assert.are.equal('\xe2\x94\x9c\xe2\x94\x80', rows[2].prefix)  -- ├─ middle
-      assert.are.equal('\xe2\x94\x9c\xe2\x94\x80', rows[3].prefix)  -- ├─ last/bottom
+      assert.are.equal('\xe2\x94\x8c\xe2\x94\x80', rows[2].prefix)  -- ┌─ middle
+      assert.are.equal('\xe2\x94\x8c\xe2\x94\x80', rows[3].prefix)  -- ┌─ last/bottom
       assert.are.equal('', rows[4].prefix)
     end)
 
