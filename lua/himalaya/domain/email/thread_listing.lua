@@ -7,6 +7,7 @@ local M = {}
 
 -- Module-local state
 local all_display_rows = nil   -- full tree from last fetch
+local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
 local reverse_threads = false  -- when true, newest replies appear first
@@ -142,6 +143,7 @@ function M.list(account, opts)
     args = { folder, account_flag(acct), thread_query },
     msg = string.format('Fetching %s threads', folder),
     on_data = function(data)
+      last_edges = data
       local rows = tree.build(data, { reverse = reverse_threads })
       tree.build_prefix(rows)
       all_display_rows = rows
@@ -202,14 +204,23 @@ end
 --- Switch back to flat listing mode, preserving folder/account context.
 function M.toggle_to_flat()
   all_display_rows = nil
+  last_edges = nil
   vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   require('himalaya.domain.email').list()
 end
 
---- Toggle reverse thread order (newest replies first) and re-fetch.
+--- Toggle reverse thread order (newest replies first).
+--- Rebuilds from cached edges synchronously (no network round-trip).
 function M.toggle_reverse()
   reverse_threads = not reverse_threads
-  M.list()
+  if last_edges then
+    local rows = tree.build(last_edges, { reverse = reverse_threads })
+    tree.build_prefix(rows)
+    all_display_rows = rows
+    M.render_page(1)
+  else
+    M.list()
+  end
 end
 
 --- Open search popup and re-fetch threads with the resulting query.
