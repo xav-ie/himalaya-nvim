@@ -54,13 +54,29 @@ describe('himalaya.domain.email.compose', function()
     vim.fn.delete = orig_delete
   end)
 
-  describe('process_draft', function()
-    it('sends email and adds answered flag on "s"', function()
-      vim.fn.input = function() return 's' end
-      compose.process_draft()
+  describe('send', function()
+    it('sends email and adds answered flag', function()
+      compose.send()
       assert.are.equal(2, #request_calls)
       assert.is_truthy(request_calls[1].cmd:find('template send'))
       assert.is_truthy(request_calls[2].cmd:find('flag add'))
+    end)
+  end)
+
+  describe('process_draft', function()
+    it('skips prompt when email was already sent', function()
+      -- Simulate a prior send by calling send() first
+      compose.send()
+      -- Trigger on_data to set the sent flag
+      request_calls[1].on_data()
+      request_calls = {}
+
+      -- process_draft should return immediately without prompting
+      local input_called = false
+      vim.fn.input = function() input_called = true; return 'q' end
+      compose.process_draft()
+      assert.is_false(input_called)
+      assert.are.equal(0, #request_calls)
     end)
 
     it('saves draft on "d"', function()
@@ -78,10 +94,10 @@ describe('himalaya.domain.email.compose', function()
     end)
 
     it('handles uppercase choices', function()
-      vim.fn.input = function() return 'S' end
+      vim.fn.input = function() return 'D' end
       compose.process_draft()
-      assert.are.equal(2, #request_calls)
-      assert.is_truthy(request_calls[1].cmd:find('template send'))
+      assert.are.equal(1, #request_calls)
+      assert.is_truthy(request_calls[1].cmd:find('template save'))
     end)
   end)
 

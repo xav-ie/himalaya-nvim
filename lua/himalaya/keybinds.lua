@@ -1,14 +1,23 @@
 local M = {}
 
 function M.define(bufnr, bindings)
+  local cfg = require('himalaya.config').get()
+  local overrides = cfg.keymaps or {}
+
   for _, binding in ipairs(bindings) do
     local mode, key, callback, name = binding[1], binding[2], binding[3], binding[4]
     local plug = '<Plug>(himalaya-' .. name .. ')'
 
     vim.keymap.set(mode, plug, callback, { silent = true, desc = 'Himalaya: ' .. name })
 
-    if vim.fn.hasmapto(plug, mode) == 0 then
-      vim.keymap.set(mode, key, plug, { buffer = bufnr, nowait = true })
+    local user_key = overrides[name]
+    if user_key == false then
+      -- Disabled by user config
+    else
+      local actual_key = user_key or key
+      if vim.fn.hasmapto(plug, mode) == 0 then
+        vim.keymap.set(mode, actual_key, plug, { buffer = bufnr, nowait = true, desc = 'Himalaya: ' .. name })
+      end
     end
   end
 end
@@ -25,6 +34,55 @@ function M.visual_range(fn)
     fn(first, last)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
   end
+end
+
+--- Show a floating window listing all Himalaya keybinds for the current buffer.
+function M.show_help()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = {}
+
+  for _, mode in ipairs({ 'n', 'v' }) do
+    local maps = vim.api.nvim_buf_get_keymap(bufnr, mode)
+    for _, map in ipairs(maps) do
+      if map.desc and map.desc:find('^Himalaya:') then
+        local name = map.desc:gsub('^Himalaya: ', '')
+        local prefix = mode == 'v' and '(v) ' or '    '
+        lines[#lines + 1] = string.format('%s%-8s %s', prefix, map.lhs, name)
+      end
+    end
+  end
+
+  table.sort(lines)
+
+  if #lines == 0 then
+    lines = { '  No Himalaya keybinds in this buffer' }
+  end
+
+  local float_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, lines)
+
+  local width = 0
+  for _, l in ipairs(lines) do width = math.max(width, #l) end
+  width = math.min(width + 4, vim.o.columns - 4)
+  local height = math.min(#lines, vim.o.lines - 4)
+
+  local win = vim.api.nvim_open_win(float_buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Keybinds ',
+    title_pos = 'center',
+  })
+
+  vim.bo[float_buf].modifiable = false
+  vim.bo[float_buf].bufhidden = 'wipe'
+
+  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, true) end, { buffer = float_buf })
+  vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, { buffer = float_buf })
 end
 
 --- Define keybinds shared between flat listing and thread listing.
@@ -61,6 +119,7 @@ function M.shared_listing_keybinds(bufnr)
     { 'n', 'gFr',  email.flag_remove,                    'email-flag-remove' },
     { 'v', 'gFr',  M.visual_range(email.flag_remove),    'email-flag-remove-visual' },
     { 'n', 'gm',   function() require('himalaya.domain.folder').select() end, 'folder-select' },
+    { 'n', '?',    M.show_help,                          'help' },
   })
 end
 

@@ -6,6 +6,7 @@ local folder_state = require('himalaya.state.folder')
 local M = {}
 
 local draft = ''
+local sent = false
 
 local account_flag = account_state.flag
 
@@ -129,44 +130,55 @@ function M.save_draft()
   vim.bo.modified = false
 end
 
---- Process draft: prompt for (s)end, (d)raft, (q)uit, (c)ancel.
+--- Send the current compose buffer (triggered by :w).
+--- @param bufnr? number  buffer handle (defaults to current buffer)
+function M.send(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local account = account_state.current()
+  local folder = folder_state.current()
+  local current_id = require('himalaya.domain.email')._get_current_id()
+
+  local draft_file = vim.fn.tempname()
+  vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
+
+  request.plain({
+    cmd = 'template send %s < %s',
+    args = { account_flag(account), draft_file },
+    msg = 'Sending email',
+    on_data = function()
+      vim.fn.delete(draft_file)
+      sent = true
+      vim.bo[bufnr].modified = false
+      log.info('Send [OK]')
+    end,
+  })
+
+  request.plain({
+    cmd = 'flag add %s --folder %s answered %s',
+    args = { account_flag(account), folder, current_id },
+    msg = 'Adding answered flag',
+  })
+end
+
+--- Process draft: prompt for (d)raft, (q)uit, (c)ancel.
 --- Called from BufHidden so the compose buffer may already be hidden.
+--- Skips the prompt if the email was already sent via :w.
 --- @param bufnr? number  buffer handle (defaults to current buffer)
 function M.process_draft(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if sent then
+    sent = false
+    return
+  end
   local ok, err = pcall(function()
     local account = account_state.current()
-    local folder = folder_state.current()
-    local current_id = require('himalaya.domain.email')._get_current_id()
 
     while true do
-      local choice = vim.fn.input('(s)end, (d)raft, (q)uit or (c)ancel? ')
+      local choice = vim.fn.input('(d)raft, (q)uit or (c)ancel? ')
       choice = choice:lower():sub(1, 1)
       vim.cmd('redraw | echo')
 
-      if choice == 's' then
-        local draft_file = vim.fn.tempname()
-        vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
-
-        request.plain({
-          cmd = 'template send %s < %s',
-          args = { account_flag(account), draft_file },
-          msg = 'Sending email',
-          on_data = function()
-            vim.fn.delete(draft_file)
-          end,
-        })
-
-        request.plain({
-          cmd = 'flag add %s --folder %s answered %s',
-          args = { account_flag(account), folder, current_id },
-          msg = 'Adding answered flag',
-          on_data = function()
-            vim.fn.delete(draft_file)
-          end,
-        })
-        return
-      elseif choice == 'd' then
+      if choice == 'd' then
         local draft_file = vim.fn.tempname()
         vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
         request.plain({

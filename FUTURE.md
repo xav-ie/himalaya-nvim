@@ -14,44 +14,11 @@ HimalayaSeen link target (declined), draft prompt BufLeave → BufHidden,
 loading indicator during async fetches, next/prev email navigation
 in reading buffer, compose targets reading window, thread/flat toggle
 preserves cursor, thread flags pre-populated from cache, CLI error
-messages combined + debug routed to :messages.*
+messages combined + debug routed to :messages, confirmation dialogs
+show email count, flag picker uses vim.ui.select, configurable keybinds
+with help float (`?`), :w sends email + BufHidden prompts for draft.*
 
-### 1. Confirmation Dialogs Use `vim.fn.inputdialog`
-
-`email.lua:477,547` uses `inputdialog` with a `'_cancel_'` sentinel for
-delete/move confirmation. The prompt shows raw IDs with no context
-(subject/sender), blocks the event loop, and accepts only single-char
-`y`/`Y`. `vim.ui.select` with "Yes, delete" / "No, cancel" options
-showing the subject would be less disorienting.
-
-**Files:** `domain/email.lua:477,547`
-
-### 2. Flag Picker Uses Freetext Input
-
-`email.lua:606,640` uses `vim.fn.input` for flag add/remove with no
-indication of which flags are already set. Replacing with `vim.ui.select`
-showing current flag state (checked/unchecked) would be more
-discoverable.
-
-**Files:** `domain/email.lua:606,640`
-
-### 3. Keybind Discoverability — No Help Float
-
-All actions use `g`-prefix keybinds (gw, gr, gR, gf, etc.) with no
-built-in help. A `?` binding that opens a float listing all active
-keybinds would help new users. The `desc` metadata is already in place
-on every binding. Optional `which-key` integration could also be added.
-
-**Files:** `keybinds.lua`, `ui/listing.lua`, `ui/reading.lua`
-
-### 4. Send Has No Preview or Validation
-
-`compose.process_draft` sends immediately on `s<CR>` with no
-confirmation showing recipients/subject. No warning on empty To: or
-Subject: fields. A summary line before sending would reduce accidental
-sends.
-
-**Files:** `domain/email/compose.lua:127-159`
+All UI/UX items have been completed.
 
 ## Performance
 

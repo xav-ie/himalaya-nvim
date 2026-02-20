@@ -19,6 +19,7 @@ local defaults = {
   date_format = '%Y-%m-%d %H:%M',
   thread_view = false,
   thread_reverse = false,
+  keymaps = {},
 }
 
 local current = vim.deepcopy(defaults)

@@ -495,7 +495,8 @@ function M.delete(first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local answer = vim.fn.inputdialog(string.format('Delete email(s) %s? [Y/n] ', ids), '', '_cancel_')
+    local id_count = #vim.split(vim.trim(ids), '%s+')
+    local answer = vim.fn.inputdialog(string.format('Delete %d email(s)? [Y/n] ', id_count), '', '_cancel_')
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
@@ -553,7 +554,8 @@ function M.move(target_folder, first_line, last_line)
 
   local cfg = config.get()
   if cfg.always_confirm then
-    local answer = vim.fn.inputdialog(string.format('Move email(s) %s? [Y/n] ', ids), '', '_cancel_')
+    local id_count = #vim.split(vim.trim(ids), '%s+')
+    local answer = vim.fn.inputdialog(string.format('Move %d email(s)? [Y/n] ', id_count), '', '_cancel_')
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
@@ -600,31 +602,43 @@ function M.select_folder_then_move(first_line, last_line)
   end)
 end
 
+--- Get current flags for the email under cursor from cached envelopes.
+--- @return string[]
+local function get_current_flags()
+  if not in_listing_buffer() then return {} end
+  local ok, envelopes = pcall(vim.api.nvim_buf_get_var, 0, 'himalaya_envelopes')
+  if not (ok and envelopes) then return {} end
+  local id = get_email_id_under_cursor()
+  for _, env in ipairs(envelopes) do
+    if tostring(env.id) == id then
+      return env.flags or {}
+    end
+  end
+  return {}
+end
+
 --- Add flags to email(s). Supports visual range via first_line/last_line.
 --- @param first_line? number
 --- @param last_line? number
 function M.flag_add(first_line, last_line)
   local ids = resolve_target_ids(first_line, last_line)
+  local flags_mod = require('himalaya.domain.email.flags')
+  local all_flags = flags_mod.complete_list()
 
-  local flags = vim.fn.input('Flag to add: ', '', 'custom,himalaya#domain#email#flags#complete')
-  vim.cmd('redraw | echo')
-
-  local flagsarr = vim.split(vim.trim(flags), '%s+')
-  if #flagsarr == 0 or (#flagsarr == 1 and flagsarr[1] == '') then
-    return
-  end
-
-  local account = account_state.current()
-  local folder = folder_state.current()
-  probe.cancel(function()
-    request.plain({
-      cmd = 'flag add %s --folder %s %s %s',
-      args = { account_flag(account), folder, flags, ids },
-      msg = 'Adding flags: ' .. flags .. ' to email',
-      on_data = function()
-        refresh_listing(account, folder)
-      end,
-    })
+  vim.ui.select(all_flags, { prompt = 'Flag to add' }, function(flag)
+    if not flag then return end
+    local account = account_state.current()
+    local folder = folder_state.current()
+    probe.cancel(function()
+      request.plain({
+        cmd = 'flag add %s --folder %s %s %s',
+        args = { account_flag(account), folder, flag, ids },
+        msg = 'Adding flag: ' .. flag,
+        on_data = function()
+          refresh_listing(account, folder)
+        end,
+      })
+    end)
   end)
 end
 
@@ -633,26 +647,24 @@ end
 --- @param last_line? number
 function M.flag_remove(first_line, last_line)
   local ids = resolve_target_ids(first_line, last_line)
+  local current_flags = get_current_flags()
+  local flags_mod = require('himalaya.domain.email.flags')
+  local options = #current_flags > 0 and current_flags or flags_mod.complete_list()
 
-  local flags = vim.fn.input('Flag to remove: ', '', 'custom,himalaya#domain#email#flags#complete')
-  vim.cmd('redraw | echo')
-
-  local flagsarr = vim.split(vim.trim(flags), '%s+')
-  if #flagsarr == 0 or (#flagsarr == 1 and flagsarr[1] == '') then
-    return
-  end
-
-  local account = account_state.current()
-  local folder = folder_state.current()
-  probe.cancel(function()
-    request.plain({
-      cmd = 'flag remove %s --folder %s %s %s',
-      args = { account_flag(account), folder, flags, ids },
-      msg = 'Removing flags:' .. flags .. ' from email',
-      on_data = function()
-        refresh_listing(account, folder)
-      end,
-    })
+  vim.ui.select(options, { prompt = 'Flag to remove' }, function(flag)
+    if not flag then return end
+    local account = account_state.current()
+    local folder = folder_state.current()
+    probe.cancel(function()
+      request.plain({
+        cmd = 'flag remove %s --folder %s %s %s',
+        args = { account_flag(account), folder, flag, ids },
+        msg = 'Removing flag: ' .. flag,
+        on_data = function()
+          refresh_listing(account, folder)
+        end,
+      })
+    end)
   end)
 end
 

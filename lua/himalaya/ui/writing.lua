@@ -26,7 +26,7 @@ function M.setup(bufnr)
     group = group,
     buffer = bufnr,
     callback = function()
-      compose.save_draft()
+      compose.send(bufnr)
     end,
   })
 

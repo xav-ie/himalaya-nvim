@@ -53,6 +53,7 @@ function M.setup(bufnr)
     { 'n', 'go', email.open_browser,             'email-open-browser' },
     { 'n', 'gn', function() navigate_email(1) end,  'email-next' },
     { 'n', 'gp', function() navigate_email(-1) end, 'email-previous' },
+    { 'n', '?',  keybinds.show_help,               'help' },
   })
 end
 
