@@ -426,7 +426,7 @@ describe('himalaya.domain.email.tree', function()
   end)
 
   describe('build (reverse)', function()
-    it('reverses linear chain so newest reply is first', function()
+    it('fully reverses rows: newest at top, root at bottom', function()
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='R1', date='2024-01-02 10:00:00+00:00'}, 1 },
@@ -434,31 +434,27 @@ describe('himalaya.domain.email.tree', function()
       }
       local rows = tree.build(edges, { reverse = true })
       assert.are.equal(3, #rows)
-      assert.are.equal('1', rows[1].env.id)  -- Root stays first
-      assert.are.equal('3', rows[2].env.id)  -- Newest reply
-      assert.are.equal('2', rows[3].env.id)  -- Oldest reply
+      assert.are.equal('3', rows[1].env.id)  -- Newest at top
+      assert.are.equal('2', rows[2].env.id)
+      assert.are.equal('1', rows[3].env.id)  -- Root at bottom
     end)
 
-    it('flattens reversed nodes to depth=1 and VD=1', function()
+    it('preserves original depth/VD from build', function()
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='R1', date='2024-01-02 10:00:00+00:00'}, 1 },
         { {id='2', from='B'}, {id='3', from='C', subject='R2', date='2024-01-03 10:00:00+00:00'}, 2 },
-        { {id='3', from='C'}, {id='4', from='D', subject='R3', date='2024-01-04 10:00:00+00:00'}, 3 },
       }
       local rows = tree.build(edges, { reverse = true })
-      assert.are.equal(0, rows[1].depth)
-      assert.are.equal(0, rows[1].visual_depth)
-      for i = 2, 4 do
-        assert.are.equal(1, rows[i].depth)
-        assert.are.equal(1, rows[i].visual_depth)
-      end
+      -- Reversed: C(d2), B(d1), Root(d0)
+      assert.are.equal(2, rows[1].depth)
+      assert.are.equal(1, rows[2].depth)
+      assert.are.equal(0, rows[3].depth)
     end)
 
-    it('reverses complex tree into flat newest-first list', function()
-      -- Root → {A(Jan2), Z(Jan6)}   A → B → {C(Jan4), D(Jan5)}
+    it('fully reverses a branching tree', function()
       -- Normal DFS: Root, A, B, C, D, Z
-      -- Reversed non-root: Root, Z, D, C, B, A
+      -- Reversed:   Z, D, C, B, A, Root
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='A', date='2024-01-02 10:00:00+00:00'}, 1 },
@@ -469,48 +465,42 @@ describe('himalaya.domain.email.tree', function()
       }
       local rows = tree.build(edges, { reverse = true })
       assert.are.equal(6, #rows)
-      assert.are.equal('1', rows[1].env.id)  -- Root
-      assert.are.equal('6', rows[2].env.id)  -- Z (newest)
-      assert.are.equal('5', rows[3].env.id)  -- D
-      assert.are.equal('4', rows[4].env.id)  -- C
-      assert.are.equal('3', rows[5].env.id)  -- B
-      assert.are.equal('2', rows[6].env.id)  -- A (oldest)
+      assert.are.equal('6', rows[1].env.id)  -- Z
+      assert.are.equal('5', rows[2].env.id)  -- D
+      assert.are.equal('4', rows[3].env.id)  -- C
+      assert.are.equal('3', rows[4].env.id)  -- B
+      assert.are.equal('2', rows[5].env.id)  -- A
+      assert.are.equal('1', rows[6].env.id)  -- Root at bottom
     end)
 
-    it('computes is_last_child correctly in reverse mode', function()
+    it('linear chain prefix: plain indent, root has none', function()
+      local edges = {
+        { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
+        { {id='1', from='A'}, {id='2', from='B', subject='R1', date='2024-01-02 10:00:00+00:00'}, 1 },
+        { {id='2', from='B'}, {id='3', from='C', subject='R2', date='2024-01-03 10:00:00+00:00'}, 2 },
+      }
+      local rows = tree.build(edges, { reverse = true })
+      tree.build_prefix(rows)
+      -- Reversed: C, B, Root — all linear, no branch connectors
+      assert.are.equal('  ', rows[1].prefix)  -- C (VD=1)
+      assert.are.equal('  ', rows[2].prefix)  -- B (VD=1)
+      assert.are.equal('', rows[3].prefix)    -- Root (VD=0)
+    end)
+
+    it('branch prefix: connectors appear in reversed order', function()
+      -- Normal: Root, ├─A, └─B
+      -- Reversed: B, A, Root → is_last_child recomputed on reversed rows
       local edges = {
         { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
         { {id='1', from='A'}, {id='2', from='B', subject='Older', date='2024-01-02 10:00:00+00:00'}, 1 },
         { {id='1', from='A'}, {id='3', from='C', subject='Newer', date='2024-01-03 10:00:00+00:00'}, 1 },
       }
       local rows = tree.build(edges, { reverse = true })
-      -- Reversed: Root, Newer(3), Older(2)
-      assert.is_false(rows[2].is_last_child)
-      assert.is_true(rows[3].is_last_child)
-    end)
-
-    it('shows connectors for 2+ replies, plain indent for single reply', function()
-      -- Single reply: no connectors
-      local edges1 = {
-        { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
-        { {id='1', from='A'}, {id='2', from='B', subject='R1', date='2024-01-02 10:00:00+00:00'}, 1 },
-      }
-      local rows1 = tree.build(edges1, { reverse = true })
-      tree.build_prefix(rows1)
-      assert.are.equal('  ', rows1[2].prefix)
-
-      -- Multiple replies: connectors
-      local edges2 = {
-        { {id='0'}, {id='1', from='A', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
-        { {id='1', from='A'}, {id='2', from='B', subject='R1', date='2024-01-02 10:00:00+00:00'}, 1 },
-        { {id='1', from='A'}, {id='3', from='C', subject='R2', date='2024-01-03 10:00:00+00:00'}, 1 },
-      }
-      local rows2 = tree.build(edges2, { reverse = true })
-      tree.build_prefix(rows2)
-      -- First reply: ├─
-      assert.is_truthy(rows2[2].prefix:find('\xe2\x94\x9c'))
-      -- Last reply: └─
-      assert.is_truthy(rows2[3].prefix:find('\xe2\x94\x94'))
+      tree.build_prefix(rows)
+      -- Reversed: C(branch,not_last), B(branch,last), Root
+      assert.is_truthy(rows[1].prefix:find('\xe2\x94\x9c'))  -- ├─
+      assert.is_truthy(rows[2].prefix:find('\xe2\x94\x94'))  -- └─
+      assert.are.equal('', rows[3].prefix)
     end)
 
     it('normal mode is unchanged when reverse is false', function()
@@ -526,6 +516,7 @@ describe('himalaya.domain.email.tree', function()
         { {id='1', from='A'}, {id='3', from='C', subject='Newer', date='2024-01-03 10:00:00+00:00'}, 1 },
       }
       local rows_explicit = tree.build(edges2, { reverse = false })
+      assert.are.equal(rows_default[1].env.id, rows_explicit[1].env.id)
       assert.are.equal(rows_default[2].env.id, rows_explicit[2].env.id)
       assert.are.equal(rows_default[3].env.id, rows_explicit[3].env.id)
     end)
