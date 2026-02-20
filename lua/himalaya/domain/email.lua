@@ -280,6 +280,11 @@ function M.list_with(account, folder, page, qry)
   fetch_generation = fetch_generation + 1
   local my_gen = fetch_generation
   if fetch_job then fetch_job:kill(); fetch_job = nil end
+  -- Show loading indicator while fetching
+  if in_listing_buffer() then
+    vim.wo.winbar = '%#Comment# loading...%*'
+  end
+
   -- Cancel any running probe so its database lock is released before the
   -- new CLI fetch.  Without this, rapid page navigation (e.g. gn right
   -- after opening the inbox) hits "could not acquire lock" errors.
@@ -309,7 +314,13 @@ function M.list_with(account, folder, page, qry)
       },
       msg = string.format('Fetching %s envelopes', folder),
       is_stale = function() return my_gen ~= fetch_generation end,
-      on_error = function() fetch_job = nil end,
+      on_error = function()
+        fetch_job = nil
+        -- Clear loading indicator on failure
+        if in_listing_buffer() and vim.wo.winbar:find('loading') then
+          vim.wo.winbar = ''
+        end
+      end,
       on_data = function(data)
         fetch_job = nil
         on_list_with(account, folder, page, ps, qry, data, fetch_offset)

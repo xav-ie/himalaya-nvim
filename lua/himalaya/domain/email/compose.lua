@@ -118,7 +118,10 @@ function M.save_draft()
 end
 
 --- Process draft: prompt for (s)end, (d)raft, (q)uit, (c)ancel.
-function M.process_draft()
+--- Called from BufHidden so the compose buffer may already be hidden.
+--- @param bufnr? number  buffer handle (defaults to current buffer)
+function M.process_draft(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
   local ok, err = pcall(function()
     local account = account_state.current()
     local folder = folder_state.current()
@@ -131,7 +134,7 @@ function M.process_draft()
 
       if choice == 's' then
         local draft_file = vim.fn.tempname()
-        vim.fn.writefile(vim.api.nvim_buf_get_lines(0, 0, -1, false), draft_file)
+        vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
 
         request.plain({
           cmd = 'template send %s < %s',
@@ -153,7 +156,7 @@ function M.process_draft()
         return
       elseif choice == 'd' then
         local draft_file = vim.fn.tempname()
-        vim.fn.writefile(vim.api.nvim_buf_get_lines(0, 0, -1, false), draft_file)
+        vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
         request.plain({
           cmd = 'template save %s --folder drafts < %s',
           args = { account_flag(account), draft_file },
@@ -166,19 +169,16 @@ function M.process_draft()
       elseif choice == 'q' then
         return
       elseif choice == 'c' then
-        local content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n') .. '\n'
-        M.write(content)
-        error('Prompt:Interrupt')
+        -- Re-display the hidden compose buffer instead of creating a new one
+        vim.cmd('botright split')
+        vim.api.nvim_win_set_buf(0, bufnr)
+        return
       end
     end
   end)
 
   if not ok then
-    if type(err) == 'string' and err:find(':Interrupt$') then
-      -- Interrupted — this is expected for cancel
-    else
-      log.err(tostring(err))
-    end
+    log.err(tostring(err))
   end
 end
 

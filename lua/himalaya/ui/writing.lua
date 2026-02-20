@@ -34,7 +34,15 @@ function M.setup(bufnr)
     group = group,
     buffer = bufnr,
     callback = function()
-      compose.process_draft()
+      compose.save_draft()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('BufHidden', {
+    group = group,
+    buffer = bufnr,
+    callback = function(ev)
+      compose.process_draft(ev.buf)
     end,
   })
 end
