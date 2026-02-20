@@ -48,7 +48,7 @@ function M.render_page(page)
   local folder = folder_state.current()
   local display_query = thread_query == '' and 'all' or thread_query
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
-  vim.cmd(string.format('silent! %s Himalaya/threads [%s] [%s] [page %d/%d]',
+  vim.cmd(string.format('silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]',
     buftype, folder, display_query, page, total_pages))
   vim.bo.modifiable = true
 
