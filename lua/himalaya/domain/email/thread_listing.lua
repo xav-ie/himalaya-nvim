@@ -109,6 +109,7 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
     msg = 'Fetching flags',
     silent = true,
     is_stale = function() return gen ~= list_generation end,
+    on_error = function() enrich_job = nil end,
     on_data = function(envs)
       enrich_job = nil
       local id_map = {}
@@ -156,6 +157,7 @@ function M.list(account, opts)
     args = { folder, account_flag(acct), thread_query },
     msg = string.format('Fetching %s threads', folder),
     is_stale = function() return my_gen ~= list_generation end,
+    on_error = function() list_job = nil end,
     on_data = function(data)
       list_job = nil
       last_edges = data
