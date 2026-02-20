@@ -95,7 +95,8 @@ function M.format_date(raw, cfg)
 end
 
 --- Pad or truncate a string to exactly `width` display columns.
---- Uses vim.fn.strdisplaywidth and vim.fn.strcharpart for multi-byte safety.
+--- Uses a pure-Lua fast path for ASCII strings (no vim.fn overhead).
+--- Falls back to vim.fn.strdisplaywidth/strcharpart for multi-byte.
 --- Truncated strings get a trailing `~`.
 --- @param s string
 --- @param width number
@@ -106,6 +107,20 @@ function M.fit(s, width)
 	end
 	s = tostring(s)
 	perf.count("fit")
+
+	-- ASCII fast path: byte length == display width, pure Lua ops only.
+	if not s:find("[\128-\255]") then
+		local len = #s
+		if len == width then
+			return s
+		elseif len < width then
+			return s .. string.rep(" ", width - len)
+		else
+			return s:sub(1, width - 1) .. "~"
+		end
+	end
+
+	-- Multi-byte path: use vim.fn for correct display-width handling.
 	local dw = vim.fn.strdisplaywidth(s)
 	perf.count("strdisplaywidth")
 	if dw == width then

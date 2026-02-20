@@ -134,14 +134,14 @@ function M.start(acct_flag, folder, page_size, page, qry, bufnr)
 end
 
 --- Cancel a running probe, preserving its args for later restart.
---- Blocks until the process exits to ensure the database lock is released.
+--- Blocks briefly to ensure the database lock is released.
 function M.cancel()
   if job then
     generation = generation + 1
     job:kill()
-    if not job:wait(3000) then
+    if not job:wait(300) then
       job:kill(9)
-      job:wait(1000)
+      job:wait(200)
     end
     job = nil
   end
