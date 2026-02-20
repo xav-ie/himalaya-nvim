@@ -78,6 +78,7 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
     },
     msg = string.format('Probing page %d', probe_page),
     silent = true,
+    on_error = function() job = nil; saved_args = nil end,
     on_data = function(data)
       if my_gen ~= generation then return end
       local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry

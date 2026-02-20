@@ -144,7 +144,7 @@ function M.process_draft()
           args = { account_flag(account), draft_file },
           msg = 'Sending email',
           on_data = function()
-            vim.fn.delete(draft)
+            vim.fn.delete(draft_file)
           end,
         })
 
