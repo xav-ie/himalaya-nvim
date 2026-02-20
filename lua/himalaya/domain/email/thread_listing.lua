@@ -93,7 +93,8 @@ end
 --- Renders immediately, then re-renders when flag data arrives.
 --- @param acct string
 --- @param folder string
-local function enrich_with_flags(acct, folder)
+--- @param listing_win number  window to render in (avoids E36 if picker has focus)
+local function enrich_with_flags(acct, folder, listing_win)
   if not all_display_rows or #all_display_rows == 0 then return end
 
   request.json({
@@ -113,7 +114,10 @@ local function enrich_with_flags(acct, folder)
           row.env.has_attachment = rich.has_attachment
         end
       end
-      M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(0) })
+      if not vim.api.nvim_win_is_valid(listing_win) then return end
+      vim.api.nvim_win_call(listing_win, function()
+        M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(listing_win) })
+      end)
     end,
   })
 end
@@ -128,6 +132,9 @@ function M.list(account, opts)
   end
   local acct = account_state.current()
   local folder = folder_state.current()
+  -- Capture the listing window now so async callbacks render here even
+  -- if a picker or other floating window has focus when they fire.
+  local listing_win = vim.api.nvim_get_current_win()
 
   request.json({
     cmd = 'envelope thread --folder %s %s %s',
@@ -138,35 +145,38 @@ function M.list(account, opts)
       tree.build_prefix(rows)
       all_display_rows = rows
 
-      if opts.restore_cursor_line then
-        -- Restore cursor to same line position (like dd in normal buffers).
-        -- Compute which page that line falls on after re-fetch.
-        local ps = math.max(1, vim.fn.winheight(0))
-        if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
-        local global_idx = math.min(opts.restore_cursor_line + (current_page - 1) * ps, #rows)
-        global_idx = math.max(1, global_idx)
-        local page = math.floor((global_idx - 1) / ps) + 1
-        local cursor_in_page = global_idx - (page - 1) * ps
-        M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
-      elseif opts.restore_email_id and opts.restore_email_id ~= '' then
-        -- Find the target email and compute its page + line
-        local target_idx = 1
-        for i, row in ipairs(rows) do
-          if tostring(row.env.id) == opts.restore_email_id then
-            target_idx = i
-            break
+      if not vim.api.nvim_win_is_valid(listing_win) then return end
+      vim.api.nvim_win_call(listing_win, function()
+        if opts.restore_cursor_line then
+          -- Restore cursor to same line position (like dd in normal buffers).
+          -- Compute which page that line falls on after re-fetch.
+          local ps = math.max(1, vim.fn.winheight(0))
+          if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+          local global_idx = math.min(opts.restore_cursor_line + (current_page - 1) * ps, #rows)
+          global_idx = math.max(1, global_idx)
+          local page = math.floor((global_idx - 1) / ps) + 1
+          local cursor_in_page = global_idx - (page - 1) * ps
+          M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+        elseif opts.restore_email_id and opts.restore_email_id ~= '' then
+          -- Find the target email and compute its page + line
+          local target_idx = 1
+          for i, row in ipairs(rows) do
+            if tostring(row.env.id) == opts.restore_email_id then
+              target_idx = i
+              break
+            end
           end
+          local ps = math.max(1, vim.fn.winheight(0))
+          if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
+          local page = math.floor((target_idx - 1) / ps) + 1
+          local cursor_in_page = target_idx - (page - 1) * ps
+          M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+        else
+          M.render_page(1)
         end
-        local ps = math.max(1, vim.fn.winheight(0))
-        if vim.wo.winbar == '' then ps = math.max(1, ps - 1) end
-        local page = math.floor((target_idx - 1) / ps) + 1
-        local cursor_in_page = target_idx - (page - 1) * ps
-        M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
-      else
-        M.render_page(1)
-      end
 
-      enrich_with_flags(acct, folder)
+        enrich_with_flags(acct, folder, listing_win)
+      end)
     end,
   })
 end

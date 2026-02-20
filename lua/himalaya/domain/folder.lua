@@ -44,7 +44,15 @@ function M.open_picker(callback)
 end
 
 function M.select()
-  M.open_picker(M.set)
+  local in_thread = vim.b.himalaya_buffer_type == 'thread-listing'
+  M.open_picker(function(folder)
+    if in_thread then
+      folder_state.set(folder)
+      require('himalaya.domain.email.thread_listing').list()
+    else
+      M.set(folder)
+    end
+  end)
 end
 
 function M.set(folder)
