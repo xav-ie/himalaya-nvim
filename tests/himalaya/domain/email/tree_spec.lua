@@ -162,6 +162,39 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal('21', rows[7].env.id)
     end)
 
+    it('produces deterministic order regardless of edge input order', function()
+      -- Same thread data but edges in reverse order (deep before root)
+      local edges = {
+        { {id='2', from='Bob'}, {id='3', from='Carol', subject='Deep', date='2024-01-03 10:00:00+00:00'}, 2 },
+        { {id='1', from='Alice'}, {id='2', from='Bob', subject='Reply', date='2024-01-02 10:00:00+00:00'}, 1 },
+        { {id='0'}, {id='1', from='Alice', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
+      }
+      local rows = tree.build(edges)
+      assert.are.equal(3, #rows)
+      -- Must be in DFS order: root, reply, deep — not reverse edge order
+      assert.are.equal('1', rows[1].env.id)
+      assert.are.equal(0, rows[1].depth)
+      assert.are.equal('2', rows[2].env.id)
+      assert.are.equal(1, rows[2].depth)
+      assert.are.equal('3', rows[3].env.id)
+      assert.are.equal(2, rows[3].depth)
+    end)
+
+    it('sorts sibling replies by date within a thread', function()
+      local edges = {
+        { {id='0'}, {id='1', from='Alice', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
+        -- Later reply listed before earlier one in edges
+        { {id='1', from='Alice'}, {id='3', from='Carol', subject='Later', date='2024-01-03 10:00:00+00:00'}, 1 },
+        { {id='1', from='Alice'}, {id='2', from='Bob', subject='Earlier', date='2024-01-02 10:00:00+00:00'}, 1 },
+      }
+      local rows = tree.build(edges)
+      assert.are.equal(3, #rows)
+      assert.are.equal('1', rows[1].env.id)
+      -- Siblings sorted by date: earlier first
+      assert.are.equal('2', rows[2].env.id)
+      assert.are.equal('3', rows[3].env.id)
+    end)
+
     it('includes non-ghost parent at depth 0 and offsets children', function()
       local edges = {
         { {id='5', from='Root Author', subject='Root', date='2024-01-01 10:00:00+00:00'},

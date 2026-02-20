@@ -27,15 +27,16 @@ end
 ---
 --- Input: CLI output from `envelope thread` — flat array of
 --- {parent_env, child_env, depth_int} tuples.
---- Edges may be interleaved across threads (not necessarily contiguous).
+--- Edges arrive in arbitrary order (not grouped by thread, not by depth).
 ---
 --- Algorithm:
 --- 1. Normalize `from` field: plain string → {name = string}.
 --- 2. Identify thread roots from depth=0 edges; build node→thread map.
 --- 3. Propagate thread membership to depth>0 edges via parent chain.
---- 4. Collect children into thread groups, preserving edge order.
---- 5. Sort thread groups by newest message date descending.
---- 6. Compute is_last_child for tree rendering.
+--- 4. Build parent→children adjacency map, sort children by date.
+--- 5. DFS-walk each thread root to collect nodes in deterministic order.
+--- 6. Sort thread groups by newest message date descending.
+--- 7. Compute is_last_child for tree rendering.
 ---
 --- @param edges table[] Array of {parent_env, child_env, depth_int}
 --- @return table[] Array of {env, depth, is_last_child, thread_idx}
@@ -84,7 +85,6 @@ function M.build(edges)
   end
 
   -- Phase 2: Propagate thread IDs for depth>0 edges via parent chain
-  -- Repeat until no new assignments (handles arbitrary interleaving depth)
   local changed = true
   while changed do
     changed = false
@@ -101,44 +101,78 @@ function M.build(edges)
     end
   end
 
-  -- Phase 3: Build thread groups with nodes in edge order
-  local groups = {} -- thread_id → {nodes, latest_epoch, depth_offset}
+  -- Phase 3: Build parent→children adjacency map
+  local children_of = {} -- parent_id → [{env, depth}]
+  for _, edge in ipairs(edges) do
+    local parent, child, depth = edge[1], edge[2], edge[3]
+    local pid = tostring(parent.id)
+    if not children_of[pid] then children_of[pid] = {} end
+    children_of[pid][#children_of[pid] + 1] = { env = child, depth = depth }
+  end
+
+  -- Sort children of each parent by date (chronological), ID as tiebreaker
+  for _, kids in pairs(children_of) do
+    table.sort(kids, function(a, b)
+      local ea = date_to_epoch(a.env.date or '')
+      local eb = date_to_epoch(b.env.date or '')
+      if ea ~= eb then return ea < eb end
+      return tostring(a.env.id) < tostring(b.env.id)
+    end)
+  end
+
+  -- Phase 4: DFS-walk each thread to collect nodes in tree order
+  local function dfs(parent_id, depth_offset, group, thread_id)
+    local kids = children_of[parent_id]
+    if not kids then return end
+    for _, kid in ipairs(kids) do
+      local cid = tostring(kid.env.id)
+      if node_to_thread[cid] == thread_id then
+        group.nodes[#group.nodes + 1] = { env = kid.env, depth = kid.depth + depth_offset }
+        local ep = date_to_epoch(kid.env.date or '')
+        if ep > group.latest_epoch then group.latest_epoch = ep end
+        dfs(cid, depth_offset, group, thread_id)
+      end
+    end
+  end
+
+  local groups = {} -- ordered list of {nodes, latest_epoch}
   for _, tid in ipairs(thread_order) do
     local meta = thread_meta[tid]
-    local g = { nodes = {}, latest_epoch = 0, depth_offset = 0 }
+    local g = { nodes = {}, latest_epoch = 0 }
+
     if meta.has_non_ghost_root then
+      -- Non-ghost root: add parent at depth 0, DFS children with offset 1
       g.nodes[1] = { env = meta.root_env, depth = 0 }
       local ep = date_to_epoch(meta.root_env.date or '')
       if ep > g.latest_epoch then g.latest_epoch = ep end
-      g.depth_offset = 1
+      dfs(tid, 1, g, tid)
+    else
+      -- Ghost root: find root node from children_of['0'], DFS with offset 0
+      local ghost_kids = children_of['0']
+      if ghost_kids then
+        for _, kid in ipairs(ghost_kids) do
+          if tostring(kid.env.id) == tid then
+            g.nodes[1] = { env = kid.env, depth = 0 }
+            local ep = date_to_epoch(kid.env.date or '')
+            if ep > g.latest_epoch then g.latest_epoch = ep end
+            break
+          end
+        end
+      end
+      dfs(tid, 0, g, tid)
     end
-    groups[tid] = g
+
+    groups[#groups + 1] = g
   end
 
-  for _, edge in ipairs(edges) do
-    local child, depth = edge[2], edge[3]
-    local cid = tostring(child.id)
-    local tid = node_to_thread[cid]
-    if tid and groups[tid] then
-      local g = groups[tid]
-      g.nodes[#g.nodes + 1] = { env = child, depth = depth + g.depth_offset }
-      local ep = date_to_epoch(child.date or '')
-      if ep > g.latest_epoch then g.latest_epoch = ep end
-    end
-  end
-
-  -- Phase 4: Sort groups by latest date descending (newest thread first)
-  local sorted = {}
-  for _, tid in ipairs(thread_order) do
-    sorted[#sorted + 1] = groups[tid]
-  end
-  table.sort(sorted, function(a, b)
+  -- Phase 5: Sort groups by latest date descending (newest thread first)
+  table.sort(groups, function(a, b)
     return a.latest_epoch > b.latest_epoch
   end)
 
-  -- Phase 5: Flatten into display_rows with thread_idx
+  -- Phase 6: Flatten into display_rows with thread_idx
   local display_rows = {}
-  for idx, group in ipairs(sorted) do
+  for idx, group in ipairs(groups) do
     for _, node in ipairs(group.nodes) do
       display_rows[#display_rows + 1] = {
         env = node.env,
@@ -149,7 +183,7 @@ function M.build(edges)
     end
   end
 
-  -- Phase 6: Compute is_last_child
+  -- Phase 7: Compute is_last_child
   for i, row in ipairs(display_rows) do
     if row.depth > 0 then
       row.is_last_child = true
