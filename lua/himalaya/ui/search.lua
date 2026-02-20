@@ -549,8 +549,15 @@ function M.open(callback, prev_query, current_folder)
     recompose_query()
     if last_state.cursor then
       vim.api.nvim_win_set_cursor(win, last_state.cursor)
+      local line_len = #vim.api.nvim_get_current_line()
+      if last_state.cursor[2] >= line_len then
+        vim.cmd('startinsert!')
+      else
+        vim.cmd('startinsert')
+      end
     else
       vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
+      vim.cmd('startinsert')
     end
   else
     if current_folder and current_folder ~= '' then
@@ -558,8 +565,8 @@ function M.open(callback, prev_query, current_folder)
     end
     propagating = false
     vim.api.nvim_win_set_cursor(win, { SUBJECT_LINE + 1, 0 })
+    vim.cmd('startinsert')
   end
-  vim.cmd('startinsert')
 end
 
 return M
