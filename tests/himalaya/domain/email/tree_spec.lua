@@ -109,6 +109,59 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal(2, rows[3].thread_idx)
     end)
 
+    it('groups interleaved edges from different threads correctly', function()
+      local edges = {
+        { {id='0'}, {id='1', from='Alice', subject='Thread A root', date='2024-02-01 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='10', from='Bob', subject='Thread B root', date='2024-01-01 10:00:00+00:00'}, 0 },
+        { {id='1', from='Alice'}, {id='2', from='Carol', subject='Reply A1', date='2024-02-02 10:00:00+00:00'}, 1 },
+        { {id='10', from='Bob'}, {id='11', from='Dave', subject='Reply B1', date='2024-01-02 10:00:00+00:00'}, 1 },
+      }
+      local rows = tree.build(edges)
+      assert.are.equal(4, #rows)
+      -- Thread A (newer) comes first
+      assert.are.equal('1', rows[1].env.id)
+      assert.are.equal('2', rows[2].env.id)
+      assert.are.equal(0, rows[1].depth)
+      assert.are.equal(1, rows[2].depth)
+      -- Thread B second
+      assert.are.equal('10', rows[3].env.id)
+      assert.are.equal('11', rows[4].env.id)
+      assert.are.equal(0, rows[3].depth)
+      assert.are.equal(1, rows[4].depth)
+      -- Correct thread_idx
+      assert.are.equal(1, rows[1].thread_idx)
+      assert.are.equal(1, rows[2].thread_idx)
+      assert.are.equal(2, rows[3].thread_idx)
+      assert.are.equal(2, rows[4].thread_idx)
+    end)
+
+    it('groups deeply interleaved edges across 3 threads', function()
+      local edges = {
+        { {id='0'}, {id='1', from='Alice', subject='T1', date='2024-03-01 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='10', from='Bob', subject='T2', date='2024-02-01 10:00:00+00:00'}, 0 },
+        { {id='0'}, {id='20', from='Carol', subject='T3', date='2024-01-01 10:00:00+00:00'}, 0 },
+        { {id='1', from='Alice'}, {id='2', from='Dave', subject='T1-R1', date='2024-03-02 10:00:00+00:00'}, 1 },
+        { {id='10', from='Bob'}, {id='11', from='Eve', subject='T2-R1', date='2024-02-02 10:00:00+00:00'}, 1 },
+        { {id='20', from='Carol'}, {id='21', from='Frank', subject='T3-R1', date='2024-01-02 10:00:00+00:00'}, 1 },
+        { {id='2', from='Dave'}, {id='3', from='Grace', subject='T1-R2', date='2024-03-03 10:00:00+00:00'}, 2 },
+      }
+      local rows = tree.build(edges)
+      assert.are.equal(7, #rows)
+      -- Thread 1 first (newest)
+      assert.are.equal('1', rows[1].env.id)
+      assert.are.equal('2', rows[2].env.id)
+      assert.are.equal('3', rows[3].env.id)
+      assert.are.equal(0, rows[1].depth)
+      assert.are.equal(1, rows[2].depth)
+      assert.are.equal(2, rows[3].depth)
+      -- Thread 2 second
+      assert.are.equal('10', rows[4].env.id)
+      assert.are.equal('11', rows[5].env.id)
+      -- Thread 3 last
+      assert.are.equal('20', rows[6].env.id)
+      assert.are.equal('21', rows[7].env.id)
+    end)
+
     it('includes non-ghost parent at depth 0 and offsets children', function()
       local edges = {
         { {id='5', from='Root Author', subject='Root', date='2024-01-01 10:00:00+00:00'},

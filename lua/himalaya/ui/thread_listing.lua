@@ -7,12 +7,15 @@ local account
 
 local M = {}
 
---- Apply tree-connector highlights on top of listing's 5-column syntax.
+--- Apply minimal syntax for thread listing: separators + tree connectors only.
+--- No per-column coloring — thread envelopes lack flag data so we cannot
+--- distinguish read/unread; leaving all text as Normal avoids confusion.
 --- @param bufnr number
-local function apply_tree_syntax(bufnr)
+local function apply_syntax(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
     vim.cmd([[
-      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
+      syntax match HimalayaSeparator /\%u2502\|\%u2500\|\%u253c/
+      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 /
     ]])
   end)
 end
@@ -32,8 +35,7 @@ function M.setup(bufnr)
   listing.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaTree', { default = true, link = 'Comment' })
 
-  listing.apply_syntax(bufnr)
-  apply_tree_syntax(bufnr)
+  apply_syntax(bufnr)
 
   keybinds.define(bufnr, {
     { 'n', '<cr>', thread_listing.read,              'thread-email-read' },
