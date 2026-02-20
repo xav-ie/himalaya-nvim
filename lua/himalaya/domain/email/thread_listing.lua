@@ -250,7 +250,13 @@ function M.resize()
   M.render_page(new_page, { restore_cursor = { cursor_in_page, 0 } })
 end
 
---- Optimistically mark an envelope as Seen in cached thread data and re-render.
+--- Optimistically mark an envelope as Seen in cached thread data.
+--- Only updates the data and applies the highlight to the specific line.
+--- A full render_page is avoided because _mark_seen runs during
+--- email.read() — right after the reading split opens, before WinResized
+--- fires.  Calling render_page here would rewrite the buffer at the new
+--- (smaller) page size with the old page number, clobbering the cursor
+--- position that the WinResized handler needs to compute the correct page.
 --- @param email_id string
 function M._mark_seen(email_id)
   if not all_display_rows then return end
@@ -267,16 +273,29 @@ function M._mark_seen(email_id)
     end
   end
 
-  -- Find the thread-listing window — _mark_seen is called from the
-  -- reading split, so we can't render into the current window.
+  -- Apply the seen highlight to the specific buffer line without
+  -- re-rendering.  The WinResized handler will do the full page
+  -- recalculation and re-render with correct highlights.
+  local email_mod = require('himalaya.domain.email')
+  local ns_seen = vim.api.nvim_create_namespace('himalaya_seen')
+  local eid = tostring(email_id)
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_is_valid(winid) then
       local buf = vim.api.nvim_win_get_buf(winid)
       local ok, bt = pcall(vim.api.nvim_buf_get_var, buf, 'himalaya_buffer_type')
       if ok and bt == 'thread-listing' then
-        vim.api.nvim_win_call(winid, function()
-          M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(winid) })
-        end)
+        local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+        for i, line in ipairs(lines) do
+          if email_mod._get_email_id_from_line(line) == eid then
+            vim.api.nvim_buf_set_extmark(buf, ns_seen, i - 1, 0, {
+              end_row = i,
+              hl_eol = true,
+              hl_group = 'HimalayaSeen',
+              priority = 200,
+            })
+            break
+          end
+        end
         return
       end
     end
