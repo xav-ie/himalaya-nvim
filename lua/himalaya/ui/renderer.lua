@@ -4,6 +4,7 @@ local perf = require("himalaya.perf")
 local M = {}
 
 local FLAG_ORDER = { "flagged", "unseen", "answered", "attachment" }
+M.FLAG_ORDER = FLAG_ORDER
 
 --- Map JSON flags array + has_attachment to compact symbols.
 --- @param envelope table
@@ -131,19 +132,20 @@ end
 local BOX_V = "\xe2\x94\x82" -- │
 local BOX_H = "\xe2\x94\x80" -- ─
 local BOX_CROSS = "\xe2\x94\xbc" -- ┼
+M.BOX_V = BOX_V
+M.BOX_H = BOX_H
+M.BOX_CROSS = BOX_CROSS
 
---- Render envelopes into box-drawn display lines.
---- Returns { header = string, separator = string, lines = string[] }
---- Fixed widths: ID=6, FLAGS=6|8, DATE=19
---- Remaining space split 60/40 between SUBJECT and FROM
---- @param envelopes table[]
---- @param total_width number
---- @return table
-function M.render(envelopes, total_width)
-	perf.start("renderer.render")
+--- Compute column widths, row format, header, and separator for the 5-column layout.
+--- @param items table[] input array (envelopes or display_rows)
+--- @param total_width number available display width
+--- @param get_env_fn function(item): envelope  extracts envelope from each item
+--- @return table { id_w, flags_w, date_w, subject_w, from_w, row_fmt, header, separator }
+function M.compute_layout(items, total_width, get_env_fn)
 	local cfg_flags = config.get().flags
 	local id_w = 2 -- minimum: fits "ID" header
-	for _, env in ipairs(envelopes) do
+	for _, item in ipairs(items) do
+		local env = get_env_fn(item)
 		local len = #tostring(env.id or "")
 		if len > id_w then id_w = len end
 	end
@@ -153,7 +155,8 @@ function M.render(envelopes, total_width)
 	end
 	local flags_w = num_slots * 2
 	local date_w = 4 -- minimum: fits "DATE" header
-	for _, env in ipairs(envelopes) do
+	for _, item in ipairs(items) do
+		local env = get_env_fn(item)
 		local len = #M.format_date(tostring(env.date or ""))
 		if len > date_w then date_w = len end
 	end
@@ -196,6 +199,27 @@ function M.render(envelopes, total_width)
 		.. cross_sep
 		.. string.rep(BOX_H, date_w)
 
+	return {
+		id_w = id_w, flags_w = flags_w, date_w = date_w,
+		subject_w = subject_w, from_w = from_w,
+		row_fmt = row_fmt, header = header, separator = separator,
+	}
+end
+
+--- Identity envelope extractor for flat listing.
+local function env_identity(item) return item end
+
+--- Render envelopes into box-drawn display lines.
+--- Returns { header = string, separator = string, lines = string[] }
+--- Fixed widths: ID=6, FLAGS=6|8, DATE=19
+--- Remaining space split 60/40 between SUBJECT and FROM
+--- @param envelopes table[]
+--- @param total_width number
+--- @return table
+function M.render(envelopes, total_width)
+	perf.start("renderer.render")
+	local layout = M.compute_layout(envelopes, total_width, env_identity)
+
 	local lines = {}
 	for _, env in ipairs(envelopes) do
 		local id = tostring(env.id or "")
@@ -212,18 +236,18 @@ function M.render(envelopes, total_width)
 		local date = M.format_date(env.date or "")
 
 		local line = string.format(
-			row_fmt,
-			M.fit(id, id_w),
-			M.fit(flags, flags_w),
-			M.fit(subject, subject_w),
-			M.fit(from, from_w),
-			M.fit(date, date_w)
+			layout.row_fmt,
+			M.fit(id, layout.id_w),
+			M.fit(flags, layout.flags_w),
+			M.fit(subject, layout.subject_w),
+			M.fit(from, layout.from_w),
+			M.fit(date, layout.date_w)
 		)
 		table.insert(lines, line)
 	end
 
 	perf.stop("renderer.render")
-	return { header = header, separator = separator, lines = lines }
+	return { header = layout.header, separator = layout.separator, lines = lines }
 end
 
 return M
