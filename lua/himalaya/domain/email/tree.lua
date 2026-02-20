@@ -41,8 +41,12 @@ end
 --- 6. Compute is_last_child for tree rendering.
 ---
 --- @param edges table[] Array of {parent_env, child_env, depth_int}
+--- @param opts? table  Optional: { reverse = bool } — reverse sorts siblings newest-first
 --- @return table[] Array of {env, depth, is_last_child, thread_idx}
-function M.build(edges)
+function M.build(edges, opts)
+  opts = opts or {}
+  local reverse = opts.reverse or false
+
   if #edges == 0 then
     return {}
   end
@@ -80,13 +84,16 @@ function M.build(edges)
     is_child[cid] = true
   end
 
-  -- Sort children of each parent by date (chronological), ID as tiebreaker
+  -- Sort children of each parent by date, ID as tiebreaker.
+  -- Normal: chronological (oldest first).  Reverse: newest first.
   for _, kids in pairs(children_of) do
     table.sort(kids, function(a, b)
       local ea = date_to_epoch(a.date or '')
       local eb = date_to_epoch(b.date or '')
-      if ea ~= eb then return ea < eb end
-      return tostring(a.id) < tostring(b.id)
+      if ea ~= eb then
+        return reverse and (ea > eb) or (ea < eb)
+      end
+      return reverse and (tostring(a.id) > tostring(b.id)) or (tostring(a.id) < tostring(b.id))
     end)
   end
 

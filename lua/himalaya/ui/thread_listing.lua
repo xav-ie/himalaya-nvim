@@ -45,6 +45,7 @@ function M.setup(bufnr)
     { 'n', 'gm',   folder.select,                     'folder-select' },
     { 'n', 'g/',   thread_listing.set_thread_query,   'thread-search' },
     { 'n', 'gt',   thread_listing.toggle_to_flat,     'thread-toggle-flat' },
+    { 'n', 'gT',   thread_listing.toggle_reverse,     'thread-toggle-reverse' },
     { 'n', 'gw',   compose.write,                     'email-write' },
     { 'n', 'gr',   compose.reply,                     'email-reply' },
     { 'n', 'gR',   compose.reply_all,                 'email-reply-all' },

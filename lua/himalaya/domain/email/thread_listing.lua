@@ -9,6 +9,7 @@ local M = {}
 local all_display_rows = nil   -- full tree from last fetch
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
+local reverse_threads = false  -- when true, newest replies appear first
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
@@ -141,7 +142,7 @@ function M.list(account, opts)
     args = { folder, account_flag(acct), thread_query },
     msg = string.format('Fetching %s threads', folder),
     on_data = function(data)
-      local rows = tree.build(data)
+      local rows = tree.build(data, { reverse = reverse_threads })
       tree.build_prefix(rows)
       all_display_rows = rows
 
@@ -203,6 +204,12 @@ function M.toggle_to_flat()
   all_display_rows = nil
   vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   require('himalaya.domain.email').list()
+end
+
+--- Toggle reverse thread order (newest replies first) and re-fetch.
+function M.toggle_reverse()
+  reverse_threads = not reverse_threads
+  M.list()
 end
 
 --- Open search popup and re-fetch threads with the resulting query.
