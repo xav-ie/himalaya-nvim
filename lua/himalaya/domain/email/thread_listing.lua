@@ -10,7 +10,7 @@ local all_display_rows = nil   -- full tree from last fetch
 local last_edges = nil         -- raw edges from last fetch (for local rebuild)
 local thread_query = ''        -- search query for thread mode
 local current_page = 1
-local reverse_threads = false  -- when true, newest replies appear first
+local reverse_threads = require('himalaya.config').get().thread_reverse
 
 --- Return '--account <name>' when account is set, or '' to let CLI use its default.
 --- @param account string
