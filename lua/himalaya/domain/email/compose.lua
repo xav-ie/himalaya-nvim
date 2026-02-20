@@ -33,20 +33,15 @@ end
 --- @param content string template content
 local function open_write_buffer(msg, content)
   local bufname = string.format('Himalaya/%s', msg)
-  if msg == 'write' then
-    vim.cmd(string.format('silent! botright new %s', bufname))
-  end
   if vim.fn.winnr('$') == 1 then
     vim.cmd(string.format('silent! botright split %s', bufname))
   else
     -- Prefer the reading window so the listing stays visible
-    local found_reading = false
     for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
       if vim.api.nvim_win_is_valid(winid) then
         local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
         if bname:find('Himalaya/read email', 1, true) then
           vim.api.nvim_set_current_win(winid)
-          found_reading = true
           break
         end
       end
@@ -134,29 +129,38 @@ end
 --- @param bufnr? number  buffer handle (defaults to current buffer)
 function M.send(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if sent then
+    log.info('Email already sent from this buffer')
+    return
+  end
+
   local account = account_state.current()
   local folder = folder_state.current()
-  local current_id = require('himalaya.domain.email')._get_current_id()
-
-  local draft_file = vim.fn.tempname()
-  vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
+  local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n') .. '\n'
 
   request.plain({
-    cmd = 'template send %s < %s',
-    args = { account_flag(account), draft_file },
+    cmd = 'template send %s',
+    args = { account_flag(account) },
+    stdin = content,
     msg = 'Sending email',
     on_data = function()
-      vim.fn.delete(draft_file)
       sent = true
       vim.bo[bufnr].modified = false
       log.info('Send [OK]')
-    end,
-  })
 
-  request.plain({
-    cmd = 'flag add %s --folder %s answered %s',
-    args = { account_flag(account), folder, current_id },
-    msg = 'Adding answered flag',
+      -- Add "answered" flag only for replies (not new compose or forwards)
+      local bufname = vim.api.nvim_buf_get_name(bufnr)
+      if bufname:find('reply', 1, true) then
+        local current_id = require('himalaya.domain.email')._get_current_id()
+        if current_id ~= '' then
+          request.plain({
+            cmd = 'flag add %s --folder %s answered %s',
+            args = { account_flag(account), folder, current_id },
+            msg = 'Adding answered flag',
+          })
+        end
+      end
+    end,
   })
 end
 
@@ -179,18 +183,15 @@ function M.process_draft(bufnr)
       vim.cmd('redraw | echo')
 
       if choice == 'd' then
-        local draft_file = vim.fn.tempname()
-        vim.fn.writefile(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), draft_file)
+        local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n') .. '\n'
         request.plain({
-          cmd = 'template save %s --folder drafts < %s',
-          args = { account_flag(account), draft_file },
+          cmd = 'template save %s --folder drafts',
+          args = { account_flag(account) },
+          stdin = content,
           msg = 'Saving draft',
-          on_data = function()
-            vim.fn.delete(draft_file)
-          end,
         })
         return
-      elseif choice == 'q' then
+      elseif choice == 'q' or choice == '' then
         return
       elseif choice == 'c' then
         -- Re-display the hidden compose buffer instead of creating a new one

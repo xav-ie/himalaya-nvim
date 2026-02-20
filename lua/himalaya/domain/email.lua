@@ -54,7 +54,12 @@ local function get_email_id_under_cursors(first_line, last_line)
   for lnum = first_line, last_line do
     local line = vim.fn.getline(lnum)
     local id = M._get_email_id_from_line(line)
-    table.insert(ids, id)
+    if id ~= '' then
+      table.insert(ids, id)
+    end
+  end
+  if #ids == 0 then
+    error('no emails selected')
   end
   return table.concat(ids, ' ')
 end
@@ -201,29 +206,29 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
 
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
+  local bufnr = vim.api.nvim_get_current_buf()
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
   update_listing_title(folder, qry, page, total_str, bufcmd)
-  vim.bo.modifiable = true
-  vim.b.himalaya_page = page
-  vim.b.himalaya_page_size = page_size
-  vim.b.himalaya_query = qry
+  vim.bo[bufnr].modifiable = true
+  vim.b[bufnr].himalaya_page = page
+  vim.b[bufnr].himalaya_page_size = page_size
+  vim.b[bufnr].himalaya_query = qry
 
   local new_offset = fetch_offset or ((page - 1) * page_size)
-  if vim.b.himalaya_cache_key ~= cache_key then
-    vim.b.himalaya_envelopes = data
-    vim.b.himalaya_cache_offset = new_offset
+  if vim.b[bufnr].himalaya_cache_key ~= cache_key then
+    vim.b[bufnr].himalaya_envelopes = data
+    vim.b[bufnr].himalaya_cache_offset = new_offset
   else
     local merged, merged_offset = cache.merge(
-      vim.b.himalaya_envelopes, vim.b.himalaya_cache_offset or 0,
+      vim.b[bufnr].himalaya_envelopes, vim.b[bufnr].himalaya_cache_offset or 0,
       data, new_offset)
-    vim.b.himalaya_envelopes = merged
-    vim.b.himalaya_cache_offset = merged_offset
+    vim.b[bufnr].himalaya_envelopes = merged
+    vim.b[bufnr].himalaya_cache_offset = merged_offset
   end
-  vim.b.himalaya_cache_key = cache_key
+  vim.b[bufnr].himalaya_cache_key = cache_key
 
   local page_data = paging.fetch_page_slice(data, page, page_size, new_offset)
 
-  local bufnr = vim.api.nvim_get_current_buf()
   local result = renderer.render(page_data, M._bufwidth())
   -- Set winbar first so page_size() reflects actual visible area
   listing.apply_header(bufnr, result.header)
@@ -236,13 +241,13 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
     local trimmed = {}
     for i = 1, actual_ps do trimmed[i] = result.lines[i] end
     result.lines = trimmed
-    vim.b.himalaya_page_size = actual_ps
+    vim.b[bufnr].himalaya_page_size = actual_ps
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_seen_highlights(bufnr, display)
-  vim.b.himalaya_buffer_type = 'listing'
-  vim.bo.filetype = 'himalaya-email-listing'
-  vim.bo.modified = false
+  vim.b[bufnr].himalaya_buffer_type = 'listing'
+  vim.bo[bufnr].filetype = 'himalaya-email-listing'
+  vim.bo[bufnr].modified = false
   vim.fn.winrestview({ topline = 1 })
   restore_cursor(display)
 

@@ -16,7 +16,7 @@ describe('himalaya.domain.email.flags', function()
     assert.is_truthy(vim.tbl_contains(result, 'Answered'))
     assert.is_truthy(vim.tbl_contains(result, 'Flagged'))
     assert.is_truthy(vim.tbl_contains(result, 'Deleted'))
-    assert.is_truthy(vim.tbl_contains(result, 'Drafts'))
+    assert.is_truthy(vim.tbl_contains(result, 'Draft'))
   end)
 
   it('includes custom flags from config', function()

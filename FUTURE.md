@@ -3,77 +3,11 @@
 Improvement ideas for himalaya-vim, organized by category.
 
 *Completed bugs: `vim.fn.delete(draft)` wrong variable in
-`process_draft`.*
-
-## Bugs
-
-### 1. `compose.send` fires "answered" flag unconditionally
-
-After `:w` sends an email, a second CLI command adds the "answered" flag
-using `current_id` — even for new compositions and forwards where
-`current_id` is empty or refers to an unrelated email. The flag-add also
-fires without waiting for the send to succeed (data corruption if send
-fails).
-
-**Files:** `domain/email/compose.lua:144-161`
-
-### 2. Database lock contention on rapid mode switch
-
-`thread_listing.list()` does not cancel the flat listing's probe or
-fetch jobs before issuing its `envelope thread` command. Both processes
-compete for the same id-mapper database lock, producing "could not
-acquire lock" errors.
-
-**Files:** `domain/email/thread_listing.lua:151-228`,
-`domain/email.lua:274-335`, `domain/email/probe.lua`
-
-### 3. No double-send guard on `:w`
-
-After a successful send, the compose buffer remains open and modifiable.
-Pressing `:w` again dispatches another full send. The `sent` flag only
-guards `process_draft`, not `send()` itself.
-
-**Files:** `domain/email/compose.lua:133-161`
-
-### 4. `process_draft` infinite loop on empty input
-
-The `while true` loop re-prompts on unrecognized input. Pressing Enter
-without typing returns `''`, which matches no branch, so the loop
-repeats with no escape hatch.
-
-**Files:** `domain/email/compose.lua:176-200`
-
-### 5. `open_write_buffer` creates double window for new compose
-
-For `msg == 'write'`, `botright new` (line 37) creates a split, then the
-window-count check at line 39 is always false (already 2 windows), so
-the code falls through to the reading-window search + `silent! edit`.
-This may open two windows or replace the listing buffer.
-
-**Files:** `domain/email/compose.lua:34-60`
-
-### 6. `flags.lua` uses "Drafts" instead of "Draft"
-
-The IMAP standard flag is `\Draft` (singular). `'Drafts'` in
-`default_flags` may fail or silently do nothing when passed to the CLI.
-
-**Files:** `domain/email/flags.lua:5`
-
-### 7. `vim.bo` without bufnr in async callbacks
-
-`on_list_with` uses `vim.bo.modifiable`, `vim.bo.filetype` etc. without
-specifying a buffer number. If the user switches buffers between request
-dispatch and callback, the wrong buffer gets its options set.
-
-**Files:** `domain/email.lua:205-244`
-
-### 8. Visual-mode ops include IDs from blank lines
-
-`get_email_id_under_cursors()` collects empty strings for lines without
-email IDs. These become extra spaces in the CLI command, potentially
-causing parse failures.
-
-**Files:** `domain/email.lua:51-59`
+`process_draft`, answered flag unconditional + fires before send succeeds,
+database lock contention on rapid mode switch, no double-send guard on `:w`,
+`process_draft` infinite loop on empty input, double window for new compose,
+`flags.lua` "Drafts" → "Draft", `vim.bo` without bufnr in async callbacks,
+visual-mode ops include IDs from blank lines.*
 
 ## UI/UX
 
@@ -230,7 +164,8 @@ renderer layout, config DI, paging extraction, function decomposition,
 `context_email_id` dedup, `effective_page_size()` shared helper,
 `get_email_id_from_line` moved to UI layer, underscore-prefix renames,
 `_G._himalaya_search_completefunc` guard removal,
-`set_page(0)` clamping + `request.on_exit` path tests.*
+`set_page(0)` clamping + `request.on_exit` path tests,
+`found_reading` dead variable in `open_write_buffer`.*
 
 ### 1. Duplicated "find reading/listing window" traversal (9 occurrences)
 
@@ -265,21 +200,14 @@ shared helper. Would diverge if `flag()` is ever updated.
 
 **Files:** `ui/search.lua:245`
 
-### 5. `compose.open_write_buffer` — `found_reading` has no branching effect
-
-The variable is set but the function unconditionally runs `vim.cmd('edit')`
-regardless of its value.
-
-**Files:** `domain/email/compose.lua:43-55`
-
-### 6. Missing test coverage
+### 5. Missing test coverage
 
 No tests for: `perf.lua`, `domain/account.lua` (picker rotation),
 `ui/thread_listing.lua` (setup/keybinds), picker modules beyond native.
 UI setup test files (`listing_spec`, `reading_spec`, `writing_spec`) are
 minimal stubs.
 
-### 7. `probe.on_cancel_cb` can be silently overwritten
+### 6. `probe.on_cancel_cb` can be silently overwritten
 
 If `probe.cancel(callback)` is called twice rapidly, the first callback
 is discarded without ever firing. Could leave the UI in a permanent
@@ -287,7 +215,7 @@ is discarded without ever firing. Could leave the UI in a permanent
 
 **Files:** `domain/email/probe.lua:12, 92-106, 166-174`
 
-### 8. `folder.select_next_page` doesn't check buffer type
+### 7. `folder.select_next_page` doesn't check buffer type
 
 The `HimalayaNextPage` command calls `folder.select_next_page()`
 unconditionally. In thread mode, it uses flat-listing line-count
