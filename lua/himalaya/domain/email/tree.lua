@@ -84,16 +84,13 @@ function M.build(edges, opts)
     is_child[cid] = true
   end
 
-  -- Sort children of each parent by date, ID as tiebreaker.
-  -- Normal: chronological (oldest first).  Reverse: newest first.
+  -- Sort children of each parent by date (chronological), ID as tiebreaker
   for _, kids in pairs(children_of) do
     table.sort(kids, function(a, b)
       local ea = date_to_epoch(a.date or '')
       local eb = date_to_epoch(b.date or '')
-      if ea ~= eb then
-        if reverse then return ea > eb else return ea < eb end
-      end
-      if reverse then return tostring(a.id) > tostring(b.id) else return tostring(a.id) < tostring(b.id) end
+      if ea ~= eb then return ea < eb end
+      return tostring(a.id) < tostring(b.id)
     end)
   end
 
@@ -163,18 +160,41 @@ function M.build(edges, opts)
     return a.thread_id < b.thread_id
   end)
 
-  -- Phase 5: Flatten into display_rows with thread_idx
+  -- Phase 5: Flatten into display_rows with thread_idx.
+  -- In reverse mode, non-root nodes are output newest-first as a flat list
+  -- under the root (depth=1, VD=1).  Connectors (├─/└─) appear when there
+  -- are 2+ replies; a single reply gets plain indent.
   local display_rows = {}
   for idx, group in ipairs(groups) do
-    for _, node in ipairs(group.nodes) do
-      display_rows[#display_rows + 1] = {
-        env = node.env,
-        depth = node.depth,
-        visual_depth = node.visual_depth,
-        is_branch_child = node.is_branch_child,
-        is_last_child = true,
-        thread_idx = idx,
-      }
+    local nodes = group.nodes
+    if reverse and #nodes > 1 then
+      local rev = { nodes[1] }
+      for i = #nodes, 2, -1 do
+        rev[#rev + 1] = nodes[i]
+      end
+      nodes = rev
+    end
+    local has_connectors = reverse and #nodes > 2
+    for ni, node in ipairs(nodes) do
+      if reverse and ni > 1 then
+        display_rows[#display_rows + 1] = {
+          env = node.env,
+          depth = 1,
+          visual_depth = 1,
+          is_branch_child = has_connectors,
+          is_last_child = true,
+          thread_idx = idx,
+        }
+      else
+        display_rows[#display_rows + 1] = {
+          env = node.env,
+          depth = node.depth,
+          visual_depth = node.visual_depth,
+          is_branch_child = node.is_branch_child,
+          is_last_child = true,
+          thread_idx = idx,
+        }
+      end
     end
   end
 
