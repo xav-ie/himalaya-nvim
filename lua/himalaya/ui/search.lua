@@ -452,12 +452,14 @@ function M.open(callback, prev_query, current_folder)
     for i = 1, num_lines do values[i] = get_line(i - 1) end
     local neg_copy = {}
     for k, v in pairs(negated) do neg_copy[k] = v end
+    local cur_mode = vim.fn.mode()
     last_state = {
       values = values,
       negated = neg_copy,
       body_subscribed = body_subscribed,
       query_subscribed = query_subscribed,
       cursor = vim.api.nvim_win_get_cursor(win),
+      mode = cur_mode,
     }
     local final_folder = get_line(FOLDER_LINE)
     close()
@@ -549,11 +551,15 @@ function M.open(callback, prev_query, current_folder)
     recompose_query()
     if last_state.cursor then
       vim.api.nvim_win_set_cursor(win, last_state.cursor)
-      local line_len = #vim.api.nvim_get_current_line()
-      if last_state.cursor[2] >= line_len then
-        vim.cmd('startinsert!')
+      if last_state.mode == 'n' then
+        vim.cmd('stopinsert')
       else
-        vim.cmd('startinsert')
+        local line_len = #vim.api.nvim_get_current_line()
+        if last_state.cursor[2] >= line_len then
+          vim.cmd('startinsert!')
+        else
+          vim.cmd('startinsert')
+        end
       end
     else
       vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
