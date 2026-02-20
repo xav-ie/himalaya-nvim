@@ -175,12 +175,37 @@ function M.set_thread_query()
   end, thread_query, folder_state.current())
 end
 
---- Re-render the current page (used for resize handling).
---- Preserves cursor position so the selected email stays highlighted.
+--- Re-render on resize: recomputes which page the selected email belongs
+--- to at the new window height and places cursor on that email.
 function M.resize()
   if not all_display_rows then return end
-  local cursor = vim.api.nvim_win_get_cursor(0)
-  M.render_page(current_page, { restore_cursor = cursor })
+
+  -- Identify the email under cursor
+  local email_mod = require('himalaya.domain.email')
+  local cursor_email_id = email_mod._get_email_id_from_line(vim.api.nvim_get_current_line())
+
+  -- Find its global (1-based) index in all_display_rows
+  local global_idx = 1
+  if cursor_email_id ~= '' then
+    for i, row in ipairs(all_display_rows) do
+      if tostring(row.env.id) == cursor_email_id then
+        global_idx = i
+        break
+      end
+    end
+  end
+
+  -- Compute page size using the same formula as render_page
+  local new_ps = math.max(1, vim.fn.winheight(0))
+  if vim.wo.winbar == '' then
+    new_ps = math.max(1, new_ps - 1)
+  end
+
+  -- Compute which page the email is on and cursor position within that page
+  local new_page = math.floor((global_idx - 1) / new_ps) + 1
+  local cursor_in_page = global_idx - (new_page - 1) * new_ps
+
+  M.render_page(new_page, { restore_cursor = { cursor_in_page, 0 } })
 end
 
 --- Test-only accessor to set module-local state.
