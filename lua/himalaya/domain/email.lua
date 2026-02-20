@@ -250,10 +250,15 @@ end
 
 --- List envelopes, optionally switching account first.
 --- @param account? string
-function M.list(account)
+--- @param opts? table  Optional: { restore_email_id = string }
+function M.list(account, opts)
+  opts = opts or {}
   if account then
     account_state.select(account)
     folder_state.set_page(1)
+  end
+  if opts.restore_email_id then
+    saved_cursor_id = opts.restore_email_id
   end
   local acct = account_state.current()
   local folder = folder_state.current()

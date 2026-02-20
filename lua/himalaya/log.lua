@@ -13,7 +13,9 @@ function M.err(msg)
 end
 
 function M.debug(msg)
-  vim.notify(msg, vim.log.levels.DEBUG)
+  -- Write to :messages only, not vim.notify, to avoid polluting
+  -- notification plugins with verbose CLI traces.
+  vim.api.nvim_echo({{ msg, 'Comment' }}, true, {})
 end
 
 return M

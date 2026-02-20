@@ -138,7 +138,8 @@ function M.setup(bufnr)
     { 'n', '<cr>', email.read,                         'email-read' },
     { 'n', 'g/',   email.set_list_envelopes_query,     'email-set-list-envelopes-query' },
     { 'n', 'gt',   function()
-      require('himalaya.domain.email.thread_listing').list()
+      local id = M.get_email_id_from_line(vim.api.nvim_get_current_line())
+      require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = id })
     end, 'thread-listing-toggle' },
   })
 

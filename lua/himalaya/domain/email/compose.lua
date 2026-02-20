@@ -38,6 +38,18 @@ local function open_write_buffer(msg, content)
   if vim.fn.winnr('$') == 1 then
     vim.cmd(string.format('silent! botright split %s', bufname))
   else
+    -- Prefer the reading window so the listing stays visible
+    local found_reading = false
+    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.api.nvim_win_is_valid(winid) then
+        local bname = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winid))
+        if bname:find('Himalaya/read email', 1, true) then
+          vim.api.nvim_set_current_win(winid)
+          found_reading = true
+          break
+        end
+      end
+    end
     vim.cmd(string.format('silent! edit %s', bufname))
   end
   set_buffer_content(content)

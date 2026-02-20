@@ -12,7 +12,9 @@ with **(quick win)** can typically be done in under 30 minutes each.
 page boundary navigation feedback, search popup key hints (declined),
 HimalayaSeen link target (declined), draft prompt BufLeave → BufHidden,
 loading indicator during async fetches, next/prev email navigation
-in reading buffer.*
+in reading buffer, compose targets reading window, thread/flat toggle
+preserves cursor, thread flags pre-populated from cache, CLI error
+messages combined + debug routed to :messages.*
 
 ### 1. Confirmation Dialogs Use `vim.fn.inputdialog`
 
@@ -24,15 +26,7 @@ showing the subject would be less disorienting.
 
 **Files:** `domain/email.lua:477,547`
 
-### 2. Compose Opens in Wrong Window
-
-`compose.lua:39-53` opens reply/forward in the current window when
-multiple windows exist (via `edit`), which replaces the listing. It
-should prefer the reading window to keep the listing visible.
-
-**Files:** `domain/email/compose.lua:39-53`
-
-### 3. Flag Picker Uses Freetext Input
+### 2. Flag Picker Uses Freetext Input
 
 `email.lua:606,640` uses `vim.fn.input` for flag add/remove with no
 indication of which flags are already set. Replacing with `vim.ui.select`
@@ -41,7 +35,7 @@ discoverable.
 
 **Files:** `domain/email.lua:606,640`
 
-### 4. Keybind Discoverability — No Help Float
+### 3. Keybind Discoverability — No Help Float
 
 All actions use `g`-prefix keybinds (gw, gr, gR, gf, etc.) with no
 built-in help. A `?` binding that opens a float listing all active
@@ -50,34 +44,7 @@ on every binding. Optional `which-key` integration could also be added.
 
 **Files:** `keybinds.lua`, `ui/listing.lua`, `ui/reading.lua`
 
-### 5. Thread/Flat Toggle Loses Cursor Position
-
-`gt` toggle between flat and thread modes always jumps to page 1 line 1.
-Both modes have cursor-restoration infrastructure (`saved_cursor_id`,
-`restore_email_id`). Capturing the current email ID before toggling and
-passing it to the target mode's list function would preserve context.
-
-**Files:** `domain/email/thread_listing.lua:217`, `ui/listing.lua:123`
-
-### 6. Thread Flags Column Blinks on Initial Render
-
-Thread listing renders empty flags columns, then re-renders with real
-flags after `enrich_with_flags` completes. A placeholder or using the
-thread-fetch flags as initial data would eliminate the flash.
-
-**Files:** `domain/email/thread_listing.lua:97`, `ui/thread_renderer.lua:18`
-
-### 7. Raw CLI Errors in Notifications
-
-`request.lua:43` fires two separate `vim.notify` calls (one for the
-failure message, one for raw stderr). The CLI stderr often contains
-long Rust backtraces. Combining into one notification and parsing common
-error patterns would be more useful. `log.debug` also sends to
-`vim.notify` at DEBUG level, spilling into notification history.
-
-**Files:** `request.lua:43`, `log.lua:11`
-
-### 8. Send Has No Preview or Validation
+### 4. Send Has No Preview or Validation
 
 `compose.process_draft` sends immediately on `s<CR>` with no
 confirmation showing recipients/subject. No warning on empty To: or

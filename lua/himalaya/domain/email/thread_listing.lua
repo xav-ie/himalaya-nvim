@@ -170,6 +170,25 @@ function M.list(account, opts)
       local reverse = config.get().thread_reverse
       local rows = tree.build(data, { reverse = reverse })
       tree.build_prefix(rows, { reverse = reverse })
+
+      -- Pre-populate flags from cached flat listing envelopes so the
+      -- initial render shows flags instead of blank columns.
+      local ok, cached_envs = pcall(vim.api.nvim_buf_get_var,
+        vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+      if ok and cached_envs then
+        local id_map = {}
+        for _, env in ipairs(cached_envs) do
+          id_map[tostring(env.id)] = env
+        end
+        for _, row in ipairs(rows) do
+          local cached = id_map[tostring(row.env.id)]
+          if cached then
+            row.env.flags = cached.flags
+            row.env.has_attachment = cached.has_attachment
+          end
+        end
+      end
+
       all_display_rows = rows
       rebuild_id_index()
 
@@ -227,11 +246,13 @@ end
 
 --- Switch back to flat listing mode, preserving folder/account context.
 function M.toggle_to_flat()
+  local listing = require('himalaya.ui.listing')
+  local id = listing.get_email_id_from_line(vim.api.nvim_get_current_line())
   all_display_rows = nil
   id_to_index = nil
   last_edges = nil
   vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
-  require('himalaya.domain.email').list()
+  require('himalaya.domain.email').list(nil, { restore_email_id = id })
 end
 
 --- Toggle reverse thread order (newest replies first).

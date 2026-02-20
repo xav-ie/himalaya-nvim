@@ -41,10 +41,13 @@ local function on_exit(cmd, opts, parse_fn)
 
     if code ~= 0 then
       if not opts.silent then
-        log.err(string.format('%s [FAIL] (exit code %d)', opts.msg, code))
+        local msg = string.format('%s [FAIL] (exit code %d)', opts.msg, code)
         if stderr ~= '' then
-          log.err(stderr)
+          -- Show only the first meaningful line to avoid dumping backtraces
+          local first_line = stderr:match('^[^\n]+') or stderr
+          msg = msg .. ': ' .. first_line
         end
+        log.err(msg)
       end
       if opts.on_error then opts.on_error() end
       return
