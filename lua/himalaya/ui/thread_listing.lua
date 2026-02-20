@@ -7,18 +7,12 @@ local account
 
 local M = {}
 
---- Apply 4-column syntax rules (ID │ SUBJECT │ FROM │ DATE) plus tree highlights.
+--- Apply tree-connector highlights on top of listing's 5-column syntax.
 --- @param bufnr number
-local function apply_syntax(bufnr)
+local function apply_tree_syntax(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
-    -- Use \%u for box-drawing and tree-drawing chars
     vim.cmd([[
-      syntax match HimalayaSeparator /\%u2502\|\%u2500\|\%u253c/
-      syntax match HimalayaId        /^.\{-}\%u2502/                                     contains=HimalayaSeparator
-      syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaSeparator
-      syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/             contains=HimalayaId,HimalayaSubject,HimalayaSeparator
-      syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/       contains=HimalayaId,HimalayaSubject,HimalayaSender,HimalayaSeparator
-      syntax match HimalayaTree      /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
+      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
     ]])
   end)
 end
@@ -38,7 +32,8 @@ function M.setup(bufnr)
   listing.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaTree', { default = true, link = 'Comment' })
 
-  apply_syntax(bufnr)
+  listing.apply_syntax(bufnr)
+  apply_tree_syntax(bufnr)
 
   keybinds.define(bufnr, {
     { 'n', '<cr>', thread_listing.read,              'thread-email-read' },

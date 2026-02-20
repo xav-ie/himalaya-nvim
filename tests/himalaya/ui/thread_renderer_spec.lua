@@ -12,15 +12,14 @@ describe('himalaya.ui.thread_renderer', function()
   end)
 
   describe('render', function()
-    it('produces header with 4 columns (no FLAGS)', function()
+    it('produces header with 5 columns including FLGS', function()
       local result = thread_renderer.render({}, 80)
       assert.are.equal(0, #result.lines)
       assert.is_truthy(result.header:find('ID'))
+      assert.is_truthy(result.header:find('FLGS'))
       assert.is_truthy(result.header:find('SUBJECT'))
       assert.is_truthy(result.header:find('FROM'))
       assert.is_truthy(result.header:find('DATE'))
-      -- No FLAGS column
-      assert.is_falsy(result.header:find('FLGS'))
     end)
 
     it('renders data lines with envelope data', function()
@@ -35,6 +34,22 @@ describe('himalaya.ui.thread_renderer', function()
       assert.is_truthy(result.lines[1]:find('42'))
       assert.is_truthy(result.lines[1]:find('Test Subject'))
       assert.is_truthy(result.lines[1]:find('Alice'))
+    end)
+
+    it('renders empty flags column for thread envelopes', function()
+      local rows = {
+        {
+          env = { id = '1', subject = 'Test', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
+          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+        },
+      }
+      local result = thread_renderer.render(rows, 80)
+      -- Count box-drawing separators (│) in a data line — should be 4 for 5 columns
+      local sep_count = 0
+      for _ in result.lines[1]:gmatch('\xe2\x94\x82') do
+        sep_count = sep_count + 1
+      end
+      assert.are.equal(4, sep_count)
     end)
 
     it('includes tree prefix in subject column', function()

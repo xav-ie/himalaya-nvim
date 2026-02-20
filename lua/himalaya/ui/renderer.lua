@@ -65,19 +65,21 @@ function M.format_date(raw)
 		return raw
 	end
 
-	-- Parse: "YYYY-MM-DD HH:MM:SS±HH:MM" or "YYYY-MM-DD HH:MM±HH:MM"
-	local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)%s+(%d+):(%d+):?(%d*)([%+%-].*)")
+	-- Parse: "YYYY-MM-DD HH:MM:SS±HH:MM" or "YYYY-MM-DDTHH:MM:SSZ"
+	local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)[T%s](%d+):(%d+):?(%d*)(.*)")
 	if not y then
 		return raw
 	end
 	s = (s ~= "") and tonumber(s) or 0
 
 	-- Parse timezone offset and convert to UTC epoch
-	local tz_sign, tz_h, tz_m = tz:match("^([%+%-])(%d+):(%d+)")
 	local tz_offset = 0
-	if tz_sign then
-		tz_offset = (tonumber(tz_h) * 3600 + tonumber(tz_m) * 60)
-		if tz_sign == "-" then tz_offset = -tz_offset end
+	if tz ~= "" and tz ~= "Z" then
+		local tz_sign, tz_h, tz_m = tz:match("^([%+%-])(%d+):(%d+)")
+		if tz_sign then
+			tz_offset = (tonumber(tz_h) * 3600 + tonumber(tz_m) * 60)
+			if tz_sign == "-" then tz_offset = -tz_offset end
+		end
 	end
 
 	local utc_epoch = os.time({

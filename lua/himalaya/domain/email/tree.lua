@@ -1,5 +1,28 @@
 local M = {}
 
+--- Parse an ISO-ish date string to a UTC epoch number.
+--- Handles both "YYYY-MM-DD HH:MM:SS±HH:MM" and "YYYY-MM-DDTHH:MM:SSZ".
+--- @param raw string
+--- @return number
+local function date_to_epoch(raw)
+  if not raw or raw == '' then return 0 end
+  local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)[T%s](%d+):(%d+):?(%d*)(.*)")
+  if not y then return 0 end
+  s = (s ~= '') and tonumber(s) or 0
+  local tz_offset = 0
+  if tz ~= '' and tz ~= 'Z' then
+    local tz_sign, tz_h, tz_m = tz:match("^([%+%-])(%d+):(%d+)")
+    if tz_sign then
+      tz_offset = (tonumber(tz_h) * 3600 + tonumber(tz_m) * 60)
+      if tz_sign == '-' then tz_offset = -tz_offset end
+    end
+  end
+  return os.time({
+    year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+    hour = tonumber(h), min = tonumber(mi), sec = s,
+  }) - tz_offset
+end
+
 --- Build flat display rows from CLI thread edges.
 ---
 --- Input: CLI output from `envelope thread` — flat array of
@@ -27,7 +50,7 @@ function M.build(edges)
   for _, edge in ipairs(edges) do
     local parent, child, depth = edge[1], edge[2], edge[3]
     if depth == 0 then
-      current_group = { nodes = {}, latest_date = '', depth_offset = 0 }
+      current_group = { nodes = {}, latest_epoch = 0, depth_offset = 0 }
       groups[#groups + 1] = current_group
     end
     if current_group then
@@ -42,8 +65,9 @@ function M.build(edges)
           parent.from = { name = parent.from }
         end
         current_group.nodes[#current_group.nodes + 1] = { env = parent, depth = 0 }
-        if (parent.date or '') > current_group.latest_date then
-          current_group.latest_date = parent.date or ''
+        local ep = date_to_epoch(parent.date or '')
+        if ep > current_group.latest_epoch then
+          current_group.latest_epoch = ep
         end
         current_group.depth_offset = 1
       end
@@ -52,15 +76,16 @@ function M.build(edges)
         env = child,
         depth = depth + current_group.depth_offset,
       }
-      if (child.date or '') > current_group.latest_date then
-        current_group.latest_date = child.date or ''
+      local ep = date_to_epoch(child.date or '')
+      if ep > current_group.latest_epoch then
+        current_group.latest_epoch = ep
       end
     end
   end
 
   -- Sort groups by latest date descending (newest thread first)
   table.sort(groups, function(a, b)
-    return a.latest_date > b.latest_date
+    return a.latest_epoch > b.latest_epoch
   end)
 
   -- Flatten into display_rows with thread_idx

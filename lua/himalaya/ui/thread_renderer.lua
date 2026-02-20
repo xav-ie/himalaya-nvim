@@ -3,19 +3,23 @@ local renderer = require('himalaya.ui.renderer')
 
 local M = {}
 
+local FLAG_ORDER = { 'flagged', 'unseen', 'answered', 'attachment' }
+
 -- Box-drawing characters (hex-escaped for tokenizer safety)
 local BOX_V = "\xe2\x94\x82" -- │
 local BOX_H = "\xe2\x94\x80" -- ─
 local BOX_CROSS = "\xe2\x94\xbc" -- ┼
 
 --- Render thread display rows into box-drawn display lines.
---- 4 columns: ID │ SUBJECT │ FROM │ DATE — no FLAGS column.
+--- 5 columns: ID │ FLAGS │ SUBJECT │ FROM │ DATE
+--- FLAGS column is present (empty) for visual consistency with flat listing.
 --- Tree connector prefixes appear inside the SUBJECT column.
 --- @param display_rows table[] Array of {env, depth, is_last_child, prefix, thread_idx}
 --- @param total_width number
 --- @return table {header=string, separator=string, lines=string[]}
 function M.render(display_rows, total_width)
   local gutters = config.get().gutters
+  local cfg_flags = config.get().flags
 
   local id_w = 2 -- minimum: fits "ID" header
   for _, row in ipairs(display_rows) do
@@ -23,17 +27,24 @@ function M.render(display_rows, total_width)
     if len > id_w then id_w = len end
   end
 
+  local num_slots = 0
+  for _, key in ipairs(FLAG_ORDER) do
+    if type(cfg_flags[key]) == 'string' then num_slots = num_slots + 1 end
+  end
+  local flags_w = num_slots * 2
+
   local date_w = 4 -- minimum: fits "DATE" header
   for _, row in ipairs(display_rows) do
     local len = #renderer.format_date(tostring(row.env.date or ''))
     if len > date_w then date_w = len end
   end
 
-  -- 4 columns → 3 separators
-  -- With gutters:    " col │ col │ col │ col" → 1 + 3×3 = 10
-  -- Without gutters: "col│col│col│col"         → 3×1 = 3
-  local overhead = gutters and 10 or 3
-  local remaining = total_width - id_w - date_w - overhead
+  -- 5 columns → 4 separators
+  -- With gutters:    " col │ col │ col │ col │ col" → 1 + 4×3 = 13
+  -- Without gutters: "col│col│col│col│col"           → 4×1 = 4
+  local overhead = gutters and 13 or 4
+  local fixed = id_w + flags_w + date_w
+  local remaining = total_width - fixed - overhead
   if remaining < 2 then remaining = 2 end
 
   local subject_w = math.floor(remaining * 0.6)
@@ -41,10 +52,13 @@ function M.render(display_rows, total_width)
 
   local col_sep = gutters and (' ' .. BOX_V .. ' ') or BOX_V
   local leading = gutters and ' ' or ''
-  local row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
+  local row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
+
+  local empty_flags = string.rep(' ', flags_w)
 
   local header = string.format(row_fmt,
     renderer.fit('ID', id_w),
+    renderer.fit(cfg_flags.header or 'FLGS', flags_w),
     renderer.fit('SUBJECT', subject_w),
     renderer.fit('FROM', from_w),
     renderer.fit('DATE', date_w))
@@ -53,6 +67,7 @@ function M.render(display_rows, total_width)
   local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
   local leading_h = gutters and string.rep(BOX_H, 1 + id_w) or string.rep(BOX_H, id_w)
   local separator = leading_h
+    .. cross_sep .. string.rep(BOX_H, flags_w)
     .. cross_sep .. string.rep(BOX_H, subject_w)
     .. cross_sep .. string.rep(BOX_H, from_w)
     .. cross_sep .. string.rep(BOX_H, date_w)
@@ -60,7 +75,6 @@ function M.render(display_rows, total_width)
   local lines = {}
   for _, row in ipairs(display_rows) do
     local env = row.env
-    local id = tostring(env.id or '')
 
     -- Subject: prefix + truncated subject text within subject_w columns
     local prefix = row.prefix or ''
@@ -85,7 +99,8 @@ function M.render(display_rows, total_width)
     local date = renderer.format_date(env.date or '')
 
     local line = string.format(row_fmt,
-      renderer.fit(id, id_w),
+      renderer.fit(tostring(env.id or ''), id_w),
+      empty_flags,
       full_subject,
       renderer.fit(from, from_w),
       renderer.fit(date, date_w))
