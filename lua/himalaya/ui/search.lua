@@ -457,6 +457,7 @@ function M.open(callback, prev_query, current_folder)
       negated = neg_copy,
       body_subscribed = body_subscribed,
       query_subscribed = query_subscribed,
+      cursor = vim.api.nvim_win_get_cursor(win),
     }
     local final_folder = get_line(FOLDER_LINE)
     close()
@@ -546,7 +547,11 @@ function M.open(callback, prev_query, current_folder)
     restore_labels()
     update_value_hl()
     recompose_query()
-    vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
+    if last_state.cursor then
+      vim.api.nvim_win_set_cursor(win, last_state.cursor)
+    else
+      vim.api.nvim_win_set_cursor(win, { QUERY_LINE + 1, 0 })
+    end
   else
     if current_folder and current_folder ~= '' then
       set_line(FOLDER_LINE, current_folder)
