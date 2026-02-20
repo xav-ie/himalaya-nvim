@@ -84,11 +84,26 @@ function M.build(edges, opts)
     is_child[cid] = true
   end
 
+  -- Pre-compute epoch cache: one date_to_epoch call per unique envelope.
+  local epoch_of = {}
+  for id, env in pairs(node_env) do
+    epoch_of[id] = date_to_epoch(env.date or '')
+  end
+  -- Ghost children (parent='0') may not be in node_env
+  if children_of['0'] then
+    for _, child in ipairs(children_of['0']) do
+      local cid = tostring(child.id)
+      if not epoch_of[cid] then
+        epoch_of[cid] = date_to_epoch(child.date or '')
+      end
+    end
+  end
+
   -- Sort children of each parent by date (chronological), ID as tiebreaker
   for _, kids in pairs(children_of) do
     table.sort(kids, function(a, b)
-      local ea = date_to_epoch(a.date or '')
-      local eb = date_to_epoch(b.date or '')
+      local ea = epoch_of[tostring(a.id)] or 0
+      local eb = epoch_of[tostring(b.id)] or 0
       if ea ~= eb then return ea < eb end
       return tostring(a.id) < tostring(b.id)
     end)
@@ -126,7 +141,7 @@ function M.build(edges, opts)
 
     -- Add root at depth 0, visual_depth 0
     g.nodes[1] = { env = root, depth = 0, visual_depth = 0, is_branch_child = false }
-    local ep = date_to_epoch(root.date or '')
+    local ep = epoch_of[rid] or 0
     if ep > g.latest_epoch then g.latest_epoch = ep end
 
     -- DFS: compute depth from graph position (parent depth + 1)
@@ -145,7 +160,7 @@ function M.build(edges, opts)
           local vd = is_branch and (parent_vd + 1) or parent_vd
           vd = math.max(1, vd)
           g.nodes[#g.nodes + 1] = { env = kid, depth = depth, visual_depth = vd, is_branch_child = is_branch }
-          local kep = date_to_epoch(kid.date or '')
+          local kep = epoch_of[cid] or 0
           if kep > g.latest_epoch then g.latest_epoch = kep end
           dfs(cid, depth + 1, vd)
         end

@@ -67,9 +67,8 @@ function M._bufwidth()
   if vim.wo.signcolumn == 'yes' then
     signwidth = 2
   elseif vim.wo.signcolumn == 'auto' then
-    local signs = vim.fn.execute(string.format('sign place buffer=%d', vim.fn.bufnr('')))
-    local sign_lines = vim.split(signs, '\n')
-    signwidth = #sign_lines > 2 and 2 or 0
+    local placed = vim.fn.sign_getplaced(vim.fn.bufnr(''))
+    signwidth = (placed[1] and #placed[1].signs > 0) and 2 or 0
   end
 
   return width - numwidth - foldwidth - signwidth

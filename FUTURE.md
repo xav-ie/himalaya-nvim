@@ -17,19 +17,6 @@ on the line below correctly uses `vim.fn.delete(draft_file)`.
 
 **Files:** `domain/email/compose.lua:147`
 
-### 2. `probe.run_probe` Missing `on_error` Job Cleanup
-
-`probe.lua:70` creates a job via `request.json` without an `on_error`
-handler. When the CLI fails, `job` is never set to `nil`. A later
-`M.cancel()` then calls `job:kill()` on a stale handle. Every other
-request site (`email.lua`, `thread_listing.lua`) has `on_error` handlers
-that nil out the handle.
-
-**Fix:** Add `on_error = function() job = nil end` to the `request.json`
-call in `run_probe`.
-
-**Files:** `domain/email/probe.lua:70`
-
 ## UI/UX
 
 ### 1. Draft Prompt Fires on Every BufLeave
@@ -179,61 +166,12 @@ sends.
 
 ## Performance
 
-### 1. `probe.cancel()` Blocks Up to 4 Seconds
+*Completed items removed: `probe.cancel()` non-blocking callback,
+`fit()` ASCII fast path, `format_date` one-sample width, `date_to_epoch`
+epoch cache, `is_last_child` O(n) backward pass, `apply_header`
+tab-scoped window scan, thread `resize()` O(1) id-to-index lookup.*
 
-`probe.lua:137-147` calls `job:wait(3000)` then `job:wait(1000)` — a
-synchronous block on the main thread. This fires on every interactive
-action (list, read, delete, copy, move, flag). Reducing the initial
-timeout to 200-400ms (enough for SIGTERM on a local process) would
-eliminate perceptible freezes.
-
-**Files:** `domain/email/probe.lua:137-147`
-
-### 2. `fit()` O(n) vim.fn Call Loop
-
-`renderer.lua:103-131` truncates over-long strings by scanning backward
-from `nchars-1`, calling `vim.fn.strcharpart` + `vim.fn.strdisplaywidth`
-per character. Two fixes:
-
-- **ASCII fast path (trivial):** For ASCII-only strings (`s:match('^[\x01-\x7f]*$')`), use
-  pure Lua string ops — no vim.fn needed. Covers the vast majority of
-  Latin-alphabet email subjects/senders.
-- **Binary search (moderate):** For multi-byte strings, bisect on character
-  offset since `strdisplaywidth` is monotonically non-decreasing.
-
-**Files:** `ui/renderer.lua:103-131`
-
-### 3. `format_date` Called 2N Times per Render
-
-`compute_layout` calls `format_date` N times purely to measure date
-column width, then `render` calls it N more times for the actual strings.
-Since `date_format` is a fixed strftime format, its output width is
-constant — the width can be computed once with any valid epoch. The
-per-envelope loop is unnecessary.
-
-**Fix:** When `date_format` is configured, compute `date_w` as
-`#os.date(cfg.date_format, os.time())` and skip the loop. Fall back to
-the loop only when `date_format` is nil.
-
-**Files:** `ui/renderer.lua:162-165`
-
-### 4. `date_to_epoch` Re-Parsed in Sort Comparators
-
-`tree.lua:88-95` calls `date_to_epoch` on every `table.sort` comparison.
-For a 10-child node that's ~66 `os.time()` calls. Pre-computing into an
-`{id → epoch}` cache table before sorting reduces all lookups to O(1).
-
-**Files:** `domain/email/tree.lua:88-95`
-
-### 5. `is_last_child` O(n^2) Nested Loop **(quick win)**
-
-`tree.lua:191-205` scans forward from each row to find siblings. For N
-display rows this is O(N^2). A single backward pass tracking
-`last_seen_depth[d]` reduces it to O(N).
-
-**Files:** `domain/email/tree.lua:191-205`
-
-### 6. `enrich_with_flags` Fetches All Rows
+### 1. `enrich_with_flags` Fetches All Rows
 
 `thread_listing.lua:100-102` fetches `#all_display_rows` envelopes for
 flags. For 500-row thread views this is a large redundant fetch. Limiting
@@ -243,16 +181,7 @@ second fetch entirely.
 
 **Files:** `domain/email/thread_listing.lua:97-126`
 
-### 7. Thread `resize()` O(n) Scan on Every WinResized **(quick win)**
-
-`thread_listing.lua:263-270` linearly scans `all_display_rows` to find
-the cursor email. The same O(n) pattern appears in `_mark_seen` and
-`list()`. Maintaining a module-local `{id → index}` table rebuilt when
-`all_display_rows` changes would make all lookups O(1).
-
-**Files:** `domain/email/thread_listing.lua:254-283`
-
-### 8. `_bufwidth` / `gutter_width` Re-Computed on Every Render
+### 2. `_bufwidth` / `gutter_width` Re-Computed on Every Render
 
 `email.lua:60-76` and `listing.lua:44-61` compute identical gutter
 widths using `sign place` (a Vimscript exec). Both fire on every resize
@@ -261,15 +190,7 @@ and render. Caching per render pass and using `vim.fn.sign_getplaced()`
 
 **Files:** `domain/email.lua:60-76`, `ui/listing.lua:44-61`
 
-### 9. `apply_header` Scans All Windows Globally **(quick win)**
-
-`listing.lua:66-75` uses `nvim_list_wins()` (all tabs) instead of
-`nvim_tabpage_list_wins(0)` (current tab). In multi-tab sessions this
-scans unnecessary windows.
-
-**Files:** `ui/listing.lua:66-75`
-
-### 10. `complete_contact` Uses Blocking `vim.fn.system`
+### 3. `complete_contact` Uses Blocking `vim.fn.system`
 
 `email.lua:772` runs the contact-lookup command synchronously. For slow
 backends (LDAP, remote notmuch) this freezes Neovim during completion.
@@ -278,7 +199,7 @@ eliminate the freeze.
 
 **Files:** `domain/email.lua:748-779`
 
-### 11. Probe Sequential Chain (Up to 9 Subprocesses)
+### 4. Probe Sequential Chain (Up to 9 Subprocesses)
 
 `probe.lua:66-119` fires one CLI subprocess per page sequentially. An
 exponential doubling strategy (probe page 2, 4, 8, 10) would reduce
@@ -287,7 +208,7 @@ eliminate them entirely.
 
 **Files:** `domain/email/probe.lua:66-119`
 
-### 12. Persist Probe Totals Across Folder Revisits
+### 5. Persist Probe Totals Across Folder Revisits
 
 `probe.reset_if_changed()` wipes the totals table on folder/query
 change. Keying by `(account, folder, query)` and retaining entries would
@@ -295,7 +216,7 @@ make page count instant on revisit.
 
 **Files:** `domain/email/probe.lua`
 
-### 13. Extend `perf` Instrumentation **(quick win)**
+### 6. Extend `perf` Instrumentation **(quick win)**
 
 Missing timers: `tree.build`, `tree.build_prefix`, `thread_renderer.render`,
 `probe.cancel()`, `_bufwidth()`, `enrich_with_flags`. Adding `perf.start/stop`
@@ -306,19 +227,11 @@ spans would provide the empirical data to prioritize the other items.
 ## Architecture & Code Quality
 
 *Completed items removed: `account_flag` dedup, shared keybinds, shared
-renderer layout, config DI, paging extraction, function decomposition.*
+renderer layout, config DI, paging extraction, function decomposition,
+`resolve_target_ids` helper, `on_resize`/`do_resize` dead indirection,
+`nargs` fix on zero-argument commands.*
 
-### 1. Extract `resolve_target_ids` Helper **(quick win)**
-
-The 7-line ID-resolution block (listing-vs-reading, visual-range-vs-cursor)
-is copy-pasted seven times in `email.lua` (`delete`, `copy`, `move`,
-`flag_add`, `flag_remove`, `mark_seen`, `mark_unseen`). Extracting into
-a single `local function resolve_target_ids(first_line, last_line)` and
-calling from each action removes the duplication.
-
-**Files:** `domain/email.lua:466-698`
-
-### 2. Consolidate `gutter_width` / `_bufwidth`
+### 1. Consolidate `gutter_width` / `_bufwidth`
 
 `email.lua:60-76` (`M._bufwidth`) and `listing.lua:44-61`
 (`gutter_width`) compute identical gutter metrics with slightly different
@@ -327,7 +240,7 @@ rewriting `_bufwidth` to call it gives one source of truth.
 
 **Files:** `domain/email.lua:60-76`, `ui/listing.lua:44-61`
 
-### 3. Deduplicate `context_email_id`
+### 2. Deduplicate `context_email_id`
 
 `email.lua:173-178` and `compose.lua:13-19` both implement the same
 listing-vs-read-buffer email ID resolution. Exporting
@@ -336,7 +249,7 @@ duplication.
 
 **Files:** `domain/email.lua:173`, `domain/email/compose.lua:13`
 
-### 4. Extract Shared `effective_page_size()` Helper
+### 3. Extract Shared `effective_page_size()` Helper
 
 The two-line `math.max(1, winheight) + winbar guard` pattern appears 6
 times across `email.lua` and `thread_listing.lua`. A shared helper
@@ -344,7 +257,7 @@ times across `email.lua` and `thread_listing.lua`. A shared helper
 
 **Files:** `domain/email.lua:167,280`, `domain/email/thread_listing.lua:31,168,184,273`
 
-### 5. Move `_bufwidth` and `_get_email_id_from_line` to UI Layer
+### 4. Move `_bufwidth` and `_get_email_id_from_line` to UI Layer
 
 Both are UI/parsing concerns living in the domain module (`email.lua`).
 `thread_listing.lua` cross-requires `email` specifically for these.
@@ -352,14 +265,7 @@ Moving to `ui/listing.lua` would clean up the module boundary.
 
 **Files:** `domain/email.lua:29-31,60-75`
 
-### 6. Remove `on_resize`/`do_resize` Dead Indirection **(quick win)**
-
-`listing.lua:128-156` has `on_resize` calling `do_resize` with no
-additional logic. Eliminate the wrapper.
-
-**Files:** `ui/listing.lua:128-156`
-
-### 7. Rename Misleading Underscore-Prefixed Public Functions
+### 5. Rename Misleading Underscore-Prefixed Public Functions
 
 `_mark_seen` in `thread_listing.lua` is called from production code
 (`email.lua:341`), not just tests. `_register_commands` /
@@ -370,15 +276,7 @@ means test-only.
 
 **Files:** `domain/email/thread_listing.lua:293`, `init.lua:16,99`
 
-### 8. Fix `nargs = '*'` on Zero-Argument Commands **(quick win)**
-
-Most user commands in `init.lua` use `nargs = '*'` but never inspect
-arguments. Changing to `nargs = '0'` would reject accidental arguments
-instead of silently ignoring them.
-
-**Files:** `init.lua:44-88`
-
-### 9. Test Coverage Gaps
+### 6. Test Coverage Gaps
 
 Untested modules/functions with non-trivial logic:
 
@@ -392,7 +290,7 @@ Untested modules/functions with non-trivial logic:
   untested
 - `request.lua` — `on_exit` error/parse paths untested
 
-### 10. Remove `_G._himalaya_search_completefunc` Global Leak
+### 7. Remove `_G._himalaya_search_completefunc` Global Leak
 
 `search.lua:203-252` sets a Lua global for `completefunc`. The `if not`
 guard prevents updates without restart. Either always assign (remove

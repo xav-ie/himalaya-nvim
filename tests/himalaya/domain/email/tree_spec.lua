@@ -195,6 +195,29 @@ describe('himalaya.domain.email.tree', function()
       assert.are.equal('3', rows[3].env.id)
     end)
 
+    it('sorts 10 siblings by date correctly', function()
+      local edges = {
+        { {id='0'}, {id='1', from='Root', subject='Root', date='2024-01-01 10:00:00+00:00'}, 0 },
+      }
+      -- Add 10 replies in scrambled order
+      local order = {7, 3, 10, 1, 5, 8, 2, 6, 9, 4}
+      for _, n in ipairs(order) do
+        edges[#edges + 1] = {
+          {id='1', from='Root'},
+          {id=tostring(n + 100), from='R'..n, subject='Reply '..n,
+           date=string.format('2024-01-%02d 10:00:00+00:00', n + 1)},
+          1,
+        }
+      end
+      local rows = tree.build(edges)
+      assert.are.equal(11, #rows)
+      assert.are.equal('1', rows[1].env.id)
+      -- All 10 siblings sorted chronologically
+      for i = 1, 10 do
+        assert.are.equal(tostring(i + 100), rows[i + 1].env.id)
+      end
+    end)
+
     it('is deterministic when threads have identical latest dates', function()
       local edges_order1 = {
         { {id='0'}, {id='1', from='Alice', subject='T1', date='2024-01-10 10:00:00+00:00'}, 0 },
