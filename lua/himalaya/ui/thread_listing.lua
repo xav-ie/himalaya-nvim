@@ -16,7 +16,7 @@ local function apply_syntax(bufnr)
   listing.apply_syntax(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
     vim.cmd([[
-      syntax match HimalayaTree /\%u250c\%u2500\|\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
+      syntax match HimalayaTree /\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
     ]])
   end)
 end
