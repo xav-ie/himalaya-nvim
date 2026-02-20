@@ -267,7 +267,20 @@ function M._mark_seen(email_id)
     end
   end
 
-  M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(0) })
+  -- Find the thread-listing window — _mark_seen is called from the
+  -- reading split, so we can't render into the current window.
+  for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if vim.api.nvim_win_is_valid(winid) then
+      local buf = vim.api.nvim_win_get_buf(winid)
+      local ok, bt = pcall(vim.api.nvim_buf_get_var, buf, 'himalaya_buffer_type')
+      if ok and bt == 'thread-listing' then
+        vim.api.nvim_win_call(winid, function()
+          M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(winid) })
+        end)
+        return
+      end
+    end
+  end
 end
 
 --- Test-only accessor to set module-local state.
