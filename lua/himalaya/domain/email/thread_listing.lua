@@ -103,7 +103,9 @@ local function enrich_with_flags(acct, folder)
           row.env.has_attachment = rich.has_attachment
         end
       end
+      local view = vim.fn.winsaveview()
       M.render_page(current_page)
+      vim.fn.winrestview(view)
     end,
   })
 end
@@ -166,9 +168,18 @@ function M.set_thread_query()
 end
 
 --- Re-render the current page (used for resize handling).
+--- Preserves cursor position so the selected email stays highlighted.
 function M.resize()
   if not all_display_rows then return end
+  local view = vim.fn.winsaveview()
   M.render_page(current_page)
+  vim.fn.winrestview(view)
+end
+
+--- Test-only accessor to set module-local state.
+function M._set_state(rows, page)
+  all_display_rows = rows
+  current_page = page
 end
 
 return M

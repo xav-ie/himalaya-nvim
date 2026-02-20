@@ -21,7 +21,11 @@ function M._register_commands()
   local account_state = require('himalaya.state.account')
 
   vim.api.nvim_create_user_command('Himalaya', function(opts)
-    email.list(opts.fargs[1])
+    if config.get().thread_view then
+      require('himalaya.domain.email.thread_listing').list(opts.fargs[1])
+    else
+      email.list(opts.fargs[1])
+    end
   end, {
     nargs = '*',
     complete = function(arg_lead)

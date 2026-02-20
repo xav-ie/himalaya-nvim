@@ -17,6 +17,7 @@ local defaults = {
   },
   gutters = true,
   date_format = '%Y-%m-%d %H:%M',
+  thread_view = false,
 }
 
 local current = vim.deepcopy(defaults)
