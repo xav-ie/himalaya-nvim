@@ -67,30 +67,11 @@ function M.format_date(raw, cfg)
 	if not fmt or raw == "" then
 		return raw
 	end
-
-	-- Parse: "YYYY-MM-DD HH:MM:SS±HH:MM" or "YYYY-MM-DDTHH:MM:SSZ"
-	local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)[T%s](%d+):(%d+):?(%d*)(.*)")
-	if not y then
+	local tree = require("himalaya.domain.email.tree")
+	local utc_epoch = tree.date_to_epoch(raw)
+	if utc_epoch == 0 then
 		return raw
 	end
-	s = (s ~= "") and tonumber(s) or 0
-
-	-- Parse timezone offset and convert to UTC epoch
-	local tz_offset = 0
-	if tz ~= "" and tz ~= "Z" then
-		local tz_sign, tz_h, tz_m = tz:match("^([%+%-])(%d+):(%d+)")
-		if tz_sign then
-			tz_offset = (tonumber(tz_h) * 3600 + tonumber(tz_m) * 60)
-			if tz_sign == "-" then tz_offset = -tz_offset end
-		end
-	end
-
-	local utc_epoch = os.time({
-		year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-		hour = tonumber(h), min = tonumber(mi), sec = s,
-	}) - tz_offset
-
-	-- Format in local time
 	return os.date(fmt, utc_epoch)
 end
 
@@ -128,20 +109,25 @@ function M.fit(s, width)
 	elseif dw < width then
 		return s .. string.rep(" ", width - dw)
 	else
+		-- Binary search for the longest character prefix that fits in (width - 1) columns.
 		local nchars = vim.fn.strchars(s)
-		for i = nchars - 1, 0, -1 do
-			local sub = tostring(vim.fn.strcharpart(s, 0, i))
-			local subdw = vim.fn.strdisplaywidth(sub)
+		local lo, hi, best = 0, nchars - 1, 0
+		while lo <= hi do
+			local mid = math.floor((lo + hi) / 2)
+			local subdw = vim.fn.strdisplaywidth(tostring(vim.fn.strcharpart(s, 0, mid)))
 			if subdw <= width - 1 then
-				sub = sub .. "~"
-				local finaldw = vim.fn.strdisplaywidth(sub)
-				if finaldw < width then
-					sub = sub .. string.rep(" ", width - finaldw)
-				end
-				return sub
+				best = mid
+				lo = mid + 1
+			else
+				hi = mid - 1
 			end
 		end
-		return "~" .. string.rep(" ", math.max(0, width - 1))
+		local sub = tostring(vim.fn.strcharpart(s, 0, best)) .. "~"
+		local finaldw = vim.fn.strdisplaywidth(sub)
+		if finaldw < width then
+			sub = sub .. string.rep(" ", width - finaldw)
+		end
+		return sub
 	end
 end
 

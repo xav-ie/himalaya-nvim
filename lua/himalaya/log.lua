@@ -12,9 +12,13 @@ function M.err(msg)
   vim.notify(msg, vim.log.levels.ERROR)
 end
 
-function M.debug(msg)
-  -- Write to :messages only, not vim.notify, to avoid polluting
-  -- notification plugins with verbose CLI traces.
+--- Write debug trace to :messages when `vim.g.himalaya_debug` is set.
+--- Accepts printf-style arguments to avoid string allocation when disabled.
+--- @param fmt string  format string (or plain message)
+--- @param ... any     format arguments
+function M.debug(fmt, ...)
+  if not vim.g.himalaya_debug then return end
+  local msg = select('#', ...) > 0 and string.format(fmt, ...) or fmt
   vim.api.nvim_echo({{ msg, 'Comment' }}, true, {})
 end
 

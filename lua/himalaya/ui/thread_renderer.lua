@@ -25,7 +25,7 @@ function M.render(display_rows, total_width, cfg)
 
     -- Subject: prefix + truncated subject text within subject_w columns
     local prefix = row.prefix or ''
-    local prefix_dw = vim.fn.strdisplaywidth(prefix)
+    local prefix_dw = (row.visual_depth or row.depth or 0) * 2
     local subject_space = layout.subject_w - prefix_dw
     local full_subject
     if subject_space <= 0 then

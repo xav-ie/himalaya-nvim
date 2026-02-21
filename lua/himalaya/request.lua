@@ -30,13 +30,13 @@ local function on_exit(cmd, opts, parse_fn)
     if opts.is_stale and opts.is_stale() then return end
 
     local cmd_str = table.concat(cmd, ' ')
-    log.debug(string.format('[himalaya] cmd: %s', cmd_str))
-    log.debug(string.format('[himalaya] exit code: %d', code))
+    log.debug('[himalaya] cmd: %s', cmd_str)
+    log.debug('[himalaya] exit code: %d', code)
     if stderr ~= '' then
-      log.debug(string.format('[himalaya] stderr: %s', stderr))
+      log.debug('[himalaya] stderr: %s', stderr)
     end
     if stdout ~= '' then
-      log.debug(string.format('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200)))
+      log.debug('[himalaya] stdout (%d chars): %s', #stdout, stdout:sub(1, 200))
     end
 
     if code ~= 0 then

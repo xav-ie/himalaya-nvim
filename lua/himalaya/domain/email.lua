@@ -345,26 +345,26 @@ local function display_slice(envelopes)
 end
 
 --- Optimistically mark an envelope as Seen in the listing buffer.
---- Updates the cached envelope data, re-renders the line, and re-applies highlights.
+--- Updates the cached envelope data and applies a single extmark,
+--- matching the thread listing's approach. The flag column character
+--- is corrected on the next full re-render (resize, page change).
 --- @param email_id string
 local function mark_envelope_seen(email_id)
-  -- Find the visible listing buffer in the current tab.  Searching windows
-  -- instead of all buffers avoids picking up a stale flat-listing buffer
-  -- left behind when the user switched to thread mode.
   local listing_winid, listing_bufnr, listing_type = win.find_by_buftype({ 'listing', 'thread-listing' })
   if not listing_winid then return end
 
   if listing_type == 'thread-listing' then
-    local tl = require('himalaya.domain.email.thread_listing')
-    tl.mark_seen_optimistic(email_id)
+    require('himalaya.domain.email.thread_listing').mark_seen_optimistic(email_id)
     return
   end
 
   local ok, envelopes = pcall(vim.api.nvim_buf_get_var, listing_bufnr, 'himalaya_envelopes')
   if not (ok and envelopes) then return end
 
+  -- Update the envelope in cache.
+  local eid = tostring(email_id)
   for _, env in ipairs(envelopes) do
-    if tostring(env.id) == tostring(email_id) then
+    if tostring(env.id) == eid then
       local flags = env.flags or {}
       for _, f in ipairs(flags) do
         if f == 'Seen' then return end
@@ -374,18 +374,22 @@ local function mark_envelope_seen(email_id)
       break
     end
   end
-
   vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
 
-  if listing_winid then
-    vim.api.nvim_win_call(listing_winid, function()
-      local line_count = vim.api.nvim_buf_line_count(listing_bufnr)
-      local cur_page = vim.b.himalaya_page or 1
-      local ps = vim.b.himalaya_page_size or line_count
-      local cache_offset = vim.b.himalaya_cache_offset or 0
-      local visible = paging.cache_slice(envelopes, cur_page, ps, cache_offset, line_count)
-      render_listing_buffer(listing_bufnr, visible)
-    end)
+  -- Apply single seen extmark (same approach as thread listing).
+  local listing_mod = require('himalaya.ui.listing')
+  local ns = vim.api.nvim_create_namespace('himalaya_seen')
+  local lines = vim.api.nvim_buf_get_lines(listing_bufnr, 0, -1, false)
+  for i, line in ipairs(lines) do
+    if listing_mod.get_email_id_from_line(line) == eid then
+      vim.api.nvim_buf_set_extmark(listing_bufnr, ns, i - 1, 0, {
+        end_row = i,
+        hl_eol = true,
+        hl_group = 'HimalayaSeen',
+        priority = 200,
+      })
+      break
+    end
   end
 end
 

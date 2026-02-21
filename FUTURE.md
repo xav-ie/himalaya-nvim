@@ -97,63 +97,14 @@ epoch cache, `is_last_child` O(n) backward pass, `apply_header`
 tab-scoped window scan, thread `resize()` O(1) id-to-index lookup,
 `sign_getplaced` API, `enrich_with_flags` 200-envelope cap,
 probe totals persistence, perf instrumentation spans,
-`complete_contact` prefix cache, probe exponential doubling.*
-
-### 1. `mark_envelope_seen` full re-renders listing for one flag change
-
-When the user reads an email, the entire listing is re-rendered (50
-envelopes × `format_flags` + `format_date` + `fit` ×5 columns) plus all
-extmarks are cleared and recreated. The thread listing correctly does a
-single-extmark update instead.
-
-**Files:** `domain/email.lua:347-401`, `ui/listing.lua:98-118`
-
-### 2. Duplicated date parsing between renderer and tree
-
-`renderer.format_date` and `tree.date_to_epoch` both parse the same ISO
-date string with nearly identical regex and timezone arithmetic. For
-thread listings, every envelope gets parsed twice.
-
-**Files:** `ui/renderer.lua:64-95`, `domain/email/tree.lua:9-26`
-
-### 3. `thread_renderer` calls `strdisplaywidth` per row for known-width prefixes
-
-Tree prefixes are built from known 2-column-wide Unicode box-drawing
-characters. The display width can be computed as `depth * 2` in pure Lua
-instead of crossing the Lua→Vim bridge 50 times per render.
-
-**Files:** `ui/thread_renderer.lua:28`
-
-### 4. `log.debug` always formats strings even when not visible
-
-Every CLI exit calls `log.debug` 2-4 times with `string.format`. Debug
-logging is always on (no level check), creating string allocations for
-probe fetches that nobody reads.
-
-**Files:** `log.lua:18`, `request.lua:33-39`
-
-### 5. `fit()` multi-byte fallback is O(n) linear scan
-
-When truncating multi-byte strings (CJK, emoji), the code scans backward
-from `nchars-1` calling `strdisplaywidth` at each step. Binary search
-would reduce O(n) to O(log n) bridge crossings.
-
-**Files:** `ui/renderer.lua:131-144`
-
-### 6. `folder.open_picker` re-fetches folder list every time
-
-Each folder operation (copy, move, select) spawns a `himalaya folder
-list` CLI subprocess. Folder lists change infrequently; caching with a
-TTL would eliminate repeated CLI calls.
-
-**Files:** `domain/folder.lua:10-38`
-
-### 7. Thread listing `WinResized` uses `nvim_list_wins` instead of tab-scoped
-
-The thread listing WinResized handler scans all windows across all tabs
-instead of just the current tabpage.
-
-**Files:** `domain/email/thread_listing.lua` (resize handler)
+`complete_contact` prefix cache, probe exponential doubling,
+`mark_envelope_seen` single-line update instead of full re-render,
+deduplicated date parsing → `tree.date_to_epoch` shared,
+thread prefix width `depth * 2` pure Lua (no strdisplaywidth),
+`log.debug` gated behind `vim.g.himalaya_debug` + lazy format args,
+`fit()` multi-byte binary search O(log n),
+`folder.open_picker` 60s folder list cache,
+thread listing WinResized tab-scoped.*
 
 ## Architecture & Code Quality
 

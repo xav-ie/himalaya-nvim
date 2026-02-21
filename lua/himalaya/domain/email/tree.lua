@@ -6,7 +6,7 @@ local M = {}
 --- Handles both "YYYY-MM-DD HH:MM:SS±HH:MM" and "YYYY-MM-DDTHH:MM:SSZ".
 --- @param raw string
 --- @return number
-local function date_to_epoch(raw)
+function M.date_to_epoch(raw)
   if not raw or raw == '' then return 0 end
   local y, mo, d, h, mi, s, tz = raw:match("^(%d+)-(%d+)-(%d+)[T%s](%d+):(%d+):?(%d*)(.*)")
   if not y then return 0 end
@@ -91,14 +91,14 @@ function M.build(edges, opts)
   -- Pre-compute epoch cache: one date_to_epoch call per unique envelope.
   local epoch_of = {}
   for id, env in pairs(node_env) do
-    epoch_of[id] = date_to_epoch(env.date or '')
+    epoch_of[id] = M.date_to_epoch(env.date or '')
   end
   -- Ghost children (parent='0') may not be in node_env
   if children_of['0'] then
     for _, child in ipairs(children_of['0']) do
       local cid = tostring(child.id)
       if not epoch_of[cid] then
-        epoch_of[cid] = date_to_epoch(child.date or '')
+        epoch_of[cid] = M.date_to_epoch(child.date or '')
       end
     end
   end

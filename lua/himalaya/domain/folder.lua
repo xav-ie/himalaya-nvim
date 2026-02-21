@@ -7,32 +7,45 @@ local M = {}
 
 local account_flag = account_state.flag
 
+-- Folder list cache: keyed by account, expires after 60 seconds.
+local folder_cache = {}   -- { [account] = { data = ..., ts = ... } }
+local CACHE_TTL = 60      -- seconds
+
+local function rotate_folders(data, current)
+  table.sort(data, function(a, b) return a.name < b.name end)
+  local start = 1
+  for i, f in ipairs(data) do
+    if f.name == current then
+      start = i + 1
+      break
+    end
+  end
+  local rotated = {}
+  for i = 0, #data - 1 do
+    local idx = ((start - 1 + i) % #data) + 1
+    rotated[#rotated + 1] = data[idx]
+  end
+  return rotated
+end
+
 function M.open_picker(callback)
   local account = account_state.current()
+  local current = folder_state.current()
+
+  -- Return cached folder list if fresh.
+  local cached = folder_cache[account]
+  if cached and (vim.uv.now() - cached.ts) < CACHE_TTL * 1000 then
+    pickers.select(callback, rotate_folders(vim.deepcopy(cached.data), current))
+    return
+  end
+
   request.json({
     cmd = 'folder list %s',
     args = { account_flag(account) },
     msg = 'Listing folders',
     on_data = function(data)
-      -- Sort folders alphabetically for deterministic order
-      table.sort(data, function(a, b) return a.name < b.name end)
-
-      -- Rotate so the folder after the current one is first
-      local current = folder_state.current()
-      local start = 1
-      for i, f in ipairs(data) do
-        if f.name == current then
-          start = i + 1
-          break
-        end
-      end
-      local rotated = {}
-      for i = 0, #data - 1 do
-        local idx = ((start - 1 + i) % #data) + 1
-        rotated[#rotated + 1] = data[idx]
-      end
-
-      pickers.select(callback, rotated)
+      folder_cache[account] = { data = data, ts = vim.uv.now() }
+      pickers.select(callback, rotate_folders(vim.deepcopy(data), current))
     end,
   })
 end
