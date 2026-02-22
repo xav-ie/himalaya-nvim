@@ -201,6 +201,11 @@ function M.list(account, opts)
   -- if a picker or other floating window has focus when they fire.
   local listing_win = vim.api.nvim_get_current_win()
 
+  -- Show loading indicator while fetching
+  if vim.b.himalaya_buffer_type == 'listing' or vim.b.himalaya_buffer_type == 'thread-listing' then
+    vim.wo.winbar = '%#Comment# loading...%*'
+  end
+
   list_job = request.json({
     cmd = 'envelope thread --folder %s %s %s',
     args = { folder, account_flag(acct), thread_query },
@@ -210,6 +215,9 @@ function M.list(account, opts)
     end,
     on_error = function()
       list_job = nil
+      if vim.api.nvim_win_is_valid(listing_win) and vim.wo[listing_win].winbar:find('loading') then
+        vim.wo[listing_win].winbar = ''
+      end
     end,
     on_data = function(data)
       list_job = nil

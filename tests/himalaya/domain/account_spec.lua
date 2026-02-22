@@ -38,7 +38,7 @@ describe('himalaya.domain.account', function()
       for _, item in ipairs(pickers_select_args.items) do
         names[#names + 1] = item.name
       end
-      assert.are.same({ 'C', 'A', 'B' }, names)
+      assert.are.same({ 'C', 'A', 'B (current)' }, names)
     end)
 
     it('rotates when current is first account', function()
@@ -58,7 +58,7 @@ describe('himalaya.domain.account', function()
       for _, item in ipairs(pickers_select_args.items) do
         names[#names + 1] = item.name
       end
-      assert.are.same({ 'B', 'C', 'A' }, names)
+      assert.are.same({ 'B', 'C', 'A (current)' }, names)
     end)
 
     it('wraps around when current is last account', function()
@@ -78,7 +78,7 @@ describe('himalaya.domain.account', function()
       for _, item in ipairs(pickers_select_args.items) do
         names[#names + 1] = item.name
       end
-      assert.are.same({ 'A', 'B', 'C' }, names)
+      assert.are.same({ 'A', 'B', 'C (current)' }, names)
     end)
 
     it('handles a single account', function()
@@ -95,7 +95,7 @@ describe('himalaya.domain.account', function()
       account.open_picker(function() end)
 
       assert.are.equal(1, #pickers_select_args.items)
-      assert.are.equal('only', pickers_select_args.items[1].name)
+      assert.are.equal('only (current)', pickers_select_args.items[1].name)
     end)
 
     it('preserves order when current is not in list', function()
@@ -118,7 +118,7 @@ describe('himalaya.domain.account', function()
       assert.are.same({ 'A', 'B', 'C' }, names)
     end)
 
-    it('passes callback through to pickers.select', function()
+    it('wrapper strips (current) suffix before passing to callback', function()
       package.loaded['himalaya.state.account'] = {
         list = function()
           return { 'X' }
@@ -129,10 +129,14 @@ describe('himalaya.domain.account', function()
       }
       account = require('himalaya.domain.account')
 
-      local my_cb = function() end
-      account.open_picker(my_cb)
+      local received
+      account.open_picker(function(name)
+        received = name
+      end)
 
-      assert.are.equal(my_cb, pickers_select_args.callback)
+      -- Simulate picker returning the annotated name
+      pickers_select_args.callback('X (current)')
+      assert.are.equal('X', received)
     end)
   end)
 

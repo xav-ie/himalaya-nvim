@@ -22,38 +22,18 @@ messages combined + debug routed to :messages, confirmation dialogs
 show email count, flag picker uses vim.ui.select, configurable keybinds
 with help float (`?`), :w sends email + BufHidden prompts for draft,
 thread page navigation boundary feedback, `ga`/`gA` keybind consistency,
-`open_browser` from listing buffer.*
+`open_browser` from listing buffer, thread listing loading indicator,
+account/folder picker current-selection annotation,
+`download_attachments` structured feedback.*
 
-### 1. Thread listing has no loading indicator
-
-The flat listing shows a "loading..." winbar during fetches. The thread
-listing does not — on slow connections, users see stale content with no
-feedback.
-
-**Files:** `domain/email/thread_listing.lua:143-228`
-
-### 2. Account/folder picker doesn't show current selection
-
-Both pickers rotate the list but don't visually indicate which entry is
-already active. The user must memorize or look at the buffer title.
-
-**Files:** `domain/account.lua:19-26`, `domain/folder.lua:10-38`
-
-### 3. `download_attachments` gives no path or count feedback
-
-Shows raw CLI output on success. No indication of where files were saved,
-how many, or whether there were no attachments.
-
-**Files:** `domain/email.lua:714-726`
-
-### 4. `account_state.list()` blocks UI with synchronous wait
+### 1. `account_state.list()` blocks UI with synchronous wait
 
 Uses `vim.system(cmd):wait()` which freezes Neovim until the CLI returns.
 Fires on `:Himalaya <Tab>` completion and account picker.
 
 **Files:** `state/account.lua:27`
 
-### 5. Folder state is global singleton
+### 2. Folder state is global singleton
 
 `current_folder`, `current_page`, `current_account` are module-level
 locals. Opening `:Himalaya` in two tabs shares state; changing folder in

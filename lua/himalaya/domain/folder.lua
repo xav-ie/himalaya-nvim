@@ -27,7 +27,17 @@ local function rotate_folders(data, current)
     local idx = ((start - 1 + i) % #data) + 1
     rotated[#rotated + 1] = data[idx]
   end
+  for _, f in ipairs(rotated) do
+    if f.name == current then
+      f.name = f.name .. ' (current)'
+      break
+    end
+  end
   return rotated
+end
+
+local function strip_current(name)
+  return name:gsub(' %(current%)$', '')
 end
 
 function M.open_picker(callback)
@@ -36,8 +46,14 @@ function M.open_picker(callback)
 
   -- Return cached folder list if fresh.
   local cached = folder_cache[account]
+  local function pick(items)
+    pickers.select(function(choice)
+      callback(strip_current(choice))
+    end, items)
+  end
+
   if cached and (vim.uv.now() - cached.ts) < CACHE_TTL * 1000 then
-    pickers.select(callback, rotate_folders(vim.deepcopy(cached.data), current))
+    pick(rotate_folders(vim.deepcopy(cached.data), current))
     return
   end
 
@@ -47,7 +63,7 @@ function M.open_picker(callback)
     msg = 'Listing folders',
     on_data = function(data)
       folder_cache[account] = { data = data, ts = vim.uv.now() }
-      pickers.select(callback, rotate_folders(vim.deepcopy(data), current))
+      pick(rotate_folders(vim.deepcopy(data), current))
     end,
   })
 end

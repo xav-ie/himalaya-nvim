@@ -749,7 +749,12 @@ function M.download_attachments()
     args = { account_flag(account), folder, id },
     msg = 'Downloading attachments',
     on_data = function(data)
-      log.info(data)
+      data = vim.trim(data)
+      if data == '' then
+        log.info('No attachments found')
+      else
+        log.info('Attachments downloaded:\n' .. data)
+      end
     end,
   })
 end

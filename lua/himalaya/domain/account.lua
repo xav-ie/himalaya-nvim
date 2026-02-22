@@ -22,7 +22,16 @@ function M.open_picker(callback)
     items[#items + 1] = { name = names[idx] }
   end
 
-  pickers.select(callback, items)
+  for _, item in ipairs(items) do
+    if item.name == current then
+      item.name = item.name .. ' (current)'
+      break
+    end
+  end
+
+  pickers.select(function(choice)
+    callback(choice:gsub(' %(current%)$', ''))
+  end, items)
 end
 
 function M.select()
