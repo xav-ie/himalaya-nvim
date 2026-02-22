@@ -13,13 +13,16 @@ visual-mode ops include IDs from blank lines.*
 
 *Completed/removed items: search folder field stale on reopen,
 page boundary navigation feedback, search popup key hints (declined),
-HimalayaSeen link target (declined), draft prompt BufLeave → BufHidden,
+HimalayaSeen link target (declined), reading buffer close keybind (declined),
+draft prompt BufLeave → BufHidden,
 loading indicator during async fetches, next/prev email navigation
 in reading buffer, compose targets reading window, thread/flat toggle
 preserves cursor, thread flags pre-populated from cache, CLI error
 messages combined + debug routed to :messages, confirmation dialogs
 show email count, flag picker uses vim.ui.select, configurable keybinds
-with help float (`?`), :w sends email + BufHidden prompts for draft.*
+with help float (`?`), :w sends email + BufHidden prompts for draft,
+thread page navigation boundary feedback, `ga`/`gA` keybind consistency,
+`open_browser` from listing buffer.*
 
 ### 1. Thread listing has no loading indicator
 
@@ -29,58 +32,28 @@ feedback.
 
 **Files:** `domain/email/thread_listing.lua:143-228`
 
-### 2. Thread page navigation has no first/last page feedback
-
-Flat listing shows "Already on first/last page" warnings. Thread listing
-silently does nothing when the user is already at the boundary.
-
-**Files:** `domain/email/thread_listing.lua:231-239`
-
-### 3. Reading buffer has no close keybind
-
-The reading buffer has keybinds for compose, navigate, attachments, etc.
-but no quick way to close and return focus to the listing. Users must
-use `:q` or `<C-w>c`.
-
-**Files:** `ui/reading.lua:32-58`
-
-### 4. Account/folder picker doesn't show current selection
+### 2. Account/folder picker doesn't show current selection
 
 Both pickers rotate the list but don't visually indicate which entry is
 already active. The user must memorize or look at the buffer title.
 
 **Files:** `domain/account.lua:19-26`, `domain/folder.lua:10-38`
 
-### 5. `ga` keybind inconsistent between listing and reading
-
-In the listing, `ga` = account select, `gA` = download attachments.
-In the reading buffer, `ga` = download attachments. No account select
-in reading.
-
-**Files:** `ui/reading.lua:49`, `keybinds.lua:102-105`
-
-### 6. `download_attachments` gives no path or count feedback
+### 3. `download_attachments` gives no path or count feedback
 
 Shows raw CLI output on success. No indication of where files were saved,
 how many, or whether there were no attachments.
 
 **Files:** `domain/email.lua:714-726`
 
-### 7. `account_state.list()` blocks UI with synchronous wait
+### 4. `account_state.list()` blocks UI with synchronous wait
 
 Uses `vim.system(cmd):wait()` which freezes Neovim until the CLI returns.
 Fires on `:Himalaya <Tab>` completion and account picker.
 
 **Files:** `state/account.lua:27`
 
-### 8. `open_browser` only available from reading buffer
-
-No listing-level keybind — user must first open the email, then press
-`go`. Two steps for a single action.
-
-**Files:** `domain/email.lua:729-740`, `ui/reading.lua`
-
-### 9. Folder state is global singleton
+### 5. Folder state is global singleton
 
 `current_folder`, `current_page`, `current_account` are module-level
 locals. Opening `:Himalaya` in two tabs shares state; changing folder in

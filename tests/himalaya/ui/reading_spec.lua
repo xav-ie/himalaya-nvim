@@ -19,6 +19,9 @@ describe('himalaya.ui.reading', function()
       open_browser = noop,
       read = noop,
     }
+    package.loaded['himalaya.domain.account'] = {
+      select = noop,
+    }
     package.loaded['himalaya.domain.email.compose'] = {
       write = noop,
       reply = noop,
@@ -66,7 +69,7 @@ describe('himalaya.ui.reading', function()
   it('setup() registers reading keybinds', function()
     reading.setup(bufnr)
     local maps = vim.api.nvim_buf_get_keymap(bufnr, 'n')
-    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gC', 'gM', 'gD', 'go', 'gn', 'gp', '?' }
+    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gA', 'gC', 'gM', 'gD', 'go', 'gn', 'gp', '?' }
     for _, key in ipairs(expected_keys) do
       local found = false
       for _, map in ipairs(maps) do
@@ -88,6 +91,6 @@ describe('himalaya.ui.reading', function()
         count = count + 1
       end
     end
-    assert.equals(12, count)
+    assert.equals(13, count)
   end)
 end)

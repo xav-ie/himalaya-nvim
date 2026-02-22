@@ -281,12 +281,22 @@ function M.next_page()
   if not all_display_rows then
     return
   end
+  local ps = require('himalaya.ui.listing').effective_page_size()
+  local total_pages = math.max(1, math.ceil(#all_display_rows / ps))
+  if current_page >= total_pages then
+    vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
+    return
+  end
   M.render_page(current_page + 1)
 end
 
 --- Navigate to the previous page of threads.
 function M.previous_page()
   if not all_display_rows then
+    return
+  end
+  if current_page <= 1 then
+    vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
     return
   end
   M.render_page(math.max(1, current_page - 1))

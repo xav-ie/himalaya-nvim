@@ -41,7 +41,15 @@ function M.setup(bufnr)
     { 'n', 'gr', compose.reply, 'email-reply' },
     { 'n', 'gR', compose.reply_all, 'email-reply-all' },
     { 'n', 'gf', compose.forward, 'email-forward' },
-    { 'n', 'ga', email.download_attachments, 'email-download-attachments' },
+    {
+      'n',
+      'ga',
+      function()
+        require('himalaya.domain.account').select()
+      end,
+      'account-select',
+    },
+    { 'n', 'gA', email.download_attachments, 'email-download-attachments' },
     { 'n', 'gC', email.select_folder_then_copy, 'email-select-folder-then-copy' },
     { 'n', 'gM', email.select_folder_then_move, 'email-select-folder-then-move' },
     { 'n', 'gD', email.delete, 'email-delete' },

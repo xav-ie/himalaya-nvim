@@ -760,7 +760,7 @@ function M.open_browser()
   local folder = folder_state.current()
   request.plain({
     cmd = 'message export %s --folder %s --open %s',
-    args = { account_flag(account), folder, current_id },
+    args = { account_flag(account), folder, M.context_email_id() },
     msg = 'Opening message in the browser',
     on_data = function(data)
       log.info(data)
