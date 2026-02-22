@@ -15,6 +15,17 @@
       (system:
         let
           pkgs = import nixpkgs { inherit system; };
+          busted-nlua = pkgs.luajitPackages.busted.overrideAttrs (oa: {
+            propagatedBuildInputs = oa.propagatedBuildInputs ++ [
+              pkgs.luajitPackages.nlua
+            ];
+            nativeBuildInputs = oa.nativeBuildInputs ++ [
+              pkgs.makeWrapper
+            ];
+            postInstall = (oa.postInstall or "") + ''
+              wrapProgram $out/bin/busted --add-flags "--lua=nlua"
+            '';
+          });
           plugin = name:
             builtins.trace "${name} rev: ${pkgs.vimPlugins.${name}.src.rev}" pkgs.vimPlugins.${name};
           plugins = map plugin;
@@ -59,6 +70,10 @@
 
               # Lua LSP
               lua-language-server
+
+              # Testing + coverage
+              busted-nlua
+              luajitPackages.luacov
 
               # FZF
               fzf

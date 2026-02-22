@@ -10,3 +10,7 @@ doc/tags
 
 # Perf benchmark output
 perf-results.json
+
+# Coverage
+luacov.stats.out
+luacov.report.out
