@@ -25,16 +25,13 @@ thread page navigation boundary feedback, `ga`/`gA` keybind consistency,
 `open_browser` from listing buffer, thread listing loading indicator,
 account/folder picker current-selection annotation,
 `download_attachments` structured feedback,
-`account_state.list()` async cache with background refresh.*
+`account_state.list()` async cache with background refresh,
+per-buffer account/folder state (`state/folder.lua` singleton eliminated,
+`state/account.lua` global `current_account` replaced with per-buffer
+`vim.b.himalaya_account/folder` via `state/context.lua` resolver;
+thread-listing module-local display state remains module-level).*
 
-### 1. Folder state is global singleton
-
-`current_folder`, `current_page`, `current_account` are module-level
-locals. Opening `:Himalaya` in two tabs shares state; changing folder in
-one tab changes it in the other. Could target wrong folder for
-delete/move/copy.
-
-**Files:** `state/folder.lua`, `state/account.lua`
+*No open items — section cleared.*
 
 ## Performance
 

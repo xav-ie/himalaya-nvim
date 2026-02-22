@@ -2,7 +2,6 @@ local request = require('himalaya.request')
 local log = require('himalaya.log')
 local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
-local folder_state = require('himalaya.state.folder')
 local probe = require('himalaya.domain.email.probe')
 local cache = require('himalaya.domain.email.cache')
 local paging = require('himalaya.domain.email.paging')
@@ -12,9 +11,7 @@ local win = require('himalaya.ui.win')
 
 local M = {}
 
--- Module-local state (mirrors s:id, s:draft, s:query in VimScript)
-local current_id = ''
-local query = ''
+-- Module-local state
 local saved_view = nil
 local saved_cursor_id = nil -- email ID for cursor restoration after re-fetch
 local resize_timer = nil -- vim.uv timer for debounced re-fetch
@@ -161,7 +158,7 @@ local function refresh_listing(account, folder, opts)
       require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
     end
   else
-    M.list_with(account, folder, folder_state.current_page(), query)
+    M.list_with(account, folder, vim.b.himalaya_page or 1, vim.b.himalaya_query or '')
   end
 end
 
@@ -177,12 +174,12 @@ function M.context_email_id()
   if in_listing_buffer() then
     return get_email_id_under_cursor()
   else
-    return current_id
+    return vim.b.himalaya_current_email_id or ''
   end
 end
 
 --- Resolve the target email ID(s) for a mutating operation.
---- In listing: uses cursor line (or visual range); in read buffer: uses current_id.
+--- In listing: uses cursor line (or visual range); in read buffer: uses buffer var.
 --- @param first_line? number
 --- @param last_line? number
 --- @return string space-separated ID(s)
@@ -192,7 +189,7 @@ local function resolve_target_ids(first_line, last_line)
   elseif in_listing_buffer() then
     return get_email_id_under_cursor()
   else
-    return current_id
+    return vim.b.himalaya_current_email_id or ''
   end
 end
 
@@ -212,6 +209,8 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
   update_listing_title(folder, qry, page, total_str, bufcmd)
   vim.bo[bufnr].modifiable = true
+  vim.b[bufnr].himalaya_account = account
+  vim.b[bufnr].himalaya_folder = folder
   vim.b[bufnr].himalaya_page = page
   vim.b[bufnr].himalaya_page_size = pg_size
   vim.b[bufnr].himalaya_query = qry
@@ -264,17 +263,21 @@ end
 --- @param opts? table  Optional: { restore_email_id = string }
 function M.list(account, opts)
   opts = opts or {}
+  local context = require('himalaya.state.context')
   if account then
-    account_state.select(account)
-    folder_state.set_page(1)
+    vim.b.himalaya_account = account
+    vim.b.himalaya_folder = 'INBOX'
+    vim.b.himalaya_page = 1
+    vim.b.himalaya_query = ''
   end
   if opts.restore_email_id then
     saved_cursor_id = opts.restore_email_id
   end
-  local acct = account_state.current()
-  local folder = folder_state.current()
-  local page = folder_state.current_page()
-  M.list_with(acct, folder, page, query)
+  local acct, folder = context.resolve()
+  if acct == '' then
+    acct = account_state.default()
+  end
+  M.list_with(acct, folder, vim.b.himalaya_page or 1, vim.b.himalaya_query or '')
 end
 
 --- Kill all in-flight fetch/resize jobs synchronously.
@@ -422,15 +425,15 @@ end
 --- Read email under cursor.
 function M.read()
   M.cancel_resize()
-  current_id = get_email_id_under_cursor()
+  local current_id = get_email_id_under_cursor()
   if current_id == '' or current_id == 'ID' then
     return
   end
   -- Capture listing window synchronously before the async request,
   -- so the callback can reliably reference it even if focus changes.
   local listing_winid = vim.api.nvim_get_current_win()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'message read %s --folder %s %s',
@@ -480,6 +483,9 @@ function M.read()
         end
 
         vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
+        vim.b.himalaya_account = account
+        vim.b.himalaya_folder = folder
+        vim.b.himalaya_current_email_id = current_id
         vim.bo.filetype = 'himalaya-email-reading'
         vim.bo.modified = false
         vim.cmd('0')
@@ -521,8 +527,8 @@ function M.delete(first_line, last_line)
   end
 
   local cursor_line = vim.fn.line('.')
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'message delete %s --folder %s %s',
@@ -543,8 +549,8 @@ end
 function M.copy(target_folder, first_line, last_line)
   local ids = resolve_target_ids(first_line, last_line)
 
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'message copy %s --folder %s %s %s',
@@ -584,8 +590,8 @@ function M.move(target_folder, first_line, last_line)
   end
 
   local cursor_line = vim.fn.line('.')
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'message move %s --folder %s %s %s',
@@ -654,8 +660,8 @@ function M.flag_add(first_line, last_line)
     if not flag then
       return
     end
-    local account = account_state.current()
-    local folder = folder_state.current()
+    local context = require('himalaya.state.context')
+    local account, folder = context.resolve()
     probe.cancel(function()
       request.plain({
         cmd = 'flag add %s --folder %s %s %s',
@@ -682,8 +688,8 @@ function M.flag_remove(first_line, last_line)
     if not flag then
       return
     end
-    local account = account_state.current()
-    local folder = folder_state.current()
+    local context = require('himalaya.state.context')
+    local account, folder = context.resolve()
     probe.cancel(function()
       request.plain({
         cmd = 'flag remove %s --folder %s %s %s',
@@ -703,8 +709,8 @@ end
 function M.mark_seen(first_line, last_line)
   local ids = resolve_target_ids(first_line, last_line)
 
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'flag add %s --folder %s Seen %s',
@@ -724,8 +730,8 @@ end
 function M.mark_unseen(first_line, last_line)
   local ids = resolve_target_ids(first_line, last_line)
 
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
       cmd = 'flag remove %s --folder %s Seen %s',
@@ -741,8 +747,8 @@ end
 
 --- Download attachments for current email.
 function M.download_attachments()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local id = M.context_email_id()
   request.plain({
     cmd = 'attachment download %s --folder %s %s',
@@ -761,8 +767,8 @@ end
 
 --- Open current email in browser.
 function M.open_browser()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   request.plain({
     cmd = 'message export %s --folder %s --open %s',
     args = { account_flag(account), folder, M.context_email_id() },
@@ -873,8 +879,8 @@ local function schedule_phase2_refetch(bufnr)
       local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
       local cursor_id =
         M._get_email_id_from_line(vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
-      local account = account_state.current()
-      local folder_cur = folder_state.current()
+      local account = vim.b[bufnr].himalaya_account or ''
+      local folder_cur = vim.b[bufnr].himalaya_folder or 'INBOX'
       local cur_query = vim.b[bufnr].himalaya_query or ''
       local cur_page = vim.b[bufnr].himalaya_page or 1
       local ps = vim.b[bufnr].himalaya_page_size
@@ -915,18 +921,15 @@ function M.resize_listing()
     return
   end
 
-  -- Guard: if the buffer belongs to a different folder/account/query than the
-  -- current state, its page data is stale.  This happens when a folder switch
-  -- (e.g. INBOX → Drafts) triggers an async fetch and WinResized fires before
-  -- the new data arrives.  Without this guard, resize_listing() would compute
-  -- a page number from the old folder's buffer vars and clobber
-  -- folder_state.current_page(), causing "page N out of bounds" on the next
-  -- navigation action.
+  -- Guard: if the buffer's cache key doesn't match its own stamped state,
+  -- the page data is stale.  This happens when a folder switch (e.g.
+  -- INBOX → Drafts) triggers an async fetch and WinResized fires before
+  -- the new data arrives.
   local buf_cache_key = vim.b.himalaya_cache_key
   if buf_cache_key then
-    local current_key = account_flag(account_state.current())
+    local current_key = account_flag(vim.b.himalaya_account or '')
       .. '\0'
-      .. folder_state.current()
+      .. (vim.b.himalaya_folder or 'INBOX')
       .. '\0'
       .. (vim.b.himalaya_query or '')
     if buf_cache_key ~= current_key then
@@ -965,15 +968,14 @@ function M.resize_listing()
     local cursor_line = resize_info.cursor_line
 
     -- Update buffer state
-    folder_state.set_page(new_page)
     vim.b.himalaya_page = new_page
     vim.b.himalaya_page_size = new_page_size
 
     -- Render
     local bufnr = vim.api.nvim_get_current_buf()
-    local folder_name = folder_state.current()
+    local folder_name = vim.b.himalaya_folder or 'INBOX'
     local buf_query = vim.b.himalaya_query or ''
-    local acct_flag = account_flag(account_state.current())
+    local acct_flag = account_flag(vim.b.himalaya_account or '')
     local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. buf_query
     local total_str = probe.total_pages_str(cache_key, new_page_size)
     update_listing_title(folder_name, buf_query, new_page, total_str)
@@ -1028,19 +1030,17 @@ end
 
 --- Set the list envelopes query and refresh.
 function M.set_list_envelopes_query()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local search = require('himalaya.ui.search')
-  search.open(function(final_query, folder)
-    query = final_query
-    if folder and folder ~= '' then
-      folder_state.set(folder)
+  search.open(function(final_query, new_folder)
+    vim.b.himalaya_query = final_query
+    if new_folder and new_folder ~= '' then
+      vim.b.himalaya_folder = new_folder
+      vim.b.himalaya_page = 1
     end
     M.list()
-  end, query, folder_state.current())
-end
-
---- Accessor for current_id (used by compose module).
-function M._get_current_id()
-  return current_id
+  end, vim.b.himalaya_query or '', folder, account)
 end
 
 --- Test-only accessor for mark_envelope_seen.

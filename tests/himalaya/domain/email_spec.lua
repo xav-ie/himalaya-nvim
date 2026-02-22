@@ -7,7 +7,7 @@ describe('himalaya.domain.email', function()
     package.loaded['himalaya.domain.email.compose'] = nil
     package.loaded['himalaya.config'] = nil
     package.loaded['himalaya.state.account'] = nil
-    package.loaded['himalaya.state.folder'] = nil
+    package.loaded['himalaya.state.context'] = nil
     require('himalaya.config')._reset()
     email = require('himalaya.domain.email')
     compose = require('himalaya.domain.email.compose')

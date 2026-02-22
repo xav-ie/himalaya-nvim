@@ -1,15 +1,17 @@
 describe('himalaya.domain.folder', function()
   local folder_domain
-  local folder_state
 
   before_each(function()
     package.loaded['himalaya.domain.folder'] = nil
-    package.loaded['himalaya.state.folder'] = nil
     package.loaded['himalaya.state.account'] = nil
+    package.loaded['himalaya.state.context'] = nil
     package.loaded['himalaya.config'] = nil
     require('himalaya.config')._reset()
     folder_domain = require('himalaya.domain.folder')
-    folder_state = require('himalaya.state.folder')
+
+    vim.b.himalaya_folder = nil
+    vim.b.himalaya_page = nil
+    vim.b.himalaya_page_size = nil
   end)
 
   it('exposes open_picker, select, and set functions', function()
@@ -18,10 +20,13 @@ describe('himalaya.domain.folder', function()
     assert.is_function(folder_domain.set)
   end)
 
-  it('set updates folder state', function()
-    folder_state.set('Sent')
-    assert.are.equal('Sent', folder_state.current())
-    assert.are.equal(1, folder_state.current_page())
+  it('set updates buffer folder and resets page', function()
+    vim.b.himalaya_page = 3
+    -- stub email.list to avoid actual request
+    package.loaded['himalaya.domain.email'] = { list = function() end }
+    folder_domain.set('Sent')
+    assert.are.equal('Sent', vim.b.himalaya_folder)
+    assert.are.equal(1, vim.b.himalaya_page)
   end)
 
   describe('select_previous_page', function()

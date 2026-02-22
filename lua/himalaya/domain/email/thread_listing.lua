@@ -1,7 +1,6 @@
 local request = require('himalaya.request')
 local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
-local folder_state = require('himalaya.state.folder')
 local tree = require('himalaya.domain.email.tree')
 local probe = require('himalaya.domain.email.probe')
 local perf = require('himalaya.perf')
@@ -73,7 +72,7 @@ function M.render_page(page, opts)
     slice[#slice + 1] = all_display_rows[i]
   end
 
-  local folder = folder_state.current()
+  local folder = vim.b.himalaya_folder or 'INBOX'
   local display_query = thread_query == '' and 'all' or thread_query
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
   vim.cmd(
@@ -183,11 +182,15 @@ end
 --- @param opts? table  Optional: { restore_email_id = string, restore_cursor_line = number }
 function M.list(account, opts)
   opts = opts or {}
+  local context = require('himalaya.state.context')
   if account then
-    account_state.select(account)
+    vim.b.himalaya_account = account
+    vim.b.himalaya_folder = 'INBOX'
   end
-  local acct = account_state.current()
-  local folder = folder_state.current()
+  local acct, folder = context.resolve()
+  if acct == '' then
+    acct = account_state.default()
+  end
 
   -- Kill all in-flight CLI jobs (ours, flat listing's, and probe) to
   -- avoid database lock contention on rapid mode switches.
@@ -250,6 +253,9 @@ function M.list(account, opts)
       if not vim.api.nvim_win_is_valid(listing_win) then
         return
       end
+      local listing_bufnr = vim.api.nvim_win_get_buf(listing_win)
+      vim.b[listing_bufnr].himalaya_account = acct
+      vim.b[listing_bufnr].himalaya_folder = folder
       vim.api.nvim_win_call(listing_win, function()
         local listing_ui = require('himalaya.ui.listing')
         if opts.restore_cursor_line then
@@ -344,14 +350,16 @@ end
 
 --- Open search popup and re-fetch threads with the resulting query.
 function M.set_thread_query()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local search = require('himalaya.ui.search')
-  search.open(function(final_query, folder)
+  search.open(function(final_query, new_folder)
     thread_query = final_query
-    if folder and folder ~= '' then
-      folder_state.set(folder)
+    if new_folder and new_folder ~= '' then
+      vim.b.himalaya_folder = new_folder
     end
     M.list()
-  end, thread_query, folder_state.current())
+  end, thread_query, folder, account)
 end
 
 --- Re-render on resize: recomputes which page the selected email belongs

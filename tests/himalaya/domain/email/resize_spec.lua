@@ -1,6 +1,5 @@
 describe('himalaya.domain.email resize_listing', function()
   local email
-  local set_page_calls
   local rendered_envs
   local original_height
   local last_request_json_opts -- captured from request.json mock
@@ -45,7 +44,6 @@ describe('himalaya.domain.email resize_listing', function()
       end
     end
 
-    set_page_calls = {}
     rendered_envs = nil
     last_request_json_opts = nil
     mock_request_sync_data = nil
@@ -83,25 +81,24 @@ describe('himalaya.domain.email resize_listing', function()
       _reset = function() end,
     }
     package.loaded['himalaya.state.account'] = {
-      current = function()
+      default = function()
         return 'test'
       end,
-      select = function() end,
       flag = function(account)
         return account == '' and '' or ('--account ' .. account)
       end,
     }
-    package.loaded['himalaya.state.folder'] = {
-      current = function()
-        return 'INBOX'
-      end,
-      current_page = function()
-        return 1
-      end,
-      set_page = function(n)
-        table.insert(set_page_calls, n)
+    package.loaded['himalaya.state.context'] = {
+      resolve = function(bufnr)
+        bufnr = bufnr or vim.api.nvim_get_current_buf()
+        local account = vim.b[bufnr].himalaya_account
+        local folder = vim.b[bufnr].himalaya_folder
+        return account or '', folder or 'INBOX'
       end,
     }
+
+    vim.b.himalaya_account = 'test'
+    vim.b.himalaya_folder = 'INBOX'
     package.loaded['himalaya.domain.email.probe'] = {
       reset_if_changed = function() end,
       set_total_from_data = function() end,
@@ -846,7 +843,7 @@ describe('himalaya.domain.email resize_listing', function()
       assert.are.equal('5', rendered_envs[5].id)
     end)
 
-    it('does not call folder_state.set_page when page stays 1', function()
+    it('keeps page at 1 when page stays 1', function()
       vim.api.nvim_win_set_height(0, 5)
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 10)
@@ -859,7 +856,7 @@ describe('himalaya.domain.email resize_listing', function()
 
       email.resize_listing()
 
-      assert.are.equal(1, set_page_calls[#set_page_calls])
+      assert.are.equal(1, vim.b.himalaya_page)
     end)
   end)
 
@@ -913,7 +910,6 @@ describe('himalaya.domain.email resize_listing', function()
 
       assert.are.equal(3, vim.b.himalaya_page)
       assert.are.equal(5, vim.b.himalaya_page_size)
-      assert.are.equal(3, set_page_calls[#set_page_calls])
       assert.are.equal(5, #rendered_envs)
       assert.are.equal('11', rendered_envs[1].id)
       assert.are.equal('15', rendered_envs[5].id)
@@ -941,7 +937,6 @@ describe('himalaya.domain.email resize_listing', function()
 
       assert.are.equal(2, vim.b.himalaya_page)
       assert.are.equal(10, vim.b.himalaya_page_size)
-      assert.are.equal(2, set_page_calls[#set_page_calls])
       assert.are.equal(5, #rendered_envs)
       assert.are.equal('11', rendered_envs[1].id)
       assert.are.equal('15', rendered_envs[5].id)
@@ -2091,9 +2086,6 @@ describe('himalaya.domain.email resize_listing', function()
 
       -- Different folder → cache_key changes → replace
       mock_request_sync_data = make_envelopes(101, ps)
-      package.loaded['himalaya.state.folder'].current = function()
-        return 'Sent'
-      end
       email.list_with('test', 'Sent', 1, '')
 
       assert.are.equal(ps, #vim.b.himalaya_envelopes)
@@ -2372,7 +2364,7 @@ describe('himalaya.domain.email resize_listing', function()
   -- ── folder switch stale page guard ─────────────────────────────
 
   describe('folder switch stale page guard', function()
-    it('does not clobber folder_state page when buffer cache_key is stale', function()
+    it('does not update page when buffer cache_key is stale', function()
       -- Simulate: buffer has INBOX data on high page (e.g. page 85)
       vim.api.nvim_win_set_height(0, 5)
       vim.b.himalaya_buffer_type = 'listing'
@@ -2385,17 +2377,14 @@ describe('himalaya.domain.email resize_listing', function()
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
-      -- Folder switch happened: folder_state now returns 'Drafts'
-      package.loaded['himalaya.state.folder'].current = function()
-        return 'Drafts'
-      end
+      -- Folder switch happened: buffer folder changed but cache_key still old
+      vim.b.himalaya_folder = 'Drafts'
 
-      set_page_calls = {}
       email.resize_listing()
 
-      -- resize_listing must NOT call folder_state.set_page() because
-      -- the buffer's cache_key belongs to INBOX, not Drafts
-      assert.are.equal(0, #set_page_calls, 'resize_listing must not call set_page when buffer cache_key is stale')
+      -- resize_listing must bail because the buffer's cache_key
+      -- belongs to INBOX, not the new folder Drafts
+      assert.are.equal(85, vim.b.himalaya_page, 'page must not change when buffer cache_key is stale')
     end)
 
     it('does not render stale data after folder switch', function()
@@ -2410,10 +2399,8 @@ describe('himalaya.domain.email resize_listing', function()
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
-      -- Folder switch happened
-      package.loaded['himalaya.state.folder'].current = function()
-        return 'Drafts'
-      end
+      -- Folder switch happened: buffer folder changed but cache_key still old
+      vim.b.himalaya_folder = 'Drafts'
 
       rendered_envs = nil
       email.resize_listing()
@@ -2434,7 +2421,7 @@ describe('himalaya.domain.email resize_listing', function()
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
-      -- folder_state.current() returns 'INBOX' (default mock) — cache_key matches
+      -- vim.b.himalaya_folder is 'INBOX' (set in before_each) — cache_key matches
       email.resize_listing()
 
       assert.is_not_nil(rendered_envs, 'should still render when cache_key matches')

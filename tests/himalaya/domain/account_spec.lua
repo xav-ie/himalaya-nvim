@@ -5,6 +5,7 @@ describe('himalaya.domain.account', function()
   before_each(function()
     package.loaded['himalaya.domain.account'] = nil
     package.loaded['himalaya.state.account'] = nil
+    package.loaded['himalaya.state.context'] = nil
     package.loaded['himalaya.pickers'] = nil
     package.loaded['himalaya.domain.email'] = nil
     package.loaded['himalaya.domain.email.thread_listing'] = nil
@@ -18,16 +19,21 @@ describe('himalaya.domain.account', function()
     }
 
     vim.b.himalaya_buffer_type = nil
+    vim.b.himalaya_account = nil
+    vim.b.himalaya_folder = nil
   end)
 
   describe('open_picker', function()
     it('rotates so next account after current is first', function()
+      vim.b.himalaya_account = 'B'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'A', 'B', 'C' })
         end,
-        current = function()
-          return 'B'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -42,12 +48,15 @@ describe('himalaya.domain.account', function()
     end)
 
     it('rotates when current is first account', function()
+      vim.b.himalaya_account = 'A'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'A', 'B', 'C' })
         end,
-        current = function()
-          return 'A'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -62,12 +71,15 @@ describe('himalaya.domain.account', function()
     end)
 
     it('wraps around when current is last account', function()
+      vim.b.himalaya_account = 'C'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'A', 'B', 'C' })
         end,
-        current = function()
-          return 'C'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -82,12 +94,15 @@ describe('himalaya.domain.account', function()
     end)
 
     it('handles a single account', function()
+      vim.b.himalaya_account = 'only'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'only' })
         end,
-        current = function()
-          return 'only'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -99,12 +114,15 @@ describe('himalaya.domain.account', function()
     end)
 
     it('preserves order when current is not in list', function()
+      vim.b.himalaya_account = 'D'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'A', 'B', 'C' })
         end,
-        current = function()
-          return 'D'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -119,12 +137,15 @@ describe('himalaya.domain.account', function()
     end)
 
     it('wrapper strips (current) suffix before passing to callback', function()
+      vim.b.himalaya_account = 'X'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'X' })
         end,
-        current = function()
-          return 'X'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       account = require('himalaya.domain.account')
@@ -143,14 +164,16 @@ describe('himalaya.domain.account', function()
   describe('select', function()
     it('dispatches to email.list when buffer type is not thread-listing', function()
       local email_list_arg
+      vim.b.himalaya_account = 'acct1'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'acct1' })
         end,
-        current = function()
-          return 'acct1'
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
-        select = function() end,
       }
       package.loaded['himalaya.domain.email'] = {
         list = function(name)
@@ -171,25 +194,24 @@ describe('himalaya.domain.account', function()
     end)
 
     it('dispatches to thread_listing.list when buffer type is thread-listing', function()
-      local thread_list_called = false
-      local account_select_arg
+      local thread_list_arg
+      vim.b.himalaya_account = 'acct1'
       package.loaded['himalaya.state.account'] = {
         list_async = function(cb)
           cb({ 'acct1' })
         end,
-        current = function()
-          return 'acct1'
-        end,
-        select = function(name)
-          account_select_arg = name
+      }
+      package.loaded['himalaya.state.context'] = {
+        resolve = function()
+          return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
         end,
       }
       package.loaded['himalaya.domain.email'] = {
         list = function() end,
       }
       package.loaded['himalaya.domain.email.thread_listing'] = {
-        list = function()
-          thread_list_called = true
+        list = function(name)
+          thread_list_arg = name
         end,
       }
       account = require('himalaya.domain.account')
@@ -198,8 +220,7 @@ describe('himalaya.domain.account', function()
       account.select()
 
       pickers_select_args.callback('acct1')
-      assert.are.equal('acct1', account_select_arg)
-      assert.is_true(thread_list_called)
+      assert.are.equal('acct1', thread_list_arg)
     end)
   end)
 end)

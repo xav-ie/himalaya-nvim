@@ -11,7 +11,7 @@ describe('himalaya.domain.email.compose', function()
     package.loaded['himalaya.request'] = nil
     package.loaded['himalaya.log'] = nil
     package.loaded['himalaya.state.account'] = nil
-    package.loaded['himalaya.state.folder'] = nil
+    package.loaded['himalaya.state.context'] = nil
     package.loaded['himalaya.domain.email'] = nil
 
     package.loaded['himalaya.request'] = {
@@ -27,26 +27,26 @@ describe('himalaya.domain.email.compose', function()
       debug = function() end,
     }
     package.loaded['himalaya.state.account'] = {
-      current = function()
-        return 'test-acct'
-      end,
       flag = function(acct)
+        if acct == '' then
+          return ''
+        end
         return '--account ' .. acct
       end,
     }
-    package.loaded['himalaya.state.folder'] = {
-      current = function()
-        return 'INBOX'
+    package.loaded['himalaya.state.context'] = {
+      resolve = function()
+        return 'test-acct', 'INBOX'
       end,
     }
     package.loaded['himalaya.domain.email'] = {
-      _get_current_id = function()
-        return '42'
-      end,
       context_email_id = function()
         return '42'
       end,
     }
+
+    vim.b.himalaya_account = 'test-acct'
+    vim.b.himalaya_folder = 'INBOX'
 
     compose = require('himalaya.domain.email.compose')
 
@@ -85,10 +85,8 @@ describe('himalaya.domain.email.compose', function()
     end)
 
     it('adds answered flag only for reply buffers', function()
-      -- Simulate a reply buffer name
-      vim.api.nvim_buf_get_name = function()
-        return 'Himalaya/reply [42]'
-      end
+      -- Simulate a reply buffer with reply_id set
+      vim.b.himalaya_reply_id = '42'
       compose.send()
       -- Trigger on_data to simulate successful send
       request_calls[1].on_data()
@@ -97,10 +95,8 @@ describe('himalaya.domain.email.compose', function()
     end)
 
     it('does not add answered flag for new compose', function()
-      -- Simulate a new compose buffer name
-      vim.api.nvim_buf_get_name = function()
-        return 'Himalaya/write'
-      end
+      -- No reply_id set — new compose
+      vim.b.himalaya_reply_id = nil
       compose.send()
       request_calls[1].on_data()
       assert.are.equal(1, #request_calls)

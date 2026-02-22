@@ -206,7 +206,8 @@ local last_state = nil
 --- @param callback fun(query: string, folder: string)
 --- @param prev_query? string  Non-empty when a previous search is active.
 --- @param current_folder? string  Current folder name (pre-populated).
-function M.open(callback, prev_query, current_folder)
+--- @param account? string  Account for folder list fetch.
+function M.open(callback, prev_query, current_folder, account)
   local buf = vim.api.nvim_create_buf(false, true)
   local num_lines = #FIELDS
 
@@ -316,7 +317,7 @@ function M.open(callback, prev_query, current_folder)
   require('himalaya.request').json({
     cmd = 'folder list %s',
     args = {
-      account_state.flag(account_state.current()),
+      account_state.flag(account or ''),
     },
     msg = 'Listing folders',
     silent = true,

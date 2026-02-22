@@ -45,6 +45,9 @@ describe('himalaya', function()
     }
 
     package.loaded['himalaya.state.account'] = {
+      default = function()
+        return ''
+      end,
       list = function()
         return {}
       end,

@@ -2,18 +2,14 @@ local config = require('himalaya.config')
 local job = require('himalaya.job')
 
 local M = {}
-local current_account = ''
+local default_account = nil
 local cached_accounts = nil
 local cache_ts = 0
 local CACHE_TTL = 120 -- seconds
 local refresh_in_flight = false
 
-function M.current()
-  return current_account
-end
-
-function M.select(name)
-  current_account = name
+function M.default()
+  return default_account or ''
 end
 
 local function build_cmd()
@@ -60,8 +56,8 @@ local function refresh(callback)
       if names then
         cached_accounts = names
         cache_ts = vim.uv.now()
-        if current_account == '' and default_name then
-          current_account = default_name
+        if not default_account and default_name then
+          default_account = default_name
         end
       end
       if callback then

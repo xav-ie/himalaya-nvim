@@ -1,7 +1,6 @@
 local request = require('himalaya.request')
 local log = require('himalaya.log')
 local account_state = require('himalaya.state.account')
-local folder_state = require('himalaya.state.folder')
 local win = require('himalaya.ui.win')
 
 local M = {}
@@ -31,7 +30,10 @@ end
 --- Internal: open a write/reply/forward buffer with template content.
 --- @param msg string buffer name suffix
 --- @param content string template content
-local function open_write_buffer(msg, content)
+--- @param account? string account to stamp on buffer
+--- @param folder? string folder to stamp on buffer
+--- @param reply_id? string email ID being replied to
+local function open_write_buffer(msg, content, account, folder, reply_id)
   local bufname = string.format('Himalaya/%s', msg)
   if vim.fn.winnr('$') == 1 then
     vim.cmd(string.format('silent! botright split %s', bufname))
@@ -43,6 +45,15 @@ local function open_write_buffer(msg, content)
     end
     vim.cmd(string.format('silent! edit %s', bufname))
   end
+  if account then
+    vim.b.himalaya_account = account
+  end
+  if folder then
+    vim.b.himalaya_folder = folder
+  end
+  if reply_id then
+    vim.b.himalaya_reply_id = reply_id
+  end
   set_buffer_content(content)
   vim.bo.filetype = 'himalaya-email-writing'
   vim.bo.modified = false
@@ -52,16 +63,17 @@ end
 --- Compose a new email. If template is provided, use it; otherwise fetch from CLI.
 --- @param template? string
 function M.write(template)
-  local account = account_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   if template then
-    open_write_buffer('edit', template)
+    open_write_buffer('edit', template, account, folder)
   else
     request.plain({
       cmd = 'template write %s',
       args = { account_flag(account) },
       msg = 'Fetching new template',
       on_data = function(data)
-        open_write_buffer('write', data)
+        open_write_buffer('write', data, account, folder)
       end,
     })
   end
@@ -69,45 +81,45 @@ end
 
 --- Reply to current email.
 function M.reply()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
     cmd = 'template reply %s --folder %s %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply template',
     on_data = function(data)
-      open_write_buffer(string.format('reply [%s]', id), data)
+      open_write_buffer(string.format('reply [%s]', id), data, account, folder, id)
     end,
   })
 end
 
 --- Reply-all to current email.
 function M.reply_all()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
     cmd = 'template reply %s --folder %s --all %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply all template',
     on_data = function(data)
-      open_write_buffer(string.format('reply all [%s]', id), data)
+      open_write_buffer(string.format('reply all [%s]', id), data, account, folder, id)
     end,
   })
 end
 
 --- Forward current email.
 function M.forward()
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
     cmd = 'template forward %s --folder %s %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching forward template',
     on_data = function(data)
-      open_write_buffer(string.format('forward [%s]', id), data)
+      open_write_buffer(string.format('forward [%s]', id), data, account, folder)
     end,
   })
 end
@@ -128,8 +140,8 @@ function M.send(bufnr)
     return
   end
 
-  local account = account_state.current()
-  local folder = folder_state.current()
+  local account = vim.b[bufnr].himalaya_account or ''
+  local folder = vim.b[bufnr].himalaya_folder or 'INBOX'
   local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n') .. '\n'
 
   request.plain({
@@ -142,17 +154,14 @@ function M.send(bufnr)
       vim.bo[bufnr].modified = false
       log.info('Send [OK]')
 
-      -- Add "answered" flag only for replies (not new compose or forwards)
-      local bufname = vim.api.nvim_buf_get_name(bufnr)
-      if bufname:find('reply', 1, true) then
-        local current_id = require('himalaya.domain.email')._get_current_id()
-        if current_id ~= '' then
-          request.plain({
-            cmd = 'flag add %s --folder %s answered %s',
-            args = { account_flag(account), folder, current_id },
-            msg = 'Adding answered flag',
-          })
-        end
+      -- Add "answered" flag only for replies
+      local reply_id = vim.b[bufnr].himalaya_reply_id
+      if reply_id and reply_id ~= '' then
+        request.plain({
+          cmd = 'flag add %s --folder %s answered %s',
+          args = { account_flag(account), folder, reply_id },
+          msg = 'Adding answered flag',
+        })
       end
     end,
   })
@@ -169,7 +178,7 @@ function M.process_draft(bufnr)
     return
   end
   local ok, err = pcall(function()
-    local account = account_state.current()
+    local account = vim.b[bufnr].himalaya_account or ''
 
     while true do
       local choice = vim.fn.input('(d)raft, (q)uit or (c)ancel? ')

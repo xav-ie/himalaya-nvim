@@ -1,6 +1,5 @@
 local request = require('himalaya.request')
 local account_state = require('himalaya.state.account')
-local folder_state = require('himalaya.state.folder')
 local pickers = require('himalaya.pickers')
 
 local M = {}
@@ -41,8 +40,8 @@ local function strip_current(name)
 end
 
 function M.open_picker(callback)
-  local account = account_state.current()
-  local current = folder_state.current()
+  local context = require('himalaya.state.context')
+  local account, current = context.resolve()
 
   -- Return cached folder list if fresh.
   local cached = folder_cache[account]
@@ -72,7 +71,8 @@ function M.select()
   local in_thread = vim.b.himalaya_buffer_type == 'thread-listing'
   M.open_picker(function(folder)
     if in_thread then
-      folder_state.set(folder)
+      vim.b.himalaya_folder = folder
+      vim.b.himalaya_page = 1
       require('himalaya.domain.email.thread_listing').list()
     else
       M.set(folder)
@@ -81,7 +81,8 @@ function M.select()
 end
 
 function M.set(folder)
-  folder_state.set(folder)
+  vim.b.himalaya_folder = folder
+  vim.b.himalaya_page = 1
   require('himalaya.domain.email').list()
 end
 
@@ -112,7 +113,7 @@ function M.select_next_page()
       return
     end
   end
-  folder_state.next_page()
+  vim.b.himalaya_page = (vim.b.himalaya_page or 1) + 1
   require('himalaya.domain.email').list()
 end
 
@@ -122,11 +123,11 @@ function M.select_previous_page()
     require('himalaya.domain.email.thread_listing').previous_page()
     return
   end
-  if folder_state.current_page() <= 1 then
+  if (vim.b.himalaya_page or 1) <= 1 then
     vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
     return
   end
-  folder_state.previous_page()
+  vim.b.himalaya_page = math.max(1, (vim.b.himalaya_page or 1) - 1)
   require('himalaya.domain.email').list()
 end
 

@@ -23,18 +23,7 @@ describe('himalaya.state.account', function()
   end)
 
   it('defaults to empty string', function()
-    assert.are.equal('', account.current())
-  end)
-
-  it('stores selected account', function()
-    account.select('work')
-    assert.are.equal('work', account.current())
-  end)
-
-  it('can switch accounts', function()
-    account.select('work')
-    account.select('personal')
-    assert.are.equal('personal', account.current())
+    assert.are.equal('', account.default())
   end)
 
   describe('flag', function()
@@ -162,25 +151,45 @@ describe('himalaya.state.account', function()
   end)
 
   describe('default account', function()
-    it('sets current account from default entry on first load', function()
+    it('sets default account from default entry on first load', function()
       account.list()
       local json = vim.json.encode({
         { name = 'personal' },
         { name = 'work', default = true },
       })
       job_run_calls[1].opts.on_exit(json, '', 0)
-      assert.are.equal('work', account.current())
+      assert.are.equal('work', account.default())
     end)
 
-    it('does not override manually selected account', function()
-      account.select('custom')
+    it('returns empty string before warmup', function()
+      assert.are.equal('', account.default())
+    end)
+
+    it('does not change default after subsequent refreshes', function()
       account.list()
       local json = vim.json.encode({
         { name = 'personal' },
         { name = 'work', default = true },
       })
       job_run_calls[1].opts.on_exit(json, '', 0)
-      assert.are.equal('custom', account.current())
+      assert.are.equal('work', account.default())
+
+      -- Expire the cache
+      local real_now = vim.uv.now
+      vim.uv.now = function()
+        return real_now() + 121 * 1000
+      end
+
+      account.list()
+      local json2 = vim.json.encode({
+        { name = 'personal', default = true },
+        { name = 'work' },
+      })
+      job_run_calls[2].opts.on_exit(json2, '', 0)
+      -- default_account should not change once set
+      assert.are.equal('work', account.default())
+
+      vim.uv.now = real_now
     end)
   end)
 
