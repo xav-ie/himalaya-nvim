@@ -16,12 +16,12 @@ local M = {}
 local current_id = ''
 local query = ''
 local saved_view = nil
-local saved_cursor_id = nil   -- email ID for cursor restoration after re-fetch
-local resize_timer = nil      -- vim.uv timer for debounced re-fetch
-local resize_job = nil        -- in-flight resize re-fetch job handle
-local resize_generation = 0   -- incremented on kill; stale callbacks check this
-local fetch_generation = 0    -- incremented on each list_with(); stale callbacks bail out
-local fetch_job = nil         -- in-flight list_with job handle
+local saved_cursor_id = nil -- email ID for cursor restoration after re-fetch
+local resize_timer = nil -- vim.uv timer for debounced re-fetch
+local resize_job = nil -- in-flight resize re-fetch job handle
+local resize_generation = 0 -- incremented on kill; stale callbacks check this
+local fetch_generation = 0 -- incremented on each list_with(); stale callbacks bail out
+local fetch_job = nil -- in-flight list_with job handle
 local contact_cache_base = '' -- base string for cached contact completions
 local contact_cache_items = {} -- formatted items from last contact command
 
@@ -115,7 +115,16 @@ end
 local function update_listing_title(folder, qry, pg, total_str, bufcmd)
   bufcmd = bufcmd or 'file'
   local display_query = qry == '' and 'all' or qry
-  vim.cmd(string.format('silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]', bufcmd, folder, display_query, pg, total_str))
+  vim.cmd(
+    string.format(
+      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]',
+      bufcmd,
+      folder,
+      display_query,
+      pg,
+      total_str
+    )
+  )
 end
 
 --- Restore cursor position after a listing re-render.
@@ -128,7 +137,7 @@ local function restore_cursor(display)
     saved_view = nil
     local idx = paging.find_envelope_index(display, target)
     if idx then
-      pcall(vim.api.nvim_win_set_cursor, 0, {idx, 0})
+      pcall(vim.api.nvim_win_set_cursor, 0, { idx, 0 })
     end
   elseif saved_view then
     vim.fn.winrestview(saved_view)
@@ -188,14 +197,14 @@ local function resolve_target_ids(first_line, last_line)
 end
 
 --- Internal callback for list_with — populates the envelope listing buffer.
---- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*page_size)
-local function on_list_with(account, folder, page, page_size, qry, data, fetch_offset)
+--- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*pg_size)
+local function on_list_with(account, folder, page, pg_size, qry, data, fetch_offset)
   local acct_flag = account_flag(account)
   probe.reset_if_changed(acct_flag, folder, qry)
 
   local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
-  probe.set_total_from_data(cache_key, page, page_size, #data)
-  local total_str = probe.total_pages_str(cache_key, page_size)
+  probe.set_total_from_data(cache_key, page, pg_size, #data)
+  local total_str = probe.total_pages_str(cache_key, pg_size)
 
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
@@ -204,23 +213,22 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   update_listing_title(folder, qry, page, total_str, bufcmd)
   vim.bo[bufnr].modifiable = true
   vim.b[bufnr].himalaya_page = page
-  vim.b[bufnr].himalaya_page_size = page_size
+  vim.b[bufnr].himalaya_page_size = pg_size
   vim.b[bufnr].himalaya_query = qry
 
-  local new_offset = fetch_offset or ((page - 1) * page_size)
+  local new_offset = fetch_offset or ((page - 1) * pg_size)
   if vim.b[bufnr].himalaya_cache_key ~= cache_key then
     vim.b[bufnr].himalaya_envelopes = data
     vim.b[bufnr].himalaya_cache_offset = new_offset
   else
-    local merged, merged_offset = cache.merge(
-      vim.b[bufnr].himalaya_envelopes, vim.b[bufnr].himalaya_cache_offset or 0,
-      data, new_offset)
+    local merged, merged_offset =
+      cache.merge(vim.b[bufnr].himalaya_envelopes, vim.b[bufnr].himalaya_cache_offset or 0, data, new_offset)
     vim.b[bufnr].himalaya_envelopes = merged
     vim.b[bufnr].himalaya_cache_offset = merged_offset
   end
   vim.b[bufnr].himalaya_cache_key = cache_key
 
-  local page_data = paging.fetch_page_slice(data, page, page_size, new_offset)
+  local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
 
   local result = renderer.render(page_data, M._bufwidth())
   -- Set winbar first so page_size() reflects actual visible area
@@ -230,9 +238,13 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   local display = page_data
   if #page_data > actual_ps then
     display = {}
-    for i = 1, actual_ps do display[i] = page_data[i] end
+    for i = 1, actual_ps do
+      display[i] = page_data[i]
+    end
     local trimmed = {}
-    for i = 1, actual_ps do trimmed[i] = result.lines[i] end
+    for i = 1, actual_ps do
+      trimmed[i] = result.lines[i]
+    end
     result.lines = trimmed
     vim.b[bufnr].himalaya_page_size = actual_ps
   end
@@ -244,7 +256,7 @@ local function on_list_with(account, folder, page, page_size, qry, data, fetch_o
   vim.fn.winrestview({ topline = 1 })
   restore_cursor(display)
 
-  probe.start(acct_flag, folder, page_size, page, qry, bufnr)
+  probe.start(acct_flag, folder, pg_size, page, qry, bufnr)
 end
 
 --- List envelopes, optionally switching account first.
@@ -269,8 +281,14 @@ end
 --- Called before any new CLI command to avoid database lock contention.
 function M._cancel_jobs()
   fetch_generation = fetch_generation + 1
-  if fetch_job then job.kill_and_wait(fetch_job); fetch_job = nil end
-  if resize_timer then resize_timer:stop(); resize_timer = nil end
+  if fetch_job then
+    job.kill_and_wait(fetch_job)
+    fetch_job = nil
+  end
+  if resize_timer then
+    resize_timer:stop()
+    resize_timer = nil
+  end
   if resize_job then
     resize_generation = resize_generation + 1
     job.kill_and_wait(resize_job)
@@ -322,7 +340,9 @@ function M.list_with(account, folder, page, qry)
       qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
-    is_stale = function() return my_gen ~= fetch_generation end,
+    is_stale = function()
+      return my_gen ~= fetch_generation
+    end,
     on_error = function()
       fetch_job = nil
       -- Clear loading indicator on failure
@@ -351,7 +371,9 @@ end
 --- @param email_id string
 local function mark_envelope_seen(email_id)
   local listing_winid, listing_bufnr, listing_type = win.find_by_buftype({ 'listing', 'thread-listing' })
-  if not listing_winid then return end
+  if not listing_winid then
+    return
+  end
 
   if listing_type == 'thread-listing' then
     require('himalaya.domain.email.thread_listing').mark_seen_optimistic(email_id)
@@ -359,7 +381,9 @@ local function mark_envelope_seen(email_id)
   end
 
   local ok, envelopes = pcall(vim.api.nvim_buf_get_var, listing_bufnr, 'himalaya_envelopes')
-  if not (ok and envelopes) then return end
+  if not (ok and envelopes) then
+    return
+  end
 
   -- Update the envelope in cache.
   local eid = tostring(email_id)
@@ -367,7 +391,9 @@ local function mark_envelope_seen(email_id)
     if tostring(env.id) == eid then
       local flags = env.flags or {}
       for _, f in ipairs(flags) do
-        if f == 'Seen' then return end
+        if f == 'Seen' then
+          return
+        end
       end
       table.insert(flags, 'Seen')
       env.flags = flags
@@ -413,63 +439,63 @@ function M.read()
       on_error = function()
         probe.restart()
       end,
-    on_data = function(data)
-      -- Prepare email content into a buffer before showing it,
-      -- so the split appears with content already loaded (no flash).
-      local lines = vim.split(data:gsub('\r', ''), '\n')
-      if #lines > 1 and lines[#lines] == '' then
-        table.remove(lines)
-      end
-
-      -- Reuse existing email window in current tab to avoid resize jitter
-      local reused = false
-      local reading_win = win.find_by_name('Himalaya/read email')
-      if reading_win then
-        vim.api.nvim_set_current_win(reading_win)
-        reused = true
-      end
-
-      if not reused then
-        -- Create buffer and populate before showing — the split opens
-        -- with content already visible, no empty-buffer frame.
-        local listing_view
-        if vim.api.nvim_win_is_valid(listing_winid) then
-          listing_view = vim.api.nvim_win_call(listing_winid, function()
-            return vim.fn.winsaveview()
-          end)
+      on_data = function(data)
+        -- Prepare email content into a buffer before showing it,
+        -- so the split appears with content already loaded (no flash).
+        local lines = vim.split(data:gsub('\r', ''), '\n')
+        if #lines > 1 and lines[#lines] == '' then
+          table.remove(lines)
         end
-        local email_buf = vim.api.nvim_create_buf(true, true)
-        vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
-        vim.api.nvim_open_win(email_buf, true, { split = 'below' })
-        -- Freeze listing viewport — the split shrinks its window and
-        -- scrolloff would otherwise scroll it to keep the cursor centered.
-        if listing_view and vim.api.nvim_win_is_valid(listing_winid) then
-          vim.api.nvim_win_call(listing_winid, function()
-            vim.fn.winrestview(listing_view)
-          end)
-        end
-      else
-        vim.bo.modifiable = true
-        vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
-      end
 
-      vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
-      vim.bo.filetype = 'himalaya-email-reading'
-      vim.bo.modified = false
-      vim.cmd('0')
-      mark_envelope_seen(current_id)
-      -- Wipe stale email reading buffers
-      local cur_buf = vim.api.nvim_get_current_buf()
-      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_is_valid(bufnr) and bufnr ~= cur_buf then
-          local bname = vim.api.nvim_buf_get_name(bufnr)
-          if bname:find('Himalaya/read email', 1, true) then
-            vim.cmd('silent! bwipeout ' .. bufnr)
+        -- Reuse existing email window in current tab to avoid resize jitter
+        local reused = false
+        local reading_win = win.find_by_name('Himalaya/read email')
+        if reading_win then
+          vim.api.nvim_set_current_win(reading_win)
+          reused = true
+        end
+
+        if not reused then
+          -- Create buffer and populate before showing — the split opens
+          -- with content already visible, no empty-buffer frame.
+          local listing_view
+          if vim.api.nvim_win_is_valid(listing_winid) then
+            listing_view = vim.api.nvim_win_call(listing_winid, function()
+              return vim.fn.winsaveview()
+            end)
+          end
+          local email_buf = vim.api.nvim_create_buf(true, true)
+          vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
+          vim.api.nvim_open_win(email_buf, true, { split = 'below' })
+          -- Freeze listing viewport — the split shrinks its window and
+          -- scrolloff would otherwise scroll it to keep the cursor centered.
+          if listing_view and vim.api.nvim_win_is_valid(listing_winid) then
+            vim.api.nvim_win_call(listing_winid, function()
+              vim.fn.winrestview(listing_view)
+            end)
+          end
+        else
+          vim.bo.modifiable = true
+          vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+        end
+
+        vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
+        vim.bo.filetype = 'himalaya-email-reading'
+        vim.bo.modified = false
+        vim.cmd('0')
+        mark_envelope_seen(current_id)
+        -- Wipe stale email reading buffers
+        local cur_buf = vim.api.nvim_get_current_buf()
+        for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+          if vim.api.nvim_buf_is_valid(bufnr) and bufnr ~= cur_buf then
+            local bname = vim.api.nvim_buf_get_name(bufnr)
+            if bname:find('Himalaya/read email', 1, true) then
+              vim.cmd('silent! bwipeout ' .. bufnr)
+            end
           end
         end
-      end
-      probe.restart()
-    end,
+        probe.restart()
+      end,
     })
   end)
 end
@@ -483,7 +509,11 @@ function M.delete(first_line, last_line)
   local cfg = config.get()
   if cfg.always_confirm then
     local id_count = #vim.split(vim.trim(ids), '%s+')
-    local answer = vim.fn.inputdialog(string.format('Delete %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'), '', '_cancel_')
+    local answer = vim.fn.inputdialog(
+      string.format('Delete %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'),
+      '',
+      '_cancel_'
+    )
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
@@ -542,7 +572,11 @@ function M.move(target_folder, first_line, last_line)
   local cfg = config.get()
   if cfg.always_confirm then
     local id_count = #vim.split(vim.trim(ids), '%s+')
-    local answer = vim.fn.inputdialog(string.format('Move %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'), '', '_cancel_')
+    local answer = vim.fn.inputdialog(
+      string.format('Move %d %s? [Y/n] ', id_count, id_count == 1 and 'email' or 'emails'),
+      '',
+      '_cancel_'
+    )
     vim.cmd('redraw | echo')
     if answer == '_cancel_' or (answer ~= '' and answer:lower() ~= 'y') then
       return
@@ -592,9 +626,13 @@ end
 --- Get current flags for the email under cursor from cached envelopes.
 --- @return string[]
 local function get_current_flags()
-  if not in_listing_buffer() then return {} end
+  if not in_listing_buffer() then
+    return {}
+  end
   local ok, envelopes = pcall(vim.api.nvim_buf_get_var, 0, 'himalaya_envelopes')
-  if not (ok and envelopes) then return {} end
+  if not (ok and envelopes) then
+    return {}
+  end
   local id = get_email_id_under_cursor()
   for _, env in ipairs(envelopes) do
     if tostring(env.id) == id then
@@ -613,7 +651,9 @@ function M.flag_add(first_line, last_line)
   local all_flags = flags_mod.complete_list()
 
   vim.ui.select(all_flags, { prompt = 'Flag to add' }, function(flag)
-    if not flag then return end
+    if not flag then
+      return
+    end
     local account = account_state.current()
     local folder = folder_state.current()
     probe.cancel(function()
@@ -639,7 +679,9 @@ function M.flag_remove(first_line, last_line)
   local options = #current_flags > 0 and current_flags or flags_mod.complete_list()
 
   vim.ui.select(options, { prompt = 'Flag to remove' }, function(flag)
-    if not flag then return end
+    if not flag then
+      return
+    end
     local account = account_state.current()
     local folder = folder_state.current()
     probe.cancel(function()
@@ -753,8 +795,11 @@ function M.complete_contact(findstart, base)
     return start - 1 -- 0-based for omnifunc
   else
     -- Filter from cache when the query refines a previous one
-    if #contact_cache_items > 0 and #base >= #contact_cache_base
-        and base:sub(1, #contact_cache_base) == contact_cache_base then
+    if
+      #contact_cache_items > 0
+      and #base >= #contact_cache_base
+      and base:sub(1, #contact_cache_base) == contact_cache_base
+    then
       local filtered = {}
       local lower_base = base:lower()
       for _, item in ipairs(contact_cache_items) do
@@ -797,51 +842,73 @@ end
 --- for the current page to fill any sparse overlap from Phase 1.
 --- @param bufnr number  listing buffer number
 local function schedule_phase2_refetch(bufnr)
-  if resize_timer then resize_timer:stop() end
-  if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
+  if resize_timer then
+    resize_timer:stop()
+  end
+  if resize_job then
+    resize_generation = resize_generation + 1
+    resize_job:kill()
+    resize_job = nil
+  end
 
   resize_timer = vim.uv.new_timer()
-  resize_timer:start(150, 0, vim.schedule_wrap(function()
-    resize_timer = nil
-    if not vim.api.nvim_buf_is_valid(bufnr) then return end
-    -- Find the window still showing the listing buffer
-    local listing_win = win.find_by_bufnr(bufnr)
-    if not listing_win then return end
-    local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
-    local cursor_id = M._get_email_id_from_line(
-      vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
-    local account = account_state.current()
-    local folder_cur = folder_state.current()
-    local cur_query = vim.b[bufnr].himalaya_query or ''
-    local cur_page = vim.b[bufnr].himalaya_page or 1
-    local ps = vim.b[bufnr].himalaya_page_size
-    resize_generation = resize_generation + 1
-    local my_gen = resize_generation
-    resize_job = request.json({
-      cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-      args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
-      msg = 'Refetching page after resize',
-      silent = true,
-      is_stale = function() return my_gen ~= resize_generation end,
-      on_data = function(data)
-        resize_job = nil
-        if not vim.api.nvim_win_is_valid(listing_win) then return end
-        saved_cursor_id = cursor_id
-        vim.api.nvim_win_call(listing_win, function()
-          on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
-        end)
-      end,
-    })
-  end))
+  resize_timer:start(
+    150,
+    0,
+    vim.schedule_wrap(function()
+      resize_timer = nil
+      if not vim.api.nvim_buf_is_valid(bufnr) then
+        return
+      end
+      -- Find the window still showing the listing buffer
+      local listing_win = win.find_by_bufnr(bufnr)
+      if not listing_win then
+        return
+      end
+      local cursor_ln = vim.api.nvim_win_get_cursor(listing_win)[1]
+      local cursor_id =
+        M._get_email_id_from_line(vim.api.nvim_buf_get_lines(bufnr, cursor_ln - 1, cursor_ln, false)[1] or '')
+      local account = account_state.current()
+      local folder_cur = folder_state.current()
+      local cur_query = vim.b[bufnr].himalaya_query or ''
+      local cur_page = vim.b[bufnr].himalaya_page or 1
+      local ps = vim.b[bufnr].himalaya_page_size
+      resize_generation = resize_generation + 1
+      local my_gen = resize_generation
+      resize_job = request.json({
+        cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+        args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
+        msg = 'Refetching page after resize',
+        silent = true,
+        is_stale = function()
+          return my_gen ~= resize_generation
+        end,
+        on_data = function(data)
+          resize_job = nil
+          if not vim.api.nvim_win_is_valid(listing_win) then
+            return
+          end
+          saved_cursor_id = cursor_id
+          vim.api.nvim_win_call(listing_win, function()
+            on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
+          end)
+        end,
+      })
+    end)
+  )
 end
 
 --- Handle listing window resize: two-phase overlap display + deferred re-fetch.
 --- Phase 1 synchronously renders the overlap between old cache and new page
 --- boundaries (jitter-free). Phase 2 debounces a full re-fetch after 150ms.
 function M.resize_listing()
-  if not in_listing_buffer() then return end
+  if not in_listing_buffer() then
+    return
+  end
   local envelopes = vim.b.himalaya_envelopes
-  if not envelopes then return end
+  if not envelopes then
+    return
+  end
 
   -- Guard: if the buffer belongs to a different folder/account/query than the
   -- current state, its page data is stale.  This happens when a folder switch
@@ -853,15 +920,17 @@ function M.resize_listing()
   local buf_cache_key = vim.b.himalaya_cache_key
   if buf_cache_key then
     local current_key = account_flag(account_state.current())
-      .. '\0' .. folder_state.current()
-      .. '\0' .. (vim.b.himalaya_query or '')
+      .. '\0'
+      .. folder_state.current()
+      .. '\0'
+      .. (vim.b.himalaya_query or '')
     if buf_cache_key ~= current_key then
       return
     end
   end
 
   perf.reset()
-  perf.start("resize_listing_total")
+  perf.start('resize_listing_total')
 
   local reading = is_reading_email()
 
@@ -886,7 +955,8 @@ function M.resize_listing()
     local selected_global = cache_start + cursor_row - 1
     local resize_info = paging.resize_page(cache_start, #envelopes, selected_global, new_page_size)
     local new_page = resize_info.page
-    local display_envelopes = paging.extract_range(envelopes, cache_start, resize_info.overlap_start, resize_info.overlap_end)
+    local display_envelopes =
+      paging.extract_range(envelopes, cache_start, resize_info.overlap_start, resize_info.overlap_end)
     local cursor_line = resize_info.cursor_line
 
     -- Update buffer state
@@ -909,7 +979,7 @@ function M.resize_listing()
     -- Neovim may have shifted topline during the native resize before our
     -- handler runs; the listing always fits in the window so topline=1.
     vim.fn.winrestview({ topline = 1 })
-    pcall(vim.api.nvim_win_set_cursor, 0, {cursor_line, 0})
+    pcall(vim.api.nvim_win_set_cursor, 0, { cursor_line, 0 })
 
     -- When the page is fully covered by cached envelopes, skip Phase 2.
     -- The cache retains its high-water mark from the last server fetch;
@@ -917,14 +987,14 @@ function M.resize_listing()
     -- When sparse (cursor near cache edge), fall through to Phase 2
     -- so the server fills the rest of the page.
     if #display_envelopes >= new_page_size then
-      perf.stop("resize_listing_total")
+      perf.stop('resize_listing_total')
       perf.report()
       return
     end
 
     -- Phase 2: deferred re-fetch (debounced 150ms)
     schedule_phase2_refetch(bufnr)
-    perf.stop("resize_listing_total")
+    perf.stop('resize_listing_total')
     perf.report()
     return
   end
@@ -934,14 +1004,21 @@ function M.resize_listing()
   local bufnr = vim.api.nvim_get_current_buf()
   render_listing_buffer(bufnr, display_envelopes)
   vim.fn.winrestview({ topline = 1 })
-  perf.stop("resize_listing_total")
+  perf.stop('resize_listing_total')
   perf.report()
 end
 
 --- Cancel any pending resize timer and in-flight resize re-fetch job.
 function M.cancel_resize()
-  if resize_timer then resize_timer:stop(); resize_timer = nil end
-  if resize_job then resize_generation = resize_generation + 1; resize_job:kill(); resize_job = nil end
+  if resize_timer then
+    resize_timer:stop()
+    resize_timer = nil
+  end
+  if resize_job then
+    resize_generation = resize_generation + 1
+    resize_job:kill()
+    resize_job = nil
+  end
 end
 
 --- Set the list envelopes query and refresh.
@@ -957,15 +1034,25 @@ function M.set_list_envelopes_query()
 end
 
 --- Accessor for current_id (used by compose module).
-function M._get_current_id() return current_id end
+function M._get_current_id()
+  return current_id
+end
 
 --- Test-only accessor for mark_envelope_seen.
 M._mark_envelope_seen = mark_envelope_seen
 
 --- Test-only accessors for resize generation state.
-function M._get_resize_generation() return resize_generation end
-function M._set_resize_generation(n) resize_generation = n end
-function M._set_resize_job(j) resize_job = j end
-function M._get_resize_job() return resize_job end
+function M._get_resize_generation()
+  return resize_generation
+end
+function M._set_resize_generation(n)
+  resize_generation = n
+end
+function M._set_resize_job(j)
+  resize_job = j
+end
+function M._get_resize_job()
+  return resize_job
+end
 
 return M

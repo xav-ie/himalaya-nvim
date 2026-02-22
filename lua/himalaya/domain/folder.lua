@@ -8,11 +8,13 @@ local M = {}
 local account_flag = account_state.flag
 
 -- Folder list cache: keyed by account, expires after 60 seconds.
-local folder_cache = {}   -- { [account] = { data = ..., ts = ... } }
-local CACHE_TTL = 60      -- seconds
+local folder_cache = {} -- { [account] = { data = ..., ts = ... } }
+local CACHE_TTL = 60 -- seconds
 
 local function rotate_folders(data, current)
-  table.sort(data, function(a, b) return a.name < b.name end)
+  table.sort(data, function(a, b)
+    return a.name < b.name
+  end)
   local start = 1
   for i, f in ipairs(data) do
     if f.name == current then
@@ -74,7 +76,9 @@ function M.select_next_page()
     return
   end
   local ps = vim.b.himalaya_page_size
-  if not ps then return end
+  if not ps then
+    return
+  end
   -- Partial page means we're already on the last page.
   if vim.api.nvim_buf_line_count(0) < ps then
     vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')

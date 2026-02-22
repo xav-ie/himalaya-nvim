@@ -4,7 +4,9 @@ local perf = require('himalaya.perf')
 local M = {}
 
 --- Extract envelope from a thread display row.
-local function get_env(row) return row.env end
+local function get_env(row)
+  return row.env
+end
 
 --- Render thread display rows into box-drawn display lines.
 --- 5 columns: ID | FLAGS | SUBJECT | FROM | DATE
@@ -45,12 +47,14 @@ function M.render(display_rows, total_width, cfg)
 
     local date = renderer.format_date(env.date or '', cfg)
 
-    local line = string.format(layout.row_fmt,
+    local line = string.format(
+      layout.row_fmt,
       renderer.fit(tostring(env.id or ''), layout.id_w),
       env.flags and renderer.format_flags(env, cfg) or empty_flags,
       full_subject,
       renderer.fit(from, layout.from_w),
-      renderer.fit(date, layout.date_w))
+      renderer.fit(date, layout.date_w)
+    )
     lines[#lines + 1] = line
   end
 

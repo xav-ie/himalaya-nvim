@@ -10,13 +10,15 @@ describe('himalaya.job', function()
     local result = nil
 
     job.run({ 'echo', 'hello world' }, {
-      on_exit = function(out, err, code)
+      on_exit = function(out, _err, _code)
         result = out
         done = true
       end,
     })
 
-    vim.wait(5000, function() return done end)
+    vim.wait(5000, function()
+      return done
+    end)
     assert.is_true(done)
     assert.are.equal('hello world\n', result)
   end)
@@ -27,14 +29,16 @@ describe('himalaya.job', function()
     local exit_code = nil
 
     job.run({ 'sh', '-c', 'echo bad >&2; exit 1' }, {
-      on_exit = function(out, err, code)
+      on_exit = function(_out, err, code)
         err_result = err
         exit_code = code
         done = true
       end,
     })
 
-    vim.wait(5000, function() return done end)
+    vim.wait(5000, function()
+      return done
+    end)
     assert.is_true(done)
     assert.are.equal(1, exit_code)
     assert.is_truthy(err_result:match('bad'))
@@ -46,13 +50,15 @@ describe('himalaya.job', function()
 
     job.run({ 'cat' }, {
       stdin = 'piped content',
-      on_exit = function(out, err, code)
+      on_exit = function(out, _err, _code)
         result = out
         done = true
       end,
     })
 
-    vim.wait(5000, function() return done end)
+    vim.wait(5000, function()
+      return done
+    end)
     assert.is_true(done)
     assert.are.equal('piped content', result)
   end)

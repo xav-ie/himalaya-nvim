@@ -71,6 +71,10 @@
               # Lua LSP
               lua-language-server
 
+              # Linting + formatting
+              stylua
+              luajitPackages.luacheck
+
               # Testing + coverage
               busted-nlua
               luajitPackages.luacov

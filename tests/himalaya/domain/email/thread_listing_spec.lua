@@ -12,7 +12,10 @@ describe('himalaya.domain.email.thread_listing', function()
       for i = 1, 10 do
         rows[i] = {
           env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -40,7 +43,10 @@ describe('himalaya.domain.email.thread_listing', function()
       for i = 1, 5 do
         rows[i] = {
           env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -62,8 +68,16 @@ describe('himalaya.domain.email.thread_listing', function()
       local rows = {}
       for i = 1, 30 do
         rows[i] = {
-          env = { id = tostring(i), subject = 'Subject' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          env = {
+            id = tostring(i),
+            subject = 'Subject' .. i,
+            from = { name = 'A' },
+            date = '2024-01-01 10:00:00+00:00',
+          },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -96,8 +110,16 @@ describe('himalaya.domain.email.thread_listing', function()
       local rows = {}
       for i = 1, 30 do
         rows[i] = {
-          env = { id = tostring(i), subject = 'Subject' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          env = {
+            id = tostring(i),
+            subject = 'Subject' .. i,
+            from = { name = 'A' },
+            date = '2024-01-01 10:00:00+00:00',
+          },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -129,8 +151,16 @@ describe('himalaya.domain.email.thread_listing', function()
       local rows = {}
       for i = 1, 30 do
         rows[i] = {
-          env = { id = tostring(i), subject = 'Subject' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          env = {
+            id = tostring(i),
+            subject = 'Subject' .. i,
+            from = { name = 'A' },
+            date = '2024-01-01 10:00:00+00:00',
+          },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -165,7 +195,10 @@ describe('himalaya.domain.email.thread_listing', function()
       for i = 1, 10 do
         rows[i] = {
           env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -197,7 +230,10 @@ describe('himalaya.domain.email.thread_listing', function()
       for i = 1, 5 do
         rows[i] = {
           env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         }
       end
       thread_listing._set_state(rows, 1)
@@ -222,7 +258,7 @@ describe('himalaya.domain.email.thread_listing', function()
       -- resize should be a no-op (all_display_rows cleared)
       local bufnr = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_set_current_buf(bufnr)
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {'unchanged'})
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'unchanged' })
       thread_listing.resize()
       assert.are.equal('unchanged', vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)[1])
 
@@ -233,8 +269,8 @@ describe('himalaya.domain.email.thread_listing', function()
     it('is a no-op when no display rows are loaded', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_set_current_buf(bufnr)
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {'a','b','c'})
-      vim.api.nvim_win_set_cursor(0, {2, 0})
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'a', 'b', 'c' })
+      vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
       thread_listing.resize()
 

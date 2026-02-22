@@ -3,9 +3,6 @@ local request = require('himalaya.request')
 local M = {}
 
 local totals = {}
-local last_account = nil
-local last_folder = nil
-local last_query = nil
 local job = nil
 local saved_args = nil
 local generation = 0
@@ -17,7 +14,9 @@ local on_cancel_cb = nil
 --- @return string
 function M.total_pages_str(cache_key, page_size)
   local total = totals[cache_key]
-  if not total then return '?' end
+  if not total then
+    return '?'
+  end
   if total < 0 then
     return tostring(math.ceil(-total / page_size)) .. '+'
   end
@@ -29,7 +28,9 @@ end
 --- @return number|nil
 function M.total_count(cache_key)
   local total = totals[cache_key]
-  if not total or total < 0 then return nil end
+  if not total or total < 0 then
+    return nil
+  end
   return total
 end
 
@@ -38,11 +39,7 @@ end
 --- @param acct_flag string
 --- @param folder string
 --- @param qry string
-function M.reset_if_changed(acct_flag, folder, qry)
-  last_account = acct_flag
-  last_folder = folder
-  last_query = qry
-end
+function M.reset_if_changed(_acct_flag, _folder, _qry) end
 
 --- Record or validate total from initial listing data.
 --- When the data is a partial page, the exact total is deterministic — always
@@ -124,7 +121,13 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
         local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
         if ok and ok2 then
           local display_qry = qry == '' and 'all' or qry
-          local new_name = string.format('Himalaya/envelopes [%s] [%s] [page %d⁄%s]', folder, display_qry, page, M.total_pages_str(cache_key, cur_page_size))
+          local new_name = string.format(
+            'Himalaya/envelopes [%s] [%s] [page %d⁄%s]',
+            folder,
+            display_qry,
+            page,
+            M.total_pages_str(cache_key, cur_page_size)
+          )
           -- Wipe stale envelope buffers that would conflict with the rename.
           -- Rapid account switching can leave orphan listing buffers when
           -- on_list_with's async callback fires while a picker has focus.
@@ -165,7 +168,9 @@ end
 --- @param callback? function  called once the probe process has exited
 function M.cancel(callback)
   if not job then
-    if callback then callback() end
+    if callback then
+      callback()
+    end
     return
   end
   generation = generation + 1
@@ -183,7 +188,9 @@ end
 --- Cancel a running probe synchronously, waiting for the process to exit.
 --- Use before starting a new CLI command to avoid database lock contention.
 function M.cancel_sync()
-  if not job then return end
+  if not job then
+    return
+  end
   generation = generation + 1
   on_cancel_cb = nil
   local j = job

@@ -11,9 +11,7 @@ function M.define(bufnr, bindings)
     vim.keymap.set(mode, plug, callback, { silent = true, desc = 'Himalaya: ' .. name })
 
     local user_key = overrides[name]
-    if user_key == false then
-      -- Disabled by user config
-    else
+    if user_key ~= false then
       local actual_key = user_key or key
       if vim.fn.hasmapto(plug, mode) == 0 then
         vim.keymap.set(mode, actual_key, plug, { buffer = bufnr, nowait = true, desc = 'Himalaya: ' .. name })
@@ -30,7 +28,9 @@ function M.visual_range(fn)
   return function()
     local first = vim.fn.line('v')
     local last = vim.fn.line('.')
-    if first > last then first, last = last, first end
+    if first > last then
+      first, last = last, first
+    end
     fn(first, last)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
   end
@@ -62,7 +62,9 @@ function M.show_help()
   vim.api.nvim_buf_set_lines(float_buf, 0, -1, false, lines)
 
   local width = 0
-  for _, l in ipairs(lines) do width = math.max(width, #l) end
+  for _, l in ipairs(lines) do
+    width = math.max(width, #l)
+  end
   width = math.min(width + 4, vim.o.columns - 4)
   local height = math.min(#lines, vim.o.lines - 4)
 
@@ -81,8 +83,12 @@ function M.show_help()
   vim.bo[float_buf].modifiable = false
   vim.bo[float_buf].bufhidden = 'wipe'
 
-  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, true) end, { buffer = float_buf })
-  vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, { buffer = float_buf })
+  vim.keymap.set('n', 'q', function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = float_buf })
+  vim.keymap.set('n', '<Esc>', function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = float_buf })
 end
 
 --- Define keybinds shared between flat listing and thread listing.
@@ -95,31 +101,43 @@ function M.shared_listing_keybinds(bufnr)
   local account
 
   M.define(bufnr, {
-    { 'n', 'gw',   compose.write,                       'email-write' },
-    { 'n', 'gr',   compose.reply,                        'email-reply' },
-    { 'n', 'gR',   compose.reply_all,                    'email-reply-all' },
-    { 'n', 'gf',   compose.forward,                      'email-forward' },
-    { 'n', 'ga',   function()
-      account = account or require('himalaya.domain.account')
-      account.select()
-    end, 'account-select' },
-    { 'n', 'gA',   email.download_attachments,           'email-download-attachments' },
-    { 'n', 'gC',   email.select_folder_then_copy,        'email-select-folder-then-copy' },
-    { 'v', 'gC',   M.visual_range(email.select_folder_then_copy), 'email-select-folder-then-copy-visual' },
-    { 'n', 'gM',   email.select_folder_then_move,        'email-select-folder-then-move' },
-    { 'v', 'gM',   M.visual_range(email.select_folder_then_move), 'email-select-folder-then-move-visual' },
-    { 'n', 'dd',   email.delete,                         'email-delete' },
-    { 'v', 'd',    M.visual_range(email.delete),         'email-delete-visual' },
-    { 'n', 'gs',   email.mark_seen,                      'email-mark-seen' },
-    { 'v', 'gs',   M.visual_range(email.mark_seen),      'email-mark-seen-visual' },
-    { 'n', 'gS',   email.mark_unseen,                    'email-mark-unseen' },
-    { 'v', 'gS',   M.visual_range(email.mark_unseen),    'email-mark-unseen-visual' },
-    { 'n', 'gFa',  email.flag_add,                       'email-flag-add' },
-    { 'v', 'gFa',  M.visual_range(email.flag_add),       'email-flag-add-visual' },
-    { 'n', 'gFr',  email.flag_remove,                    'email-flag-remove' },
-    { 'v', 'gFr',  M.visual_range(email.flag_remove),    'email-flag-remove-visual' },
-    { 'n', 'gm',   function() require('himalaya.domain.folder').select() end, 'folder-select' },
-    { 'n', '?',    M.show_help,                          'help' },
+    { 'n', 'gw', compose.write, 'email-write' },
+    { 'n', 'gr', compose.reply, 'email-reply' },
+    { 'n', 'gR', compose.reply_all, 'email-reply-all' },
+    { 'n', 'gf', compose.forward, 'email-forward' },
+    {
+      'n',
+      'ga',
+      function()
+        account = account or require('himalaya.domain.account')
+        account.select()
+      end,
+      'account-select',
+    },
+    { 'n', 'gA', email.download_attachments, 'email-download-attachments' },
+    { 'n', 'gC', email.select_folder_then_copy, 'email-select-folder-then-copy' },
+    { 'v', 'gC', M.visual_range(email.select_folder_then_copy), 'email-select-folder-then-copy-visual' },
+    { 'n', 'gM', email.select_folder_then_move, 'email-select-folder-then-move' },
+    { 'v', 'gM', M.visual_range(email.select_folder_then_move), 'email-select-folder-then-move-visual' },
+    { 'n', 'dd', email.delete, 'email-delete' },
+    { 'v', 'd', M.visual_range(email.delete), 'email-delete-visual' },
+    { 'n', 'gs', email.mark_seen, 'email-mark-seen' },
+    { 'v', 'gs', M.visual_range(email.mark_seen), 'email-mark-seen-visual' },
+    { 'n', 'gS', email.mark_unseen, 'email-mark-unseen' },
+    { 'v', 'gS', M.visual_range(email.mark_unseen), 'email-mark-unseen-visual' },
+    { 'n', 'gFa', email.flag_add, 'email-flag-add' },
+    { 'v', 'gFa', M.visual_range(email.flag_add), 'email-flag-add-visual' },
+    { 'n', 'gFr', email.flag_remove, 'email-flag-remove' },
+    { 'v', 'gFr', M.visual_range(email.flag_remove), 'email-flag-remove-visual' },
+    {
+      'n',
+      'gm',
+      function()
+        require('himalaya.domain.folder').select()
+      end,
+      'folder-select',
+    },
+    { 'n', '?', M.show_help, 'help' },
   })
 end
 

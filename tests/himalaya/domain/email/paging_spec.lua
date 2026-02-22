@@ -8,7 +8,9 @@ describe('himalaya.domain.email.paging', function()
 
   describe('fetch_page_slice', function()
     local data = {}
-    for i = 1, 20 do data[i] = { id = tostring(i) } end
+    for i = 1, 20 do
+      data[i] = { id = tostring(i) }
+    end
 
     it('returns full data when it fits in one page', function()
       local small = { { id = '1' }, { id = '2' } }
@@ -38,7 +40,9 @@ describe('himalaya.domain.email.paging', function()
 
     it('handles partial last page', function()
       local partial = {}
-      for i = 1, 5 do partial[i] = { id = tostring(i) } end
+      for i = 1, 5 do
+        partial[i] = { id = tostring(i) }
+      end
       local result = paging.fetch_page_slice(partial, 1, 10, 0)
       assert.are.same(partial, result)
     end)
@@ -46,7 +50,9 @@ describe('himalaya.domain.email.paging', function()
 
   describe('cache_slice', function()
     local items = {}
-    for i = 1, 30 do items[i] = { id = tostring(i) } end
+    for i = 1, 30 do
+      items[i] = { id = tostring(i) }
+    end
 
     it('returns full array when it is the exact page', function()
       local small = { { id = '1' }, { id = '2' } }
@@ -129,7 +135,9 @@ describe('himalaya.domain.email.paging', function()
 
   describe('extract_range', function()
     local items = {}
-    for i = 1, 20 do items[i] = { id = tostring(i) } end
+    for i = 1, 20 do
+      items[i] = { id = tostring(i) }
+    end
 
     it('extracts full range', function()
       local result = paging.extract_range(items, 0, 0, 20)
@@ -157,7 +165,9 @@ describe('himalaya.domain.email.paging', function()
 
   describe('find_envelope_index', function()
     local envs = {
-      { id = '10' }, { id = '20' }, { id = '30' },
+      { id = '10' },
+      { id = '20' },
+      { id = '30' },
     }
 
     it('finds existing envelope by string id', function()

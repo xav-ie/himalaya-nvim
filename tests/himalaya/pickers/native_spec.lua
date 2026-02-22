@@ -19,7 +19,9 @@ describe('himalaya.pickers.native', function()
       { name = 'Sent' },
       { name = 'Drafts' },
     }
-    native.select(function(folder) selected = folder end, folders)
+    native.select(function(folder)
+      selected = folder
+    end, folders)
 
     vim.ui.select = orig
 
@@ -29,12 +31,14 @@ describe('himalaya.pickers.native', function()
 
   it('does nothing when selection is nil (cancelled)', function()
     local orig = vim.ui.select
-    vim.ui.select = function(items, opts, on_choice)
+    vim.ui.select = function(_items, _opts, on_choice)
       on_choice(nil)
     end
 
     local selected = nil
-    native.select(function(folder) selected = folder end, { { name = 'INBOX' } })
+    native.select(function(folder)
+      selected = folder
+    end, { { name = 'INBOX' } })
 
     vim.ui.select = orig
     assert.is_nil(selected)

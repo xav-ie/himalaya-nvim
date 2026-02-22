@@ -27,7 +27,9 @@ local function on_exit(cmd, opts, parse_fn)
     -- When the caller provides is_stale(), bail out before any work.
     -- This lets killed-job callbacks exit immediately without parsing,
     -- logging, or invoking any user callbacks.
-    if opts.is_stale and opts.is_stale() then return end
+    if opts.is_stale and opts.is_stale() then
+      return
+    end
 
     local cmd_str = table.concat(cmd, ' ')
     log.debug('[himalaya] cmd: %s', cmd_str)
@@ -49,13 +51,17 @@ local function on_exit(cmd, opts, parse_fn)
         end
         log.err(msg)
       end
-      if opts.on_error then opts.on_error() end
+      if opts.on_error then
+        opts.on_error()
+      end
       return
     end
 
     local data = parse_fn(stdout)
     if data == nil then
-      if opts.on_error then opts.on_error() end
+      if opts.on_error then
+        opts.on_error()
+      end
       return
     end
     opts.on_data(data)

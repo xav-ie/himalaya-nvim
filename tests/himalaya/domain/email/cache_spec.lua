@@ -39,8 +39,8 @@ describe('himalaya.domain.email.cache', function()
     end)
 
     it('merges contiguous forward (page 1 + page 2)', function()
-      local old = make_envelopes(1, 5)   -- offset 0, covers 0..4
-      local new = make_envelopes(6, 5)   -- offset 5, covers 5..9
+      local old = make_envelopes(1, 5) -- offset 0, covers 0..4
+      local new = make_envelopes(6, 5) -- offset 5, covers 5..9
       local merged, offset = cache.merge(old, 0, new, 5)
       assert.are.equal(0, offset)
       assert.are.equal(10, #merged)
@@ -51,8 +51,8 @@ describe('himalaya.domain.email.cache', function()
     end)
 
     it('merges contiguous backward (page 2 + page 1)', function()
-      local old = make_envelopes(6, 5)   -- offset 5, covers 5..9
-      local new = make_envelopes(1, 5)   -- offset 0, covers 0..4
+      local old = make_envelopes(6, 5) -- offset 5, covers 5..9
+      local new = make_envelopes(1, 5) -- offset 0, covers 0..4
       local merged, offset = cache.merge(old, 5, new, 0)
       assert.are.equal(0, offset)
       assert.are.equal(10, #merged)
@@ -62,9 +62,9 @@ describe('himalaya.domain.email.cache', function()
     end)
 
     it('merges overlapping ranges with new data winning', function()
-      local old = make_envelopes(1, 5)   -- offset 0, covers 0..4
+      local old = make_envelopes(1, 5) -- offset 0, covers 0..4
       -- New envelopes overlap at positions 3-4 and extend to 7
-      local new = make_envelopes(101, 5)  -- offset 3, covers 3..7
+      local new = make_envelopes(101, 5) -- offset 3, covers 3..7
       local merged, offset = cache.merge(old, 0, new, 3)
       assert.are.equal(0, offset)
       assert.are.equal(8, #merged)
@@ -79,8 +79,8 @@ describe('himalaya.domain.email.cache', function()
     end)
 
     it('replaces with new data on exact same range (re-fetch)', function()
-      local old = make_envelopes(1, 5)    -- offset 0, covers 0..4
-      local new = make_envelopes(101, 5)  -- offset 0, covers 0..4
+      local old = make_envelopes(1, 5) -- offset 0, covers 0..4
+      local new = make_envelopes(101, 5) -- offset 0, covers 0..4
       local merged, offset = cache.merge(old, 0, new, 0)
       assert.are.equal(0, offset)
       assert.are.equal(5, #merged)
@@ -90,18 +90,18 @@ describe('himalaya.domain.email.cache', function()
     end)
 
     it('returns new only when disjoint (gap)', function()
-      local old = make_envelopes(1, 5)    -- offset 0, covers 0..4
-      local new = make_envelopes(11, 5)   -- offset 10, covers 10..14 (gap at 5-9)
+      local old = make_envelopes(1, 5) -- offset 0, covers 0..4
+      local new = make_envelopes(11, 5) -- offset 10, covers 10..14 (gap at 5-9)
       local merged, offset = cache.merge(old, 0, new, 10)
       assert.are.same(new, merged)
       assert.are.equal(10, offset)
     end)
 
     it('new data overwrites flags in overlap', function()
-      local old = make_envelopes(1, 3)  -- offset 0
+      local old = make_envelopes(1, 3) -- offset 0
       old[3].flags = { 'Seen' }
       -- New data for same region but with updated flags
-      local new = make_envelopes(3, 2)  -- offset 2, overlaps at position 2
+      local new = make_envelopes(3, 2) -- offset 2, overlaps at position 2
       new[1].flags = { 'Seen', 'Flagged' }
       local merged, _ = cache.merge(old, 0, new, 2)
       assert.are.equal(4, #merged)

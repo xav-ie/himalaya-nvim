@@ -9,31 +9,81 @@ end
 local function week_start()
   local t = os.time()
   local d = os.date('*t', t)
-  local wday = (d.wday + 5) % 7  -- Mon=0 .. Sun=6
+  local wday = (d.wday + 5) % 7 -- Mon=0 .. Sun=6
   return os.date('%Y-%m-%d', t - wday * 86400)
 end
 
 local WHEN_PRESETS = {
-  { label = 'today',         resolve = function() return 'date ' .. today_str(0) end },
-  { label = 'yesterday',     resolve = function() return 'date ' .. today_str(-1) end },
-  { label = 'past 3 days',   resolve = function() return 'after ' .. today_str(-3) end },
-  { label = 'past week',     resolve = function() return 'after ' .. today_str(-7) end },
-  { label = 'past 2 weeks',  resolve = function() return 'after ' .. today_str(-14) end },
-  { label = 'past month',    resolve = function() return 'after ' .. today_str(-30) end },
-  { label = 'past 3 months', resolve = function() return 'after ' .. today_str(-90) end },
-  { label = 'this week',     resolve = function() return 'after ' .. week_start() end },
-  { label = 'this month',    resolve = function() return 'after ' .. os.date('%Y-%m') .. '-01' end },
-  { label = 'this year',     resolve = function() return 'after ' .. os.date('%Y') .. '-01-01' end },
+  {
+    label = 'today',
+    resolve = function()
+      return 'date ' .. today_str(0)
+    end,
+  },
+  {
+    label = 'yesterday',
+    resolve = function()
+      return 'date ' .. today_str(-1)
+    end,
+  },
+  {
+    label = 'past 3 days',
+    resolve = function()
+      return 'after ' .. today_str(-3)
+    end,
+  },
+  {
+    label = 'past week',
+    resolve = function()
+      return 'after ' .. today_str(-7)
+    end,
+  },
+  {
+    label = 'past 2 weeks',
+    resolve = function()
+      return 'after ' .. today_str(-14)
+    end,
+  },
+  {
+    label = 'past month',
+    resolve = function()
+      return 'after ' .. today_str(-30)
+    end,
+  },
+  {
+    label = 'past 3 months',
+    resolve = function()
+      return 'after ' .. today_str(-90)
+    end,
+  },
+  {
+    label = 'this week',
+    resolve = function()
+      return 'after ' .. week_start()
+    end,
+  },
+  {
+    label = 'this month',
+    resolve = function()
+      return 'after ' .. os.date('%Y-%m') .. '-01'
+    end,
+  },
+  {
+    label = 'this year',
+    resolve = function()
+      return 'after ' .. os.date('%Y') .. '-01-01'
+    end,
+  },
 }
 
 -- Per-field highlight sources for query coloring and linked labels
 local FIELD_HL = {
   subject = 'DiagnosticInfo',
-  body    = 'String',
-  from    = 'DiagnosticWarn',
-  to      = 'Special',
-  when    = 'Type',
-  flag    = 'DiagnosticError',
+  body = 'String',
+  from = 'DiagnosticWarn',
+  to = 'Special',
+  when = 'Type',
+  flag = 'DiagnosticError',
 }
 
 -- Field definitions: each field maps to a buffer line.
@@ -44,19 +94,25 @@ local FIELD_HL = {
 local FIELDS = {
   { label = ' folder: ', complete = 'folder', sep = true },
   { label = 'subject: ', keyword = 'subject', quote = true },
-  { label = '   body: ', keyword = 'body',    quote = true },
-  { label = '   from: ', keyword = 'from',    quote = true },
-  { label = '     to: ', keyword = 'to',      quote = true },
+  { label = '   body: ', keyword = 'body', quote = true },
+  { label = '   from: ', keyword = 'from', quote = true },
+  { label = '     to: ', keyword = 'to', quote = true },
   { label = '   when: ', complete = 'when' },
-  { label = '   flag: ', keyword = 'flag',    sep = true, complete = 'flag' },
+  { label = '   flag: ', keyword = 'flag', sep = true, complete = 'flag' },
   { label = '  query: ' },
 }
 
 local FLAG_LINE, WHEN_LINE, FOLDER_LINE
 for i, f in ipairs(FIELDS) do
-  if f.complete == 'flag'   then FLAG_LINE   = i - 1 end
-  if f.complete == 'when'   then WHEN_LINE   = i - 1 end
-  if f.complete == 'folder' then FOLDER_LINE = i - 1 end
+  if f.complete == 'flag' then
+    FLAG_LINE = i - 1
+  end
+  if f.complete == 'when' then
+    WHEN_LINE = i - 1
+  end
+  if f.complete == 'folder' then
+    FOLDER_LINE = i - 1
+  end
 end
 
 local SUBJECT_LINE = 1
@@ -103,7 +159,9 @@ function M._build_query_segments(values, neg)
         and_segs[#and_segs + 1] = { text = text, hl = FIELD_HL.when }
       elseif field.keyword then
         local cond = M._format_condition(field, val)
-        if neg[i - 1] then cond = 'not ' .. cond end
+        if neg[i - 1] then
+          cond = 'not ' .. cond
+        end
         local hl = FIELD_HL[field.keyword]
         if field.keyword == 'subject' or field.keyword == 'body' then
           or_segs[#or_segs + 1] = { text = cond, hl = hl }
@@ -116,15 +174,23 @@ function M._build_query_segments(values, neg)
   local segments = {}
   if #or_segs > 0 then
     local need_parens = #and_segs > 0 and #or_segs > 1
-    if need_parens then segments[#segments + 1] = { text = '(' } end
+    if need_parens then
+      segments[#segments + 1] = { text = '(' }
+    end
     for j, seg in ipairs(or_segs) do
-      if j > 1 then segments[#segments + 1] = { text = ' or ' } end
+      if j > 1 then
+        segments[#segments + 1] = { text = ' or ' }
+      end
       segments[#segments + 1] = seg
     end
-    if need_parens then segments[#segments + 1] = { text = ')' } end
+    if need_parens then
+      segments[#segments + 1] = { text = ')' }
+    end
   end
   for _, seg in ipairs(and_segs) do
-    if #segments > 0 then segments[#segments + 1] = { text = ' and ' } end
+    if #segments > 0 then
+      segments[#segments + 1] = { text = ' and ' }
+    end
     segments[#segments + 1] = seg
   end
   return segments
@@ -148,7 +214,7 @@ function M.open(callback, prev_query, current_folder)
   local body_subscribed = true
   local query_subscribed = true
   local propagating = false
-  local negated = {}  -- per-line negation toggle (0-based index → bool)
+  local negated = {} -- per-line negation toggle (0-based index → bool)
 
   local ns = vim.api.nvim_create_namespace('himalaya_search')
 
@@ -189,7 +255,9 @@ function M.open(callback, prev_query, current_folder)
 
   local function restore_labels()
     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-    for k in pairs(label_marks) do label_marks[k] = nil end
+    for k in pairs(label_marks) do
+      label_marks[k] = nil
+    end
     for i, field in ipairs(FIELDS) do
       set_label(i - 1, field)
     end
@@ -197,7 +265,9 @@ function M.open(callback, prev_query, current_folder)
 
   -- Set initial buffer lines (all empty)
   local init_lines = {}
-  for _ = 1, num_lines do init_lines[#init_lines + 1] = '' end
+  for _ = 1, num_lines do
+    init_lines[#init_lines + 1] = ''
+  end
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, init_lines)
 
   -- Labels as inline virtual text
@@ -209,7 +279,11 @@ function M.open(callback, prev_query, current_folder)
   local width = 60
   -- Count virtual separator lines (fields with sep = true add a virt_line).
   local sep_count = 0
-  for _, f in ipairs(FIELDS) do if f.sep then sep_count = sep_count + 1 end end
+  for _, f in ipairs(FIELDS) do
+    if f.sep then
+      sep_count = sep_count + 1
+    end
+  end
   local height = num_lines + sep_count
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -247,9 +321,13 @@ function M.open(callback, prev_query, current_folder)
     msg = 'Listing folders',
     silent = true,
     on_data = function(data)
-      if not vim.api.nvim_buf_is_valid(buf) then return end
+      if not vim.api.nvim_buf_is_valid(buf) then
+        return
+      end
       local names = {}
-      for _, f in ipairs(data) do names[#names + 1] = f.name end
+      for _, f in ipairs(data) do
+        names[#names + 1] = f.name
+      end
       vim.api.nvim_buf_set_var(buf, '_himalaya_folder_candidates', names)
     end,
   })
@@ -274,8 +352,12 @@ function M.open(callback, prev_query, current_folder)
       if ok_fol and row == fol then
         -- Folder-line completion
         local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_folder_candidates')
-        if not ok then return findstart == 1 and -3 or {} end
-        if findstart == 1 then return 0 end
+        if not ok then
+          return findstart == 1 and -3 or {}
+        end
+        if findstart == 1 then
+          return 0
+        end
         local matches = {}
         for _, name in ipairs(candidates) do
           if name:lower():find(base:lower(), 1, true) == 1 then
@@ -286,8 +368,12 @@ function M.open(callback, prev_query, current_folder)
       elseif ok_wl and row == wl then
         -- When-line completion
         local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_when_candidates')
-        if not ok then return findstart == 1 and -3 or {} end
-        if findstart == 1 then return 0 end
+        if not ok then
+          return findstart == 1 and -3 or {}
+        end
+        if findstart == 1 then
+          return 0
+        end
         local matches = {}
         for _, c in ipairs(candidates) do
           if c.word:lower():find(base:lower(), 1, true) == 1 then
@@ -298,8 +384,12 @@ function M.open(callback, prev_query, current_folder)
       elseif ok_fl and row == fl then
         -- Flag-line completion
         local ok, candidates = pcall(vim.api.nvim_buf_get_var, b, '_himalaya_flag_candidates')
-        if not ok then return findstart == 1 and -3 or {} end
-        if findstart == 1 then return 0 end
+        if not ok then
+          return findstart == 1 and -3 or {}
+        end
+        if findstart == 1 then
+          return 0
+        end
         local matches = {}
         for _, flag in ipairs(candidates) do
           if flag:lower():find(base:lower(), 1, true) == 1 then
@@ -331,7 +421,8 @@ function M.open(callback, prev_query, current_folder)
       local len = #get_line(BODY_LINE)
       if len > 0 then
         vim.api.nvim_buf_set_extmark(buf, value_hl_ns, BODY_LINE, 0, {
-          end_col = len, hl_group = linked_value_hl.body,
+          end_col = len,
+          hl_group = linked_value_hl.body,
         })
       end
     end
@@ -342,9 +433,13 @@ function M.open(callback, prev_query, current_folder)
   --- AND-combined with all other conditions. Each field's contribution
   --- is colored with its field highlight on the query line.
   local function recompose_query()
-    if not query_subscribed then return end
+    if not query_subscribed then
+      return
+    end
     local values = {}
-    for i = 1, #FIELDS do values[i] = get_line(i - 1) end
+    for i = 1, #FIELDS do
+      values[i] = get_line(i - 1)
+    end
     local segments = M._build_query_segments(values, negated)
     -- Build final string and track highlight positions
     local texts = {}
@@ -363,7 +458,8 @@ function M.open(callback, prev_query, current_folder)
     vim.api.nvim_buf_clear_namespace(buf, query_hl_ns, QUERY_LINE, QUERY_LINE + 1)
     for _, r in ipairs(hl_ranges) do
       vim.api.nvim_buf_set_extmark(buf, query_hl_ns, QUERY_LINE, r[1], {
-        end_col = r[2], hl_group = r[3],
+        end_col = r[2],
+        hl_group = r[3],
       })
     end
     propagating = false
@@ -378,13 +474,19 @@ function M.open(callback, prev_query, current_folder)
   -- all propagation with vim.schedule.
   vim.api.nvim_buf_attach(buf, false, {
     on_lines = function(_, _, _, first_line, lastline, new_lastline)
-      if propagating then return end
-      if not vim.api.nvim_buf_is_valid(buf) then return true end
+      if propagating then
+        return
+      end
+      if not vim.api.nvim_buf_is_valid(buf) then
+        return true
+      end
 
       -- Undo any line additions/deletions to preserve buffer structure
       if lastline ~= new_lastline then
         vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
+          if not vim.api.nvim_buf_is_valid(buf) then
+            return
+          end
           propagating = true
           vim.cmd('silent! undo')
           propagating = false
@@ -397,10 +499,14 @@ function M.open(callback, prev_query, current_folder)
 
       if first_line == SUBJECT_LINE then
         vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
+          if not vim.api.nvim_buf_is_valid(buf) then
+            return
+          end
           local subject_val = get_line(SUBJECT_LINE)
           propagating = true
-          if body_subscribed then set_line(BODY_LINE, subject_val) end
+          if body_subscribed then
+            set_line(BODY_LINE, subject_val)
+          end
           propagating = false
           query_subscribed = true
           update_value_hl()
@@ -410,8 +516,12 @@ function M.open(callback, prev_query, current_folder)
         edit_gen[QUERY_LINE] = (edit_gen[QUERY_LINE] or 0) + 1
         local gen = edit_gen[QUERY_LINE]
         vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
-          if edit_gen[QUERY_LINE] ~= gen then return end
+          if not vim.api.nvim_buf_is_valid(buf) then
+            return
+          end
+          if edit_gen[QUERY_LINE] ~= gen then
+            return
+          end
           local val = get_line(QUERY_LINE)
           if val == '' and not query_subscribed then
             query_subscribed = true
@@ -426,8 +536,12 @@ function M.open(callback, prev_query, current_folder)
         local gen = edit_gen[first_line]
         local fl = first_line
         vim.schedule(function()
-          if not vim.api.nvim_buf_is_valid(buf) then return end
-          if edit_gen[fl] ~= gen then return end
+          if not vim.api.nvim_buf_is_valid(buf) then
+            return
+          end
+          if edit_gen[fl] ~= gen then
+            return
+          end
           -- Re-link body when cleared
           if fl == BODY_LINE then
             local val = get_line(BODY_LINE)
@@ -467,9 +581,13 @@ function M.open(callback, prev_query, current_folder)
     local final_query = get_line(QUERY_LINE)
     -- Save full state for restoration on next open.
     local values = {}
-    for i = 1, num_lines do values[i] = get_line(i - 1) end
+    for i = 1, num_lines do
+      values[i] = get_line(i - 1)
+    end
     local neg_copy = {}
-    for k, v in pairs(negated) do neg_copy[k] = v end
+    for k, v in pairs(negated) do
+      neg_copy[k] = v
+    end
     local cur_mode = vim.fn.mode()
     last_state = {
       values = values,
@@ -506,14 +624,14 @@ function M.open(callback, prev_query, current_folder)
   -- <Tab>: on completable lines trigger completion, otherwise navigate fields.
   local complete_lines = {}
   for i, f in ipairs(FIELDS) do
-    if f.complete then complete_lines[i - 1] = true end
+    if f.complete then
+      complete_lines[i - 1] = true
+    end
   end
   vim.keymap.set({ 'n', 'i' }, '<Tab>', function()
     local row = vim.api.nvim_win_get_cursor(win)[1] - 1 -- 0-based
     if complete_lines[row] then
-      vim.api.nvim_feedkeys(
-        vim.api.nvim_replace_termcodes('<C-x><C-u>', true, false, true),
-        'n', false)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-x><C-u>', true, false, true), 'n', false)
     else
       next_field()
     end
@@ -526,7 +644,9 @@ function M.open(callback, prev_query, current_folder)
   vim.keymap.set({ 'n', 'i' }, '<C-x>', function()
     local row = vim.api.nvim_win_get_cursor(win)[1] - 1 -- 0-based
     local field = FIELDS[row + 1]
-    if not field or (not field.keyword and not field.complete) then return end
+    if not field or (not field.keyword and not field.complete) then
+      return
+    end
     negated[row] = not negated[row] or nil
     set_label(row, field)
     query_subscribed = true
@@ -536,7 +656,9 @@ function M.open(callback, prev_query, current_folder)
   -- Prevent <BS> at column 0 from joining lines
   vim.keymap.set('i', '<BS>', function()
     local col = vim.fn.col('.')
-    if col <= 1 then return '' end
+    if col <= 1 then
+      return ''
+    end
     return '<BS>'
   end, { buffer = buf, noremap = true, silent = true, expr = true })
 
@@ -549,7 +671,9 @@ function M.open(callback, prev_query, current_folder)
     vim.keymap.set('x', key, function()
       local sl = vim.fn.line("'<") - 1
       local el = vim.fn.line("'>") - 1
-      for l = sl, el do set_line(l, '') end
+      for l = sl, el do
+        set_line(l, '')
+      end
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
     end, map_opts)
   end
@@ -566,7 +690,9 @@ function M.open(callback, prev_query, current_folder)
       set_line(FOLDER_LINE, current_folder)
     end
     propagating = false
-    for k, v in pairs(last_state.negated) do negated[k] = v end
+    for k, v in pairs(last_state.negated) do
+      negated[k] = v
+    end
     body_subscribed = last_state.body_subscribed
     query_subscribed = last_state.query_subscribed
     restore_labels()

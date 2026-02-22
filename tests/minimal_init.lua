@@ -9,6 +9,8 @@ if os.getenv('LUACOV') then
   local runner = require('luacov.runner')
   runner.init()
   vim.api.nvim_create_autocmd('VimLeavePre', {
-    callback = function() runner.shutdown() end,
+    callback = function()
+      runner.shutdown()
+    end,
   })
 end

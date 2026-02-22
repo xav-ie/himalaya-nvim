@@ -50,20 +50,22 @@ function M.select(callback, folders)
     end
   end
 
-  pickers.new({}, {
-    results_title = 'Folders',
-    finder = finders.new_table(finder_opts),
-    sorter = sorters.get_generic_fuzzy_sorter(),
-    attach_mappings = function(prompt_bufnr)
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        callback(selection.display)
-      end)
-      return true
-    end,
-    previewer = previewer,
-  }):find()
+  pickers
+    .new({}, {
+      results_title = 'Folders',
+      finder = finders.new_table(finder_opts),
+      sorter = sorters.get_generic_fuzzy_sorter(),
+      attach_mappings = function(prompt_bufnr)
+        actions.select_default:replace(function()
+          local selection = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          callback(selection.display)
+        end)
+        return true
+      end,
+      previewer = previewer,
+    })
+    :find()
 end
 
 return M

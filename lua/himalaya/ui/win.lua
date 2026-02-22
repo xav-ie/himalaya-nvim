@@ -23,14 +23,18 @@ end
 --- @return number|nil bufnr
 --- @return string|nil buffer_type
 function M.find_by_buftype(types)
-  if type(types) == 'string' then types = { types } end
+  if type(types) == 'string' then
+    types = { types }
+  end
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_is_valid(winid) then
       local bufnr = vim.api.nvim_win_get_buf(winid)
       local ok, bt = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_buffer_type')
       if ok then
         for _, t in ipairs(types) do
-          if bt == t then return winid, bufnr, bt end
+          if bt == t then
+            return winid, bufnr, bt
+          end
         end
       end
     end

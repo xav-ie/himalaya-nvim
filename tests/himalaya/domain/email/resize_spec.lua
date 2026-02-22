@@ -3,10 +3,10 @@ describe('himalaya.domain.email resize_listing', function()
   local set_page_calls
   local rendered_envs
   local original_height
-  local last_request_json_opts    -- captured from request.json mock
-  local mock_request_sync_data   -- set before list_with to make request.json call on_data synchronously
-  local mock_request_job         -- return value for request.json (fake SystemObj)
-  local probe_cancel_count        -- tracks probe.cancel() calls
+  local last_request_json_opts -- captured from request.json mock
+  local mock_request_sync_data -- set before list_with to make request.json call on_data synchronously
+  local mock_request_job -- return value for request.json (fake SystemObj)
+  local probe_cancel_count -- tracks probe.cancel() calls
 
   --- Generate a list of envelope stubs.
   --- @param start_id number  first envelope ID
@@ -65,7 +65,9 @@ describe('himalaya.domain.email resize_listing', function()
         end
         return mock_request_job
       end,
-      plain = function() return nil end,
+      plain = function()
+        return nil
+      end,
     }
     package.loaded['himalaya.log'] = {
       info = function() end,
@@ -74,35 +76,64 @@ describe('himalaya.domain.email resize_listing', function()
       debug = function() end,
     }
     package.loaded['himalaya.config'] = {
-      get = function() return {} end,
+      get = function()
+        return {}
+      end,
       setup = function() end,
       _reset = function() end,
     }
     package.loaded['himalaya.state.account'] = {
-      current = function() return 'test' end,
+      current = function()
+        return 'test'
+      end,
       select = function() end,
-      flag = function(account) return account == '' and '' or ('--account ' .. account) end,
+      flag = function(account)
+        return account == '' and '' or ('--account ' .. account)
+      end,
     }
     package.loaded['himalaya.state.folder'] = {
-      current = function() return 'INBOX' end,
-      current_page = function() return 1 end,
-      set_page = function(n) table.insert(set_page_calls, n) end,
+      current = function()
+        return 'INBOX'
+      end,
+      current_page = function()
+        return 1
+      end,
+      set_page = function(n)
+        table.insert(set_page_calls, n)
+      end,
     }
     package.loaded['himalaya.domain.email.probe'] = {
       reset_if_changed = function() end,
       set_total_from_data = function() end,
-      total_pages_str = function() return '?' end,
+      total_pages_str = function()
+        return '?'
+      end,
       start = function() end,
-      cancel = function(cb) probe_cancel_count = probe_cancel_count + 1; if cb then cb() end end,
-      cancel_sync = function() probe_cancel_count = probe_cancel_count + 1 end,
+      cancel = function(cb)
+        probe_cancel_count = probe_cancel_count + 1
+        if cb then
+          cb()
+        end
+      end,
+      cancel_sync = function()
+        probe_cancel_count = probe_cancel_count + 1
+      end,
       restart = function() end,
     }
     package.loaded['himalaya.job'] = {
-      run = function() return nil end,
+      run = function()
+        return nil
+      end,
       kill_and_wait = function(handle)
-        if not handle then return end
-        if handle.kill then handle:kill() end
-        if handle.wait then pcall(handle.wait, handle, 500) end
+        if not handle then
+          return
+        end
+        if handle.kill then
+          handle:kill()
+        end
+        if handle.wait then
+          pcall(handle.wait, handle, 500)
+        end
       end,
     }
     package.loaded['himalaya.domain.email.thread_listing'] = {
@@ -124,9 +155,15 @@ describe('himalaya.domain.email resize_listing', function()
       apply_header = function() end,
       apply_seen_highlights = function() end,
       apply_syntax = function() end,
-      gutter_width = function() return 0 end,
-      get_email_id_from_line = function(line) return line:match('%d+') or '' end,
-      effective_page_size = function() return math.max(1, vim.fn.winheight(0)) end,
+      gutter_width = function()
+        return 0
+      end,
+      get_email_id_from_line = function(line)
+        return line:match('%d+') or ''
+      end,
+      effective_page_size = function()
+        return math.max(1, vim.fn.winheight(0))
+      end,
     }
 
     email = require('himalaya.domain.email')
@@ -202,7 +239,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       -- Opening a split halves the listing window
       open_reading_window()
@@ -212,12 +249,15 @@ describe('himalaya.domain.email resize_listing', function()
       assert.is_not_nil(rendered_envs)
       -- Page is recomputed based on cursor position and new page_size
       local new_ps = vim.b.himalaya_page_size
-      local expected_page = math.floor(7 / new_ps) + 1  -- global index 7
+      local expected_page = math.floor(7 / new_ps) + 1 -- global index 7
       assert.are.equal(expected_page, vim.b.himalaya_page)
       -- Envelope 8 must be in the rendered slice
       local found = false
       for _, env in ipairs(rendered_envs) do
-        if env.id == '8' then found = true; break end
+        if env.id == '8' then
+          found = true
+          break
+        end
       end
       assert.is_true(found, 'envelope 8 must be in rendered slice')
     end)
@@ -231,7 +271,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       open_reading_window()
       email.resize_listing()
@@ -250,7 +290,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {2, 0})
+      vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
       open_reading_window()
       email.resize_listing()
@@ -286,7 +326,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       -- Resize while reading — truncates but no page change
       open_reading_window()
@@ -317,7 +357,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       -- Step 1: open reading split → shrinks listing
       open_reading_window()
@@ -352,7 +392,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 10
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {7, 0})
+      vim.api.nvim_win_set_cursor(0, { 7, 0 })
 
       -- Step 1: reading truncation
       open_reading_window()
@@ -385,7 +425,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       -- First reading truncation
       open_reading_window()
@@ -423,7 +463,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
       -- Cursor in second half
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 5)
@@ -449,7 +489,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(42)
-      vim.api.nvim_win_set_cursor(0, {41, 0})
+      vim.api.nvim_win_set_cursor(0, { 41, 0 })
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 20)
@@ -474,7 +514,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(42)
-      vim.api.nvim_win_set_cursor(0, {41, 0})
+      vim.api.nvim_win_set_cursor(0, { 41, 0 })
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 20)
@@ -483,7 +523,7 @@ describe('himalaya.domain.email resize_listing', function()
       -- Phase 2 timer should have been started (cancel_resize stops it)
       -- Verify it was started by checking last_request_json_opts is nil
       -- (timer hasn't fired yet), but cancel_resize has work to do.
-      assert.is_nil(last_request_json_opts)  -- timer pending, not fired
+      assert.is_nil(last_request_json_opts) -- timer pending, not fired
       email.cancel_resize()
     end)
 
@@ -499,7 +539,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(42)
-      vim.api.nvim_win_set_cursor(0, {23, 0})
+      vim.api.nvim_win_set_cursor(0, { 23, 0 })
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 20)
@@ -512,7 +552,9 @@ describe('himalaya.domain.email resize_listing', function()
       assert.are.equal(3, vim.api.nvim_win_get_cursor(0)[1])
       assert.are.equal('23', rendered_envs[3].id)
       -- No Phase 2 timer (cancel_resize is a no-op)
-      assert.has_no.errors(function() email.cancel_resize() end)
+      assert.has_no.errors(function()
+        email.cancel_resize()
+      end)
     end)
 
     it('respects cursor movement during reading on grow', function()
@@ -528,7 +570,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       -- Step 1: open reading → truncation (ensure listing is 5 rows)
       open_reading_window()
@@ -542,10 +584,13 @@ describe('himalaya.domain.email resize_listing', function()
       -- Step 2: user moves cursor to email 9 (should be at row 4)
       local target_row
       for i, env in ipairs(rendered_envs) do
-        if env.id == '9' then target_row = i; break end
+        if env.id == '9' then
+          target_row = i
+          break
+        end
       end
       assert.is_not_nil(target_row, 'email 9 should be in rendered display')
-      vim.api.nvim_win_set_cursor(0, {target_row, 0})
+      vim.api.nvim_win_set_cursor(0, { target_row, 0 })
 
       -- Step 3: close reading → grow
       close_reading_window()
@@ -573,7 +618,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(42)
-      vim.api.nvim_win_set_cursor(0, {41, 0})
+      vim.api.nvim_win_set_cursor(0, { 41, 0 })
 
       open_reading_window()
       vim.api.nvim_win_set_height(0, 20)
@@ -583,14 +628,14 @@ describe('himalaya.domain.email resize_listing', function()
       assert.are.equal(20, vim.b.himalaya_page_size)
 
       -- Wait for Phase 2 timer to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
 
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire for sparse page')
       -- args: { folder, account_flag, page_size, page, query }
-      assert.are.equal(20, last_request_json_opts.args[3],
-        'Phase 2 page_size must match Phase 1')
-      assert.are.equal(3, last_request_json_opts.args[4],
-        'Phase 2 page must match Phase 1')
+      assert.are.equal(20, last_request_json_opts.args[3], 'Phase 2 page_size must match Phase 1')
+      assert.are.equal(3, last_request_json_opts.args[4], 'Phase 2 page must match Phase 1')
 
       email.cancel_resize()
     end)
@@ -614,7 +659,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(20)
-      vim.api.nvim_win_set_cursor(0, {19, 0})
+      vim.api.nvim_win_set_cursor(0, { 19, 0 })
 
       -- Phase 2 will return server data for page 3 (IDs 17-24)
       mock_request_sync_data = make_envelopes(17, 8)
@@ -629,7 +674,9 @@ describe('himalaya.domain.email resize_listing', function()
       assert.are.equal(8, vim.b.himalaya_page_size)
 
       -- Wait for Phase 2 to fire and complete (mock_request_sync_data makes it synchronous)
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire for sparse page')
 
       -- After Phase 2: cache replaced with IDs 17-24
@@ -645,10 +692,13 @@ describe('himalaya.domain.email resize_listing', function()
       -- Step 2: user moves cursor to email 22 (position 6 in Phase 2 data)
       local target_row
       for i, env in ipairs(rendered_envs) do
-        if env.id == '22' then target_row = i; break end
+        if env.id == '22' then
+          target_row = i
+          break
+        end
       end
       assert.is_not_nil(target_row, 'email 22 should be in Phase 2 display')
-      vim.api.nvim_win_set_cursor(0, {target_row, 0})
+      vim.api.nvim_win_set_cursor(0, { target_row, 0 })
 
       -- Step 3: close reading → listing grows back to 20
       close_reading_window()
@@ -683,7 +733,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(20)
-      vim.api.nvim_win_set_cursor(0, {19, 0})
+      vim.api.nvim_win_set_cursor(0, { 19, 0 })
 
       -- Phase 2 during reading will return IDs 17-24 for page 3
       mock_request_sync_data = make_envelopes(17, 8)
@@ -693,16 +743,21 @@ describe('himalaya.domain.email resize_listing', function()
       email.resize_listing()
 
       -- Wait for reading Phase 2 to complete
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'reading Phase 2 should fire')
 
       -- Move cursor to email 22
       local target_row
       for i, env in ipairs(rendered_envs) do
-        if env.id == '22' then target_row = i; break end
+        if env.id == '22' then
+          target_row = i
+          break
+        end
       end
       assert.is_not_nil(target_row)
-      vim.api.nvim_win_set_cursor(0, {target_row, 0})
+      vim.api.nvim_win_set_cursor(0, { target_row, 0 })
 
       -- Close reading, grow
       close_reading_window()
@@ -716,7 +771,9 @@ describe('himalaya.domain.email resize_listing', function()
       email.resize_listing()
 
       -- Wait for grow Phase 2 to fire and complete
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'grow Phase 2 should fire')
 
       -- Phase 2 should request page 2 with page_size 20
@@ -778,7 +835,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -798,7 +855,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -818,7 +875,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -850,7 +907,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 10
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -878,7 +935,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 10
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {2, 0})
+      vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
       email.resize_listing()
 
@@ -903,7 +960,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -921,7 +978,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
       -- Cursor row 3 → global 12, overlap_start=10 → cursor_line = 12-10+1 = 3
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -938,7 +995,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
       -- Cursor at row 8, but only 3 envelopes → clamp to 3
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       email.resize_listing()
 
@@ -960,7 +1017,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = nil -- not set
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -984,12 +1041,14 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
       -- Wait long enough for any Phase 2 timer to fire
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire on shrink within cache')
     end)
 
@@ -1001,18 +1060,22 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- Shrink
       vim.api.nvim_win_set_height(0, 5)
       email.resize_listing()
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire on shrink')
 
       -- Grow back within cache bounds
       vim.api.nvim_win_set_height(0, 8)
       email.resize_listing()
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire on grow within cache')
     end)
 
@@ -1025,11 +1088,13 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire when grow exceeds cache')
       email.cancel_resize()
     end)
@@ -1046,11 +1111,13 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       email.resize_listing()
 
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire when cache covers new page')
       assert.are.equal(2, vim.b.himalaya_page)
       assert.are.equal(5, #rendered_envs)
@@ -1087,7 +1154,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -1111,7 +1178,11 @@ describe('himalaya.domain.email resize_listing', function()
 
     it('cancel_resize increments generation when killing a job', function()
       local killed = false
-      email._set_resize_job({ kill = function() killed = true end })
+      email._set_resize_job({
+        kill = function()
+          killed = true
+        end,
+      })
 
       local gen_before = email._get_resize_generation()
       email.cancel_resize()
@@ -1129,7 +1200,11 @@ describe('himalaya.domain.email resize_listing', function()
 
     it('list_with increments generation when killing a resize job', function()
       local killed = false
-      email._set_resize_job({ kill = function() killed = true end })
+      email._set_resize_job({
+        kill = function()
+          killed = true
+        end,
+      })
 
       local gen_before = email._get_resize_generation()
       email.list_with('test', 'INBOX', 1, '')
@@ -1147,13 +1222,15 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       local gen_before = email._get_resize_generation()
       email.resize_listing()
 
       -- Wait for Phase 2 timer to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
       -- Generation must have been incremented by Phase 2 setup
       assert.is_true(email._get_resize_generation() > gen_before)
@@ -1171,12 +1248,14 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
       -- Wait for Phase 2 timer to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
 
       -- is_stale should be a function
@@ -1202,15 +1281,19 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
       -- Wait for Phase 2 timer to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire')
-      assert.is_true(last_request_json_opts.silent,
-        'Phase 2 request must use silent = true to suppress errors from killed jobs')
+      assert.is_true(
+        last_request_json_opts.silent,
+        'Phase 2 request must use silent = true to suppress errors from killed jobs'
+      )
 
       email.cancel_resize()
     end)
@@ -1223,7 +1306,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(3)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- First resize (grow beyond cache)
       vim.api.nvim_win_set_height(0, 7)
@@ -1237,7 +1320,9 @@ describe('himalaya.domain.email resize_listing', function()
       email.resize_listing()
 
       -- Wait for the second Phase 2 to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_true(email._get_resize_generation() > gen_after_first)
 
       email.cancel_resize()
@@ -1287,7 +1372,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 10
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -1309,7 +1394,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- First shrink: 10 → 7
       vim.api.nvim_win_set_height(0, 7)
@@ -1344,7 +1429,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(1)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -1363,7 +1448,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       email.resize_listing()
 
@@ -1390,7 +1475,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {8, 0})
+      vim.api.nvim_win_set_cursor(0, { 8, 0 })
 
       email.resize_listing()
 
@@ -1417,7 +1502,7 @@ describe('himalaya.domain.email resize_listing', function()
       -- overlap_start = max(10,15)=15, overlap_end = min(20,20)=20
       -- display = envelopes[6..10] (IDs 16-20)
       -- cursor_line = 19-15+1 = 5
-      vim.api.nvim_win_set_cursor(0, {10, 0})
+      vim.api.nvim_win_set_cursor(0, { 10, 0 })
 
       email.resize_listing()
 
@@ -1442,7 +1527,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
       -- Timer is now pending; list_with should cancel it
@@ -1455,8 +1540,9 @@ describe('himalaya.domain.email resize_listing', function()
     end)
 
     it('kills in-flight resize job', function()
-      local killed = false
-      mock_request_job = { kill = function() killed = true end }
+      mock_request_job = {
+        kill = function() end,
+      }
 
       -- Trigger resize to start timer (grow beyond cache)
       vim.api.nvim_win_set_height(0, 10)
@@ -1467,7 +1553,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
       -- The timer is pending but the job hasn't started yet (needs 150ms).
@@ -1485,8 +1571,7 @@ describe('himalaya.domain.email resize_listing', function()
       probe_cancel_count = 0
       email.list_with('test', 'INBOX', 1, '')
 
-      assert.are.equal(1, probe_cancel_count,
-        'list_with must cancel probe to release database lock before CLI fetch')
+      assert.are.equal(1, probe_cancel_count, 'list_with must cancel probe to release database lock before CLI fetch')
     end)
   end)
 
@@ -1511,7 +1596,7 @@ describe('himalaya.domain.email resize_listing', function()
     it('sets page and page_size buffer variables', function()
       -- list_with subtracts 1 from winheight when winbar is empty (first load)
       local ps = vim.fn.winheight(0) - 1
-      local envs = make_envelopes(1, ps)  -- realistic: CLI returns at most ps
+      local envs = make_envelopes(1, ps) -- realistic: CLI returns at most ps
       mock_request_sync_data = envs
 
       vim.b.himalaya_buffer_type = 'listing'
@@ -1540,7 +1625,7 @@ describe('himalaya.domain.email resize_listing', function()
       -- page_size() = 5, #data = 5 → no truncation needed.
       -- But if CLI returned 6 (e.g., a re-fetch without the hack), truncation catches it.
       vim.api.nvim_win_set_height(0, 6)
-      local envs = make_envelopes(1, 6)  -- more than visible area
+      local envs = make_envelopes(1, 6) -- more than visible area
       mock_request_sync_data = envs
 
       vim.b.himalaya_buffer_type = 'listing'
@@ -1548,7 +1633,7 @@ describe('himalaya.domain.email resize_listing', function()
 
       -- Simulate a re-fetch path (winbar not set, full 6 envelopes returned)
       -- by temporarily overriding page_size check in list_with
-      vim.wo.winbar = 'already-set'  -- skip list_with subtraction
+      vim.wo.winbar = 'already-set' -- skip list_with subtraction
       email.list_with('test', 'INBOX', 1, '')
       -- After list_with, on_list_with sets new winbar via our mock.
       -- apply_header sets winbar → winheight drops by 1 → page_size() = 5
@@ -1615,10 +1700,8 @@ describe('himalaya.domain.email resize_listing', function()
       email.list_with('test', 'INBOX', 1, '')
 
       -- CLI args: { folder, account_flag, page_size, page, query }
-      assert.are.equal(ps * 2, last_request_json_opts.args[3],
-        'CLI page_size should be doubled')
-      assert.are.equal(1, last_request_json_opts.args[4],
-        'CLI page should be ceil(1/2) = 1')
+      assert.are.equal(ps * 2, last_request_json_opts.args[3], 'CLI page_size should be doubled')
+      assert.are.equal(1, last_request_json_opts.args[4], 'CLI page should be ceil(1/2) = 1')
     end)
 
     it('sends doubled page_size and adjusted CLI page for page 2', function()
@@ -1630,11 +1713,9 @@ describe('himalaya.domain.email resize_listing', function()
 
       email.list_with('test', 'INBOX', 2, '')
 
-      assert.are.equal(ps * 2, last_request_json_opts.args[3],
-        'CLI page_size should be doubled')
+      assert.are.equal(ps * 2, last_request_json_opts.args[3], 'CLI page_size should be doubled')
       -- ceil(2/2) = 1 → CLI fetches page 1 with 2x size
-      assert.are.equal(1, last_request_json_opts.args[4],
-        'CLI page should be ceil(2/2) = 1')
+      assert.are.equal(1, last_request_json_opts.args[4], 'CLI page should be ceil(2/2) = 1')
     end)
 
     it('sends doubled page_size and adjusted CLI page for page 3', function()
@@ -1646,11 +1727,9 @@ describe('himalaya.domain.email resize_listing', function()
 
       email.list_with('test', 'INBOX', 3, '')
 
-      assert.are.equal(ps * 2, last_request_json_opts.args[3],
-        'CLI page_size should be doubled')
+      assert.are.equal(ps * 2, last_request_json_opts.args[3], 'CLI page_size should be doubled')
       -- ceil(3/2) = 2
-      assert.are.equal(2, last_request_json_opts.args[4],
-        'CLI page should be ceil(3/2) = 2')
+      assert.are.equal(2, last_request_json_opts.args[4], 'CLI page should be ceil(3/2) = 2')
     end)
 
     it('renders display page 2 from doubled data correctly', function()
@@ -1722,12 +1801,14 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
       -- Verify Phase 2 timer fires (grow beyond cache)
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
       assert.is_not_nil(last_request_json_opts, 'Phase 2 should fire when cache is smaller than new page')
 
       email.cancel_resize()
@@ -1738,7 +1819,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_buffer_type = 'listing'
       vim.b.himalaya_envelopes = make_envelopes(1, 5)
       vim.b.himalaya_page = 1
-      vim.b.himalaya_page_size = height  -- same height
+      vim.b.himalaya_page_size = height -- same height
       vim.b.himalaya_cache_offset = 0
       seed_buffer_lines(5)
 
@@ -1759,7 +1840,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(3)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- First resize (grow beyond cache)
       vim.api.nvim_win_set_height(0, 7)
@@ -1783,7 +1864,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       email.resize_listing()
 
@@ -1791,14 +1872,14 @@ describe('himalaya.domain.email resize_listing', function()
       local phase1_page = vim.b.himalaya_page
 
       -- Wait for Phase 2 timer to fire
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
 
       assert.is_not_nil(last_request_json_opts, 'Phase 2 request should fire')
       -- args: { folder, account_flag, page_size, page, query }
-      assert.are.equal(phase1_ps, last_request_json_opts.args[3],
-        'Phase 2 page_size must match Phase 1')
-      assert.are.equal(phase1_page, last_request_json_opts.args[4],
-        'Phase 2 page must match Phase 1')
+      assert.are.equal(phase1_ps, last_request_json_opts.args[3], 'Phase 2 page_size must match Phase 1')
+      assert.are.equal(phase1_page, last_request_json_opts.args[4], 'Phase 2 page must match Phase 1')
 
       email.cancel_resize()
     end)
@@ -1813,7 +1894,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(5)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       -- Phase 2 will call on_list_with which sets cache_offset = (page-1)*ps
       mock_request_sync_data = make_envelopes(1, 10)
@@ -1824,12 +1905,17 @@ describe('himalaya.domain.email resize_listing', function()
       local phase1_page = vim.b.himalaya_page
 
       -- Wait for Phase 2 to fire and process response
-      vim.wait(300, function() return last_request_json_opts ~= nil end)
+      vim.wait(300, function()
+        return last_request_json_opts ~= nil
+      end)
 
       -- on_list_with should have set cache_offset = (page-1) * page_size
       -- using the same page_size that Phase 1 computed
-      assert.are.equal((phase1_page - 1) * phase1_ps, vim.b.himalaya_cache_offset,
-        'cache_offset must be consistent with Phase 1 page_size')
+      assert.are.equal(
+        (phase1_page - 1) * phase1_ps,
+        vim.b.himalaya_cache_offset,
+        'cache_offset must be consistent with Phase 1 page_size'
+      )
 
       email.cancel_resize()
     end)
@@ -1848,7 +1934,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(start_height)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       local phase2_count = 0
       local orig_json = package.loaded['himalaya.request'].json
@@ -1861,12 +1947,16 @@ describe('himalaya.domain.email resize_listing', function()
         vim.api.nvim_win_set_height(0, start_height - i)
         email.resize_listing()
         if i < 15 then
-          vim.wait(5, function() return false end)
+          vim.wait(5, function()
+            return false
+          end)
         end
       end
 
       -- Wait long enough for any pending timer to fire
-      vim.wait(250, function() return phase2_count > 0 end, 50)
+      vim.wait(250, function()
+        return phase2_count > 0
+      end, 50)
 
       assert.are.equal(0, phase2_count, 'no Phase 2 should fire during shrink within cache')
       assert.are.equal(start_height - 15, vim.b.himalaya_page_size)
@@ -1885,7 +1975,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
       seed_buffer_lines(start_height)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       local phase2_count = 0
       local orig_json = package.loaded['himalaya.request'].json
@@ -1898,16 +1988,19 @@ describe('himalaya.domain.email resize_listing', function()
         vim.api.nvim_win_set_height(0, start_height + i)
         email.resize_listing()
         if i < 15 then
-          vim.wait(5, function() return false end)
+          vim.wait(5, function()
+            return false
+          end)
         end
       end
 
       -- Wait for the debounced timer to fire (150ms + margin)
-      vim.wait(300, function() return phase2_count > 0 end)
+      vim.wait(300, function()
+        return phase2_count > 0
+      end)
 
       assert.are.equal(1, phase2_count, 'exactly one Phase 2 should fire after debounce')
-      assert.are.equal(start_height + 15, last_request_json_opts.args[3],
-        'Phase 2 should use final page_size')
+      assert.are.equal(start_height + 15, last_request_json_opts.args[3], 'Phase 2 should use final page_size')
 
       package.loaded['himalaya.request'].json = orig_json
       email.cancel_resize()
@@ -1998,7 +2091,9 @@ describe('himalaya.domain.email resize_listing', function()
 
       -- Different folder → cache_key changes → replace
       mock_request_sync_data = make_envelopes(101, ps)
-      package.loaded['himalaya.state.folder'].current = function() return 'Sent' end
+      package.loaded['himalaya.state.folder'].current = function()
+        return 'Sent'
+      end
       email.list_with('test', 'Sent', 1, '')
 
       assert.are.equal(ps, #vim.b.himalaya_envelopes)
@@ -2052,7 +2147,9 @@ describe('himalaya.domain.email resize_listing', function()
       email.resize_listing()
 
       -- Phase 2 should NOT fire — cache covers page 1 with 10 envelopes
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire when cumulative cache covers page')
 
       vim.wo.winbar = ''
@@ -2077,12 +2174,14 @@ describe('himalaya.domain.email resize_listing', function()
       -- new_page = floor(5/3)+1 = 2, page covers 3..5
       -- Overlap with cache (0..9) = 3..5 → 3 envelopes
       vim.api.nvim_win_set_height(0, 4)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
       last_request_json_opts = nil
       email.resize_listing()
 
       -- Envelopes displayed, Phase 2 skipped (cache covers full page)
-      vim.wait(250, function() return last_request_json_opts ~= nil end, 50)
+      vim.wait(250, function()
+        return last_request_json_opts ~= nil
+      end, 50)
       assert.is_nil(last_request_json_opts, 'Phase 2 should not fire — extended cache covers page')
       assert.are.equal(3, #rendered_envs)
 
@@ -2112,7 +2211,7 @@ describe('himalaya.domain.email resize_listing', function()
 
       -- Shrink to 4 (winheight=3)
       vim.api.nvim_win_set_height(0, 4)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
       email.resize_listing()
 
       -- Grow to 9 (winheight=8, still within 10-envelope cache)
@@ -2120,7 +2219,9 @@ describe('himalaya.domain.email resize_listing', function()
       email.resize_listing()
 
       -- Wait for any timers to fire
-      vim.wait(250, function() return phase2_count > 0 end, 50)
+      vim.wait(250, function()
+        return phase2_count > 0
+      end, 50)
       assert.are.equal(0, phase2_count, 'zero Phase 2 calls within cumulative cache bounds')
 
       package.loaded['himalaya.request'].json = orig_json
@@ -2159,10 +2260,8 @@ describe('himalaya.domain.email resize_listing', function()
       local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
       assert.are.equal(#lines_before, #lines_after)
       -- First line should still be envelope 6 (page 2), not envelope 1 (page 1)
-      assert.is_truthy(lines_after[1]:find('6'),
-        'first line must still be envelope 6 (page 2), not page 1')
-      assert.is_truthy(lines_after[#lines_after]:find('10'),
-        'last line must still be envelope 10')
+      assert.is_truthy(lines_after[1]:find('6'), 'first line must still be envelope 6 (page 2), not page 1')
+      assert.is_truthy(lines_after[#lines_after]:find('10'), 'last line must still be envelope 10')
 
       vim.wo.winbar = ''
     end)
@@ -2184,10 +2283,8 @@ describe('himalaya.domain.email resize_listing', function()
       email._mark_envelope_seen('3')
 
       local lines_after = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-      assert.is_truthy(lines_after[1]:find('1'),
-        'first line must be envelope 1')
-      assert.is_truthy(lines_after[#lines_after]:find('5'),
-        'last line must be envelope 5')
+      assert.is_truthy(lines_after[1]:find('1'), 'first line must be envelope 1')
+      assert.is_truthy(lines_after[#lines_after]:find('5'), 'last line must be envelope 5')
 
       vim.wo.winbar = ''
     end)
@@ -2197,7 +2294,9 @@ describe('himalaya.domain.email resize_listing', function()
       -- First 5 envelopes have Seen, second 5 do not.
       local ps = 5
       local all_envs = make_envelopes(1, ps * 2)
-      for i = ps + 1, ps * 2 do all_envs[i].flags = {} end
+      for i = ps + 1, ps * 2 do
+        all_envs[i].flags = {}
+      end
       mock_request_sync_data = all_envs
       vim.b.himalaya_buffer_type = 'listing'
       seed_buffer_lines(1)
@@ -2210,7 +2309,9 @@ describe('himalaya.domain.email resize_listing', function()
       local envs = vim.b.himalaya_envelopes
       local found_seen = false
       for _, f in ipairs(envs[8].flags) do
-        if f == 'Seen' then found_seen = true end
+        if f == 'Seen' then
+          found_seen = true
+        end
       end
       assert.is_false(found_seen)
 
@@ -2220,7 +2321,9 @@ describe('himalaya.domain.email resize_listing', function()
       envs = vim.b.himalaya_envelopes
       found_seen = false
       for _, f in ipairs(envs[8].flags) do
-        if f == 'Seen' then found_seen = true end
+        if f == 'Seen' then
+          found_seen = true
+        end
       end
       assert.is_true(found_seen)
 
@@ -2243,7 +2346,7 @@ describe('himalaya.domain.email resize_listing', function()
       -- Shrink to 4 (winheight=3), cursor on row 1 (ID 6), global=5
       -- new_page = floor(5/3)+1 = 2
       vim.api.nvim_win_set_height(0, 4)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
       email.resize_listing()
       email.cancel_resize()
 
@@ -2280,18 +2383,19 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       vim.b.himalaya_cache_key = '--account test\0INBOX\0'
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- Folder switch happened: folder_state now returns 'Drafts'
-      package.loaded['himalaya.state.folder'].current = function() return 'Drafts' end
+      package.loaded['himalaya.state.folder'].current = function()
+        return 'Drafts'
+      end
 
       set_page_calls = {}
       email.resize_listing()
 
       -- resize_listing must NOT call folder_state.set_page() because
       -- the buffer's cache_key belongs to INBOX, not Drafts
-      assert.are.equal(0, #set_page_calls,
-        'resize_listing must not call set_page when buffer cache_key is stale')
+      assert.are.equal(0, #set_page_calls, 'resize_listing must not call set_page when buffer cache_key is stale')
     end)
 
     it('does not render stale data after folder switch', function()
@@ -2304,10 +2408,12 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       vim.b.himalaya_cache_key = '--account test\0INBOX\0'
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {1, 0})
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
       -- Folder switch happened
-      package.loaded['himalaya.state.folder'].current = function() return 'Drafts' end
+      package.loaded['himalaya.state.folder'].current = function()
+        return 'Drafts'
+      end
 
       rendered_envs = nil
       email.resize_listing()
@@ -2326,7 +2432,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_query = ''
       vim.b.himalaya_cache_key = '--account test\0INBOX\0'
       seed_buffer_lines(10)
-      vim.api.nvim_win_set_cursor(0, {3, 0})
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
 
       -- folder_state.current() returns 'INBOX' (default mock) — cache_key matches
       email.resize_listing()
@@ -2336,4 +2442,3 @@ describe('himalaya.domain.email resize_listing', function()
     end)
   end)
 end)
-

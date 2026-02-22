@@ -12,8 +12,8 @@
 local M = {}
 
 local enabled = false
-local notify = false  -- whether report() prints to vim.notify
-local timers = {}   -- name → { start, elapsed_ms }
+local notify = false -- whether report() prints to vim.notify
+local timers = {} -- name → { start, elapsed_ms }
 local counters = {} -- name → count
 
 --- Enable measurement collection.
@@ -41,23 +41,31 @@ end
 --- Start a named timer.
 --- @param name string
 function M.start(name)
-  if not enabled then return end
+  if not enabled then
+    return
+  end
   timers[name] = { start = vim.fn.reltime(), elapsed_ms = 0 }
 end
 
 --- Stop a named timer and accumulate elapsed time.
 --- @param name string
 function M.stop(name)
-  if not enabled then return end
+  if not enabled then
+    return
+  end
   local t = timers[name]
-  if not t then return end
+  if not t then
+    return
+  end
   t.elapsed_ms = t.elapsed_ms + vim.fn.reltimefloat(vim.fn.reltime(t.start)) * 1000
 end
 
 --- Increment a named counter.
 --- @param name string
 function M.count(name)
-  if not enabled then return end
+  if not enabled then
+    return
+  end
   counters[name] = (counters[name] or 0) + 1
 end
 
@@ -77,16 +85,22 @@ end
 
 --- Report all timers and counters via vim.notify (only when notify=true).
 function M.report()
-  if not enabled or not notify then return end
+  if not enabled or not notify then
+    return
+  end
   local lines = { 'himalaya perf:' }
   local tnames = {}
-  for name in pairs(timers) do table.insert(tnames, name) end
+  for name in pairs(timers) do
+    table.insert(tnames, name)
+  end
   table.sort(tnames)
   for _, name in ipairs(tnames) do
     table.insert(lines, string.format('  %s: %.2fms', name, timers[name].elapsed_ms))
   end
   local cnames = {}
-  for name in pairs(counters) do table.insert(cnames, name) end
+  for name in pairs(counters) do
+    table.insert(cnames, name)
+  end
   table.sort(cnames)
   for _, name in ipairs(cnames) do
     table.insert(lines, string.format('  %s: %d calls', name, counters[name]))

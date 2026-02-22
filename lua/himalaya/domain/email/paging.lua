@@ -38,9 +38,13 @@ function M.cache_slice(items, page, page_size, cache_offset, max_rows)
   local idx = math.max(1, page_start - cache_offset + 1)
   local limit = max_rows or page_size
   local last = math.min(#items, idx + limit - 1)
-  if idx == 1 and last == #items then return items end
+  if idx == 1 and last == #items then
+    return items
+  end
   local sliced = {}
-  for i = idx, last do sliced[#sliced + 1] = items[i] end
+  for i = idx, last do
+    sliced[#sliced + 1] = items[i]
+  end
   return sliced
 end
 
@@ -90,7 +94,9 @@ end
 --- @return number|nil
 function M.find_envelope_index(envelopes, email_id)
   for i, env in ipairs(envelopes) do
-    if tostring(env.id) == email_id then return i end
+    if tostring(env.id) == email_id then
+      return i
+    end
   end
   return nil
 end

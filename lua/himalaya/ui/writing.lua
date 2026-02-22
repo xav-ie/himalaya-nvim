@@ -1,5 +1,4 @@
 local config = require('himalaya.config')
-local email = require('himalaya.domain.email')
 local compose = require('himalaya.domain.email.compose')
 
 local M = {}

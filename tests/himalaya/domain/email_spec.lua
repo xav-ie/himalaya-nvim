@@ -42,15 +42,30 @@ describe('himalaya.domain.email', function()
 
   describe('get_email_id_from_line', function()
     it('extracts numeric id from a listing line', function()
-      assert.are.equal('123', email._get_email_id_from_line(' 123    \xe2\x94\x82 *   \xe2\x94\x82 Subject              \xe2\x94\x82 Sender               \xe2\x94\x82 2024-01-01 00:00:00'))
+      assert.are.equal(
+        '123',
+        email._get_email_id_from_line(
+          ' 123    \xe2\x94\x82 *   \xe2\x94\x82 Subject              \xe2\x94\x82 Sender               \xe2\x94\x82 2024-01-01 00:00:00'
+        )
+      )
     end)
 
     it('returns empty for header line', function()
-      assert.are.equal('', email._get_email_id_from_line(' ID     \xe2\x94\x82 FLGS \xe2\x94\x82 SUBJECT              \xe2\x94\x82 FROM                 \xe2\x94\x82 DATE               '))
+      assert.are.equal(
+        '',
+        email._get_email_id_from_line(
+          ' ID     \xe2\x94\x82 FLGS \xe2\x94\x82 SUBJECT              \xe2\x94\x82 FROM                 \xe2\x94\x82 DATE               '
+        )
+      )
     end)
 
     it('returns empty for separator line', function()
-      assert.are.equal('', email._get_email_id_from_line('\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\xbc\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80'))
+      assert.are.equal(
+        '',
+        email._get_email_id_from_line(
+          '\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\xbc\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80'
+        )
+      )
     end)
   end)
 
@@ -58,7 +73,9 @@ describe('himalaya.domain.email', function()
     it('dispatches to thread_listing for thread-listing buffers', function()
       local marked_id
       package.loaded['himalaya.domain.email.thread_listing'] = {
-        mark_seen_optimistic = function(id) marked_id = id end,
+        mark_seen_optimistic = function(id)
+          marked_id = id
+        end,
       }
 
       -- Set up current buffer as thread-listing
@@ -72,7 +89,9 @@ describe('himalaya.domain.email', function()
     it('does not dispatch when no listing buffer exists', function()
       local marked_id
       package.loaded['himalaya.domain.email.thread_listing'] = {
-        mark_seen_optimistic = function(id) marked_id = id end,
+        mark_seen_optimistic = function(id)
+          marked_id = id
+        end,
       }
 
       email._mark_envelope_seen('42')

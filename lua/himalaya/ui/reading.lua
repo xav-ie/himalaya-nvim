@@ -1,7 +1,6 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
 local compose = require('himalaya.domain.email.compose')
-local thread = require('himalaya.domain.email.thread')
 local win = require('himalaya.ui.win')
 
 local M = {}
@@ -10,7 +9,9 @@ local M = {}
 --- @param direction number  +1 for next, -1 for previous
 local function navigate_email(direction)
   local winid, bufnr = win.find_by_buftype({ 'listing', 'thread-listing' })
-  if not winid then return end
+  if not winid then
+    return
+  end
   vim.api.nvim_win_call(winid, function()
     local row = vim.api.nvim_win_get_cursor(winid)[1]
     local line_count = vim.api.nvim_buf_line_count(bufnr)
@@ -36,18 +37,32 @@ function M.setup(bufnr)
   end)
 
   keybinds.define(bufnr, {
-    { 'n', 'gw', compose.write,                   'email-write' },
-    { 'n', 'gr', compose.reply,                   'email-reply' },
-    { 'n', 'gR', compose.reply_all,               'email-reply-all' },
-    { 'n', 'gf', compose.forward,                 'email-forward' },
-    { 'n', 'ga', email.download_attachments,     'email-download-attachments' },
-    { 'n', 'gC', email.select_folder_then_copy,  'email-select-folder-then-copy' },
-    { 'n', 'gM', email.select_folder_then_move,  'email-select-folder-then-move' },
-    { 'n', 'gD', email.delete,                   'email-delete' },
-    { 'n', 'go', email.open_browser,             'email-open-browser' },
-    { 'n', 'gn', function() navigate_email(1) end,  'email-next' },
-    { 'n', 'gp', function() navigate_email(-1) end, 'email-previous' },
-    { 'n', '?',  keybinds.show_help,               'help' },
+    { 'n', 'gw', compose.write, 'email-write' },
+    { 'n', 'gr', compose.reply, 'email-reply' },
+    { 'n', 'gR', compose.reply_all, 'email-reply-all' },
+    { 'n', 'gf', compose.forward, 'email-forward' },
+    { 'n', 'ga', email.download_attachments, 'email-download-attachments' },
+    { 'n', 'gC', email.select_folder_then_copy, 'email-select-folder-then-copy' },
+    { 'n', 'gM', email.select_folder_then_move, 'email-select-folder-then-move' },
+    { 'n', 'gD', email.delete, 'email-delete' },
+    { 'n', 'go', email.open_browser, 'email-open-browser' },
+    {
+      'n',
+      'gn',
+      function()
+        navigate_email(1)
+      end,
+      'email-next',
+    },
+    {
+      'n',
+      'gp',
+      function()
+        navigate_email(-1)
+      end,
+      'email-previous',
+    },
+    { 'n', '?', keybinds.show_help, 'help' },
   })
 end
 

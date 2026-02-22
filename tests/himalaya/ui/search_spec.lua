@@ -9,7 +9,9 @@ describe('himalaya.ui.search', function()
   -- Helper: build an empty values array aligned with FIELDS
   local function empty_values()
     local v = {}
-    for i = 1, #search._FIELDS do v[i] = '' end
+    for i = 1, #search._FIELDS do
+      v[i] = ''
+    end
     return v
   end
 
@@ -25,7 +27,9 @@ describe('himalaya.ui.search', function()
   -- Helper: join segments into a plain string
   local function segments_to_string(segs)
     local parts = {}
-    for _, s in ipairs(segs) do parts[#parts + 1] = s.text end
+    for _, s in ipairs(segs) do
+      parts[#parts + 1] = s.text
+    end
     return table.concat(parts)
   end
 

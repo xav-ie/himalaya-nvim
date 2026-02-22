@@ -1,4 +1,4 @@
-.PHONY: test perf coverage
+.PHONY: test perf coverage lint fmt fmt-check
 
 test:
 	nix develop --command busted
@@ -16,3 +16,12 @@ coverage:
 	nix develop --command luacov
 	@echo ""
 	@echo "Coverage report: luacov.report.out"
+
+lint:
+	nix develop --command luacheck lua/ tests/
+
+fmt:
+	nix develop --command stylua lua/ tests/ plugin/
+
+fmt-check:
+	nix develop --command stylua --check lua/ tests/ plugin/

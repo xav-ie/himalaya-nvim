@@ -31,10 +31,12 @@ describe('himalaya.request', function()
       request.json({
         cmd = 'envelope list',
         msg = 'test',
-        on_data = function(data) result = data end,
+        on_data = function(data)
+          result = data
+        end,
       })
       captured_on_exit('[{"id":1}]', '', 0)
-      assert.are.same({{id = 1}}, result)
+      assert.are.same({ { id = 1 } }, result)
     end)
 
     it('returns empty table for blank stdout', function()
@@ -42,7 +44,9 @@ describe('himalaya.request', function()
       request.json({
         cmd = 'envelope list',
         msg = 'test',
-        on_data = function(data) result = data end,
+        on_data = function(data)
+          result = data
+        end,
       })
       captured_on_exit('', '', 0)
       assert.are.same({}, result)
@@ -55,7 +59,9 @@ describe('himalaya.request', function()
         msg = 'test',
         silent = true,
         on_data = function() end,
-        on_error = function() errored = true end,
+        on_error = function()
+          errored = true
+        end,
       })
       captured_on_exit('', 'fail', 1)
       assert.is_true(errored)
@@ -68,7 +74,9 @@ describe('himalaya.request', function()
         msg = 'test',
         silent = true,
         on_data = function() end,
-        on_error = function() errored = true end,
+        on_error = function()
+          errored = true
+        end,
       })
       captured_on_exit('not json{{{', '', 0)
       assert.is_true(errored)
@@ -79,8 +87,12 @@ describe('himalaya.request', function()
       request.json({
         cmd = 'envelope list',
         msg = 'test',
-        is_stale = function() return true end,
-        on_data = function() called = true end,
+        is_stale = function()
+          return true
+        end,
+        on_data = function()
+          called = true
+        end,
       })
       captured_on_exit('[{"id":1}]', '', 0)
       assert.is_false(called)

@@ -15,7 +15,12 @@ local function load_fixture()
   local path = vim.fn.getcwd() .. '/tests/perf/fixtures/envelopes_50.json'
   local f = io.open(path, 'r')
   if not f then
-    error('Missing fixture: ' .. path .. '\nRun: himalaya envelope list --folder INBOX --page-size 50 --page 1 --output json > ' .. path)
+    error(
+      'Missing fixture: '
+        .. path
+        .. '\nRun: himalaya envelope list --folder INBOX --page-size 50 --page 1 --output json > '
+        .. path
+    )
   end
   local json = f:read('*a')
   f:close()
@@ -25,23 +30,33 @@ end
 local function seed_buffer_lines(bufnr, count)
   vim.bo[bufnr].modifiable = true
   local lines = {}
-  for i = 1, count do lines[i] = tostring(i) end
+  for i = 1, count do
+    lines[i] = tostring(i)
+  end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
   vim.bo[bufnr].modifiable = false
 end
 
 local function median(sorted)
   local n = #sorted
-  if n == 0 then return 0 end
-  if n % 2 == 1 then return sorted[math.ceil(n / 2)] end
+  if n == 0 then
+    return 0
+  end
+  if n % 2 == 1 then
+    return sorted[math.ceil(n / 2)]
+  end
   return (sorted[n / 2] + sorted[n / 2 + 1]) / 2
 end
 
 local function stats(samples)
-  if #samples == 0 then return { min = 0, max = 0, median = 0, mean = 0 } end
+  if #samples == 0 then
+    return { min = 0, max = 0, median = 0, mean = 0 }
+  end
   table.sort(samples)
   local sum = 0
-  for _, v in ipairs(samples) do sum = sum + v end
+  for _, v in ipairs(samples) do
+    sum = sum + v
+  end
   return {
     min = samples[1],
     max = samples[#samples],
@@ -50,7 +65,9 @@ local function stats(samples)
   }
 end
 
-local function round2(n) return math.floor(n * 100 + 0.5) / 100 end
+local function round2(n)
+  return math.floor(n * 100 + 0.5) / 100
+end
 
 --- Read current results file (or empty array).
 local function read_results()
@@ -83,32 +100,50 @@ describe('resize perf baseline', function()
   before_each(function()
     -- Clear module cache for fresh state
     for k in pairs(package.loaded) do
-      if k:match('^himalaya') then package.loaded[k] = nil end
+      if k:match('^himalaya') then
+        package.loaded[k] = nil
+      end
     end
 
     -- Stub network/state modules (but NOT renderer/listing/config/perf)
     package.loaded['himalaya.request'] = {
-      json = function() return nil end,
-      plain = function() return nil end,
+      json = function()
+        return nil
+      end,
+      plain = function()
+        return nil
+      end,
     }
     package.loaded['himalaya.log'] = {
-      info = function() end, warn = function() end,
-      err = function() end, debug = function() end,
+      info = function() end,
+      warn = function() end,
+      err = function() end,
+      debug = function() end,
     }
     package.loaded['himalaya.state.account'] = {
-      current = function() return 'bench' end,
+      current = function()
+        return 'bench'
+      end,
       select = function() end,
-      flag = function(account) return account == '' and '' or ('--account ' .. account) end,
+      flag = function(account)
+        return account == '' and '' or ('--account ' .. account)
+      end,
     }
     package.loaded['himalaya.state.folder'] = {
-      current = function() return 'INBOX' end,
-      current_page = function() return 1 end,
+      current = function()
+        return 'INBOX'
+      end,
+      current_page = function()
+        return 1
+      end,
       set_page = function() end,
     }
     package.loaded['himalaya.domain.email.probe'] = {
       reset_if_changed = function() end,
       set_total_from_data = function() end,
-      total_pages_str = function() return '?' end,
+      total_pages_str = function()
+        return '?'
+      end,
       start = function() end,
       cancel = function() end,
       restart = function() end,
@@ -160,17 +195,34 @@ describe('resize perf baseline', function()
 
     write_result({
       label = 'renderer.render',
-      envelopes = n, width = WIDTH, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = n,
+      width = WIDTH,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
       counters = snap.counters,
     })
 
-    print(string.format(
-      '\n  renderer.render: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
-      s.min, s.median, s.max, ITERATIONS, n))
-    print(string.format('    fit: %d  strdisplaywidth: %d  format_date: %d',
-      snap.counters.fit or 0, snap.counters.strdisplaywidth or 0, snap.counters.format_date or 0))
+    print(
+      string.format(
+        '\n  renderer.render: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS,
+        n
+      )
+    )
+    print(
+      string.format(
+        '    fit: %d  strdisplaywidth: %d  format_date: %d',
+        snap.counters.fit or 0,
+        snap.counters.strdisplaywidth or 0,
+        snap.counters.format_date or 0
+      )
+    )
   end)
 
   -- ── apply_syntax() + redraw ────────────────────────────────────
@@ -185,7 +237,9 @@ describe('resize perf baseline', function()
     local samples = {}
     for _ = 1, ITERATIONS do
       -- Clear syntax so each iteration re-registers from scratch
-      vim.api.nvim_buf_call(bufnr, function() vim.cmd('syntax clear') end)
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.cmd('syntax clear')
+      end)
       local t0 = vim.fn.reltime()
       listing.apply_syntax(bufnr)
       vim.cmd('redraw')
@@ -196,14 +250,23 @@ describe('resize perf baseline', function()
 
     write_result({
       label = 'apply_syntax_redraw',
-      envelopes = #envelopes, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = #envelopes,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
     })
 
-    print(string.format(
-      '\n  apply_syntax+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d)',
-      s.min, s.median, s.max, ITERATIONS))
+    print(
+      string.format(
+        '\n  apply_syntax+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS
+      )
+    )
   end)
 
   -- ── apply_seen_highlights() + redraw ───────────────────────────
@@ -228,14 +291,24 @@ describe('resize perf baseline', function()
 
     write_result({
       label = 'apply_seen_highlights_redraw',
-      envelopes = #envelopes, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = #envelopes,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
     })
 
-    print(string.format(
-      '\n  apply_seen_highlights+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
-      s.min, s.median, s.max, ITERATIONS, #envelopes))
+    print(
+      string.format(
+        '\n  apply_seen_highlights+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS,
+        #envelopes
+      )
+    )
   end)
 
   -- ── redraw cost (isolated) ────────────────────────────────────
@@ -263,14 +336,23 @@ describe('resize perf baseline', function()
 
     write_result({
       label = 'redraw_only',
-      envelopes = #envelopes, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = #envelopes,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
     })
 
-    print(string.format(
-      '\n  redraw (no mutation): min=%.2fms median=%.2fms max=%.2fms (n=%d)',
-      s.min, s.median, s.max, ITERATIONS))
+    print(
+      string.format(
+        '\n  redraw (no mutation): min=%.2fms median=%.2fms max=%.2fms (n=%d)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS
+      )
+    )
   end)
 
   -- ── resize_listing() height change (Phase 1) + redraw ─────────
@@ -316,16 +398,27 @@ describe('resize perf baseline', function()
     local s = stats(samples)
     write_result({
       label = 'resize_listing_height_change_redraw',
-      envelopes = n, width = WIDTH, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = n,
+      width = WIDTH,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
       last_timers = last_snap and last_snap.timers or {},
       last_counters = last_snap and last_snap.counters or {},
     })
 
-    print(string.format(
-      '\n  resize_listing (height)+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
-      s.min, s.median, s.max, ITERATIONS, n))
+    print(
+      string.format(
+        '\n  resize_listing (height)+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS,
+        n
+      )
+    )
     if last_snap then
       for k, v in pairs(last_snap.timers) do
         print(string.format('    %s: %.2fms', k, v))
@@ -386,17 +479,28 @@ describe('resize perf baseline', function()
     local s = stats(samples)
     write_result({
       label = 'resize_listing_shrink_no_phase2',
-      envelopes = n, width = WIDTH, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = n,
+      width = WIDTH,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
       phase2_fired = phase2_called,
       last_timers = last_snap and last_snap.timers or {},
       last_counters = last_snap and last_snap.counters or {},
     })
 
-    print(string.format(
-      '\n  resize_listing (shrink, no Phase 2): min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
-      s.min, s.median, s.max, ITERATIONS, n))
+    print(
+      string.format(
+        '\n  resize_listing (shrink, no Phase 2): min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS,
+        n
+      )
+    )
     if last_snap then
       for k, v in pairs(last_snap.timers) do
         print(string.format('    %s: %.2fms', k, v))
@@ -440,16 +544,27 @@ describe('resize perf baseline', function()
     local s = stats(samples)
     write_result({
       label = 'resize_listing_width_only_redraw',
-      envelopes = n, width = WIDTH, iterations = ITERATIONS,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      envelopes = n,
+      width = WIDTH,
+      iterations = ITERATIONS,
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
       last_timers = last_snap and last_snap.timers or {},
       last_counters = last_snap and last_snap.counters or {},
     })
 
-    print(string.format(
-      '\n  resize_listing (width)+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
-      s.min, s.median, s.max, ITERATIONS, n))
+    print(
+      string.format(
+        '\n  resize_listing (width)+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        s.min,
+        s.median,
+        s.max,
+        ITERATIONS,
+        n
+      )
+    )
     if last_snap then
       for k, v in pairs(last_snap.timers) do
         print(string.format('    %s: %.2fms', k, v))
@@ -479,7 +594,7 @@ describe('resize perf baseline', function()
     end
 
     local samples = {}
-    for _ = 1, 5 do  -- fewer iterations — real I/O
+    for _ = 1, 5 do -- fewer iterations — real I/O
       local t0 = vim.fn.reltime()
       vim.fn.system(cmd)
       local ms = vim.fn.reltimefloat(vim.fn.reltime(t0)) * 1000
@@ -490,12 +605,20 @@ describe('resize perf baseline', function()
     write_result({
       label = 'himalaya_cli_envelope_list',
       iterations = 5,
-      min_ms = round2(s.min), max_ms = round2(s.max),
-      median_ms = round2(s.median), mean_ms = round2(s.mean),
+      min_ms = round2(s.min),
+      max_ms = round2(s.max),
+      median_ms = round2(s.median),
+      mean_ms = round2(s.mean),
     })
 
-    print(string.format(
-      '\n  himalaya CLI (envelope list 50): min=%.0fms median=%.0fms max=%.0fms (n=%d)',
-      s.min, s.median, s.max, 5))
+    print(
+      string.format(
+        '\n  himalaya CLI (envelope list 50): min=%.0fms median=%.0fms max=%.0fms (n=%d)',
+        s.min,
+        s.median,
+        s.max,
+        5
+      )
+    )
   end)
 end)

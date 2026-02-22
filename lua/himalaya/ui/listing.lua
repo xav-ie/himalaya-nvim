@@ -41,7 +41,7 @@ end
 --- Apply syntax match rules to the given buffer.
 --- @param bufnr number
 function M.apply_syntax(bufnr)
-  perf.start("apply_syntax")
+  perf.start('apply_syntax')
   vim.api.nvim_buf_call(bufnr, function()
     -- Use \%u2502 (│), \%u2500 (─), \%u253c (┼) for box-drawing chars
     vim.cmd([[
@@ -53,7 +53,7 @@ function M.apply_syntax(bufnr)
       syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
     ]])
   end)
-  perf.stop("apply_syntax")
+  perf.stop('apply_syntax')
 end
 
 --- Compute the gutter width (number column, fold column, sign column) for a window.
@@ -83,7 +83,9 @@ end
 --- @param header string
 function M.apply_header(bufnr, header)
   local winid = win.find_by_bufnr(bufnr)
-  if not winid then return end
+  if not winid then
+    return
+  end
   local pad = string.rep(' ', M.gutter_width(winid, bufnr))
   local escaped = header:gsub('%%', '%%%%')
   vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
@@ -94,16 +96,19 @@ end
 --- @param bufnr number
 --- @param envelopes table[]
 function M.apply_seen_highlights(bufnr, envelopes)
-  perf.start("apply_seen_highlights")
+  perf.start('apply_seen_highlights')
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   for i, env in ipairs(envelopes) do
     local flags = env.flags or {}
     local seen = false
     for _, f in ipairs(flags) do
-      if f == 'Seen' then seen = true; break end
+      if f == 'Seen' then
+        seen = true
+        break
+      end
     end
     if seen then
-      local line = i - 1  -- 0-based, no header offset
+      local line = i - 1 -- 0-based, no header offset
       vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
         end_row = line + 1,
         hl_eol = true,
@@ -112,7 +117,7 @@ function M.apply_seen_highlights(bufnr, envelopes)
       })
     end
   end
-  perf.stop("apply_seen_highlights")
+  perf.stop('apply_seen_highlights')
 end
 
 --- Set up the listing buffer: options, highlights, syntax, and keybinds.
@@ -131,14 +136,19 @@ function M.setup(bufnr)
 
   keybinds.shared_listing_keybinds(bufnr)
   keybinds.define(bufnr, {
-    { 'n', 'gp',   folder.select_previous_page,      'folder-select-previous-page' },
-    { 'n', 'gn',   folder.select_next_page,           'folder-select-next-page' },
-    { 'n', '<cr>', email.read,                         'email-read' },
-    { 'n', 'g/',   email.set_list_envelopes_query,     'email-set-list-envelopes-query' },
-    { 'n', 'gt',   function()
-      local id = M.get_email_id_from_line(vim.api.nvim_get_current_line())
-      require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = id })
-    end, 'thread-listing-toggle' },
+    { 'n', 'gp', folder.select_previous_page, 'folder-select-previous-page' },
+    { 'n', 'gn', folder.select_next_page, 'folder-select-next-page' },
+    { 'n', '<cr>', email.read, 'email-read' },
+    { 'n', 'g/', email.set_list_envelopes_query, 'email-set-list-envelopes-query' },
+    {
+      'n',
+      'gt',
+      function()
+        local id = M.get_email_id_from_line(vim.api.nvim_get_current_line())
+        require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = id })
+      end,
+      'thread-listing-toggle',
+    },
   })
 
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })

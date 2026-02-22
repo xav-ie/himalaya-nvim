@@ -11,21 +11,23 @@ local win = require('himalaya.ui.win')
 local M = {}
 
 -- Module-local state
-local all_display_rows = nil   -- full tree from last fetch
-local id_to_index = nil        -- email id (string) → 1-based index in all_display_rows
-local last_edges = nil         -- raw edges from last fetch (for local rebuild)
-local thread_query = ''        -- search query for thread mode
+local all_display_rows = nil -- full tree from last fetch
+local id_to_index = nil -- email id (string) → 1-based index in all_display_rows
+local last_edges = nil -- raw edges from last fetch (for local rebuild)
+local thread_query = '' -- search query for thread mode
 local current_page = 1
-local list_generation = 0      -- incremented on each list(); stale callbacks bail out
-local list_job = nil           -- in-flight thread fetch job handle
-local enrich_job = nil         -- in-flight enrich_with_flags job handle
+local list_generation = 0 -- incremented on each list(); stale callbacks bail out
+local list_job = nil -- in-flight thread fetch job handle
+local enrich_job = nil -- in-flight enrich_with_flags job handle
 
 local account_flag = account_state.flag
 
 --- Rebuild the id→index lookup table from all_display_rows.
 local function rebuild_id_index()
   id_to_index = {}
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
   for i, row in ipairs(all_display_rows) do
     id_to_index[tostring(row.env.id)] = i
   end
@@ -35,15 +37,23 @@ end
 --- Called before any new CLI command to avoid database lock contention.
 function M.cancel_jobs()
   list_generation = list_generation + 1
-  if list_job then job.kill_and_wait(list_job); list_job = nil end
-  if enrich_job then job.kill_and_wait(enrich_job); enrich_job = nil end
+  if list_job then
+    job.kill_and_wait(list_job)
+    list_job = nil
+  end
+  if enrich_job then
+    job.kill_and_wait(enrich_job)
+    enrich_job = nil
+  end
 end
 
 --- Render one page of the cached thread display rows into the current buffer.
 --- @param page number
 --- @param opts? table  Optional: { restore_cursor = {line, col} }
 function M.render_page(page, opts)
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
   opts = opts or {}
 
   local email = require('himalaya.domain.email')
@@ -66,8 +76,16 @@ function M.render_page(page, opts)
   local folder = folder_state.current()
   local display_query = thread_query == '' and 'all' or thread_query
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
-  vim.cmd(string.format('silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]',
-    buftype, folder, display_query, page, total_pages))
+  vim.cmd(
+    string.format(
+      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]',
+      buftype,
+      folder,
+      display_query,
+      page,
+      total_pages
+    )
+  )
   vim.bo.modifiable = true
 
   local bufnr = vim.api.nvim_get_current_buf()
@@ -79,7 +97,9 @@ function M.render_page(page, opts)
   local actual_ps = listing.effective_page_size()
   if #slice > actual_ps then
     local trimmed = {}
-    for i = 1, actual_ps do trimmed[i] = result.lines[i] end
+    for i = 1, actual_ps do
+      trimmed[i] = result.lines[i]
+    end
     result.lines = trimmed
   end
 
@@ -87,7 +107,9 @@ function M.render_page(page, opts)
 
   -- Apply seen highlights from enriched flag data
   local envs = {}
-  for _, row in ipairs(slice) do envs[#envs + 1] = row.env end
+  for _, row in ipairs(slice) do
+    envs[#envs + 1] = row.env
+  end
   listing.apply_seen_highlights(bufnr, envs)
 
   vim.b.himalaya_buffer_type = 'thread-listing'
@@ -112,7 +134,9 @@ end
 --- @param listing_win number  window to render in (avoids E36 if picker has focus)
 --- @param gen number  generation at time of request; bail if stale
 local function enrich_with_flags(acct, folder, listing_win, gen)
-  if not all_display_rows or #all_display_rows == 0 then return end
+  if not all_display_rows or #all_display_rows == 0 then
+    return
+  end
   perf.count('enrich_with_flags')
 
   -- Cap the fetch at 200 envelopes. The flat list returns the most recent
@@ -125,8 +149,12 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
     args = { folder, account_flag(acct), fetch_size },
     msg = 'Fetching flags',
     silent = true,
-    is_stale = function() return gen ~= list_generation end,
-    on_error = function() enrich_job = nil end,
+    is_stale = function()
+      return gen ~= list_generation
+    end,
+    on_error = function()
+      enrich_job = nil
+    end,
     on_data = function(envs)
       enrich_job = nil
       local id_map = {}
@@ -140,7 +168,9 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
           row.env.has_attachment = rich.has_attachment
         end
       end
-      if not vim.api.nvim_win_is_valid(listing_win) then return end
+      if not vim.api.nvim_win_is_valid(listing_win) then
+        return
+      end
       vim.api.nvim_win_call(listing_win, function()
         M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(listing_win) })
       end)
@@ -175,8 +205,12 @@ function M.list(account, opts)
     cmd = 'envelope thread --folder %s %s %s',
     args = { folder, account_flag(acct), thread_query },
     msg = string.format('Fetching %s threads', folder),
-    is_stale = function() return my_gen ~= list_generation end,
-    on_error = function() list_job = nil end,
+    is_stale = function()
+      return my_gen ~= list_generation
+    end,
+    on_error = function()
+      list_job = nil
+    end,
     on_data = function(data)
       list_job = nil
       last_edges = data
@@ -186,8 +220,8 @@ function M.list(account, opts)
 
       -- Pre-populate flags from cached flat listing envelopes so the
       -- initial render shows flags instead of blank columns.
-      local ok, cached_envs = pcall(vim.api.nvim_buf_get_var,
-        vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+      local ok, cached_envs =
+        pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
       if ok and cached_envs then
         local id_map = {}
         for _, env in ipairs(cached_envs) do
@@ -205,7 +239,9 @@ function M.list(account, opts)
       all_display_rows = rows
       rebuild_id_index()
 
-      if not vim.api.nvim_win_is_valid(listing_win) then return end
+      if not vim.api.nvim_win_is_valid(listing_win) then
+        return
+      end
       vim.api.nvim_win_call(listing_win, function()
         local listing_ui = require('himalaya.ui.listing')
         if opts.restore_cursor_line then
@@ -242,13 +278,17 @@ end
 
 --- Navigate to the next page of threads.
 function M.next_page()
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
   M.render_page(current_page + 1)
 end
 
 --- Navigate to the previous page of threads.
 function M.previous_page()
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
   M.render_page(math.max(1, current_page - 1))
 end
 
@@ -299,7 +339,9 @@ end
 --- Re-render on resize: recomputes which page the selected email belongs
 --- to at the new window height and places cursor on that email.
 function M.resize()
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
 
   -- Identify the email under cursor
   local listing = require('himalaya.ui.listing')
@@ -327,14 +369,18 @@ end
 --- position that the WinResized handler needs to compute the correct page.
 --- @param email_id string
 function M.mark_seen_optimistic(email_id)
-  if not all_display_rows then return end
+  if not all_display_rows then
+    return
+  end
 
   local idx = id_to_index and id_to_index[tostring(email_id)]
   if idx then
     local row = all_display_rows[idx]
     local flags = row.env.flags or {}
     for _, f in ipairs(flags) do
-      if f == 'Seen' then return end
+      if f == 'Seen' then
+        return
+      end
     end
     table.insert(flags, 'Seen')
     row.env.flags = flags
@@ -347,7 +393,9 @@ function M.mark_seen_optimistic(email_id)
   local ns_seen = vim.api.nvim_create_namespace('himalaya_seen')
   local eid = tostring(email_id)
   local _, buf = win.find_by_buftype('thread-listing')
-  if not buf then return end
+  if not buf then
+    return
+  end
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
     if listing_mod.get_email_id_from_line(line) == eid then

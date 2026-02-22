@@ -51,7 +51,7 @@ describe('himalaya.domain.email.probe', function()
     it('keeps valid total when full page is within cached count', function()
       local key = 'acct\0folder\0'
       -- Previous probe determined total = 75
-      probe.set_total_from_data(key, 1, 50, 25)  -- simulate partial
+      probe.set_total_from_data(key, 1, 50, 25) -- simulate partial
       -- Actually set it to 75 as if probe found it
       -- Use set_total_from_data on page 2 partial
       probe.set_total_from_data(key, 2, 50, 25)
@@ -98,10 +98,12 @@ describe('himalaya.domain.email.probe', function()
           local page_size = opts.args[3]
           table.insert(probed_pages, probe_page)
           if partial_at and probe_page == partial_at then
-            opts.on_data({{}, {}, {}})
+            opts.on_data({ {}, {}, {} })
           else
             local full = {}
-            for i = 1, page_size do full[i] = {} end
+            for i = 1, page_size do
+              full[i] = {}
+            end
             opts.on_data(full)
           end
           return {}
@@ -115,7 +117,7 @@ describe('himalaya.domain.email.probe', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       p.start('acct', 'inbox', 50, 1, '', bufnr)
       vim.api.nvim_buf_delete(bufnr, { force = true })
-      assert.are.same({2, 4, 8, 10}, probed_pages)
+      assert.are.same({ 2, 4, 8, 10 }, probed_pages)
     end)
 
     it('uses exponential doubling from page 3', function()
@@ -123,7 +125,7 @@ describe('himalaya.domain.email.probe', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       p.start('acct', 'inbox', 50, 3, '', bufnr)
       vim.api.nvim_buf_delete(bufnr, { force = true })
-      assert.are.same({4, 8, 10}, probed_pages)
+      assert.are.same({ 4, 8, 10 }, probed_pages)
     end)
 
     it('stops on partial page during doubling', function()
@@ -131,7 +133,7 @@ describe('himalaya.domain.email.probe', function()
       local bufnr = vim.api.nvim_create_buf(false, true)
       p.start('acct', 'inbox', 50, 1, '', bufnr)
       vim.api.nvim_buf_delete(bufnr, { force = true })
-      assert.are.same({2, 4}, probed_pages)
+      assert.are.same({ 2, 4 }, probed_pages)
       assert.are.equal(153, p.total_count('acct\0inbox\0'))
     end)
   end)
@@ -153,11 +155,15 @@ describe('himalaya.domain.email.probe', function()
 
       -- cancel() increments generation, making the captured callback stale
       local cancel_called = false
-      p.cancel(function() cancel_called = true end)
+      p.cancel(function()
+        cancel_called = true
+      end)
 
       -- Invoke the now-stale on_data — should bail out
       local full_page = {}
-      for i = 1, 50 do full_page[i] = {} end
+      for i = 1, 50 do
+        full_page[i] = {}
+      end
       captured_on_data(full_page)
 
       assert.is_true(cancel_called)
@@ -181,7 +187,7 @@ describe('himalaya.domain.email.probe', function()
 
       -- Invoke on_data without cancelling — should process normally
       -- Return partial page (3 items) to set exact total
-      captured_on_data({{}, {}, {}})
+      captured_on_data({ {}, {}, {} })
 
       -- Total should be (2-1)*50 + 3 = 53
       assert.are.equal(53, p.total_count('acct\0inbox\0'))

@@ -17,9 +17,11 @@ end
 --- @param fmt string  format string (or plain message)
 --- @param ... any     format arguments
 function M.debug(fmt, ...)
-  if not vim.g.himalaya_debug then return end
+  if not vim.g.himalaya_debug then
+    return
+  end
   local msg = select('#', ...) > 0 and string.format(fmt, ...) or fmt
-  vim.api.nvim_echo({{ msg, 'Comment' }}, true, {})
+  vim.api.nvim_echo({ { msg, 'Comment' } }, true, {})
 end
 
 return M

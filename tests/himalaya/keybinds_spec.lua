@@ -5,9 +5,13 @@ describe('himalaya.keybinds', function()
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_current_buf(buf)
 
-    local called = false
     keybinds.define(buf, {
-      { 'n', 'gx', function() called = true end, 'test-action' },
+      {
+        'n',
+        'gx',
+        function() end,
+        'test-action',
+      },
     })
 
     local maps = vim.api.nvim_buf_get_keymap(buf, 'n')

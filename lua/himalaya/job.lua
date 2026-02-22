@@ -4,7 +4,9 @@ local M = {}
 --- This ensures the CLI's database lock is released before returning.
 --- @param handle userdata  vim.system handle
 function M.kill_and_wait(handle)
-  if not handle then return end
+  if not handle then
+    return
+  end
   handle:kill()
   pcall(handle.wait, handle, 500)
 end

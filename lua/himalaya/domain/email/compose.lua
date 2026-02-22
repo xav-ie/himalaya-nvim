@@ -6,7 +6,6 @@ local win = require('himalaya.ui.win')
 
 local M = {}
 
-local draft = ''
 local sent = false
 
 local account_flag = account_state.flag
@@ -115,7 +114,6 @@ end
 
 --- Save current buffer content as draft.
 function M.save_draft()
-  draft = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n') .. '\n'
   vim.cmd('redraw')
   log.info('Save draft [OK]')
   vim.bo.modified = false

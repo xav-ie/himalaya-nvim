@@ -26,7 +26,10 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '42', subject = 'Test Subject', from = { name = 'Alice' }, date = '2024-01-15 09:30:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
@@ -40,7 +43,10 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '1', subject = 'Test', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
@@ -56,11 +62,17 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '1', subject = 'Root', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
         {
           env = { id = '2', subject = 'Reply', from = { name = 'Bob' }, date = '2024-01-02 10:00:00+00:00' },
-          depth = 1, is_last_child = true, prefix = '\xe2\x94\x94\xe2\x94\x80', thread_idx = 1,
+          depth = 1,
+          is_last_child = true,
+          prefix = '\xe2\x94\x94\xe2\x94\x80',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
@@ -74,13 +86,16 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '1', subject = 'Test', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
-      assert.is_truthy(result.header:find('\xe2\x94\x82'))  -- │
-      assert.is_truthy(result.separator:find('\xe2\x94\x80'))  -- ─
-      assert.is_truthy(result.separator:find('\xe2\x94\xbc'))  -- ┼
+      assert.is_truthy(result.header:find('\xe2\x94\x82')) -- │
+      assert.is_truthy(result.separator:find('\xe2\x94\x80')) -- ─
+      assert.is_truthy(result.separator:find('\xe2\x94\xbc')) -- ┼
     end)
 
     it('handles empty input', function()
@@ -92,8 +107,16 @@ describe('himalaya.ui.thread_renderer', function()
     it('handles from as table with name', function()
       local rows = {
         {
-          env = { id = '5', subject = 'Multi', from = { name = 'Carol', addr = 'carol@test.com' }, date = '2024-03-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          env = {
+            id = '5',
+            subject = 'Multi',
+            from = { name = 'Carol', addr = 'carol@test.com' },
+            date = '2024-03-01 10:00:00+00:00',
+          },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
@@ -103,14 +126,32 @@ describe('himalaya.ui.thread_renderer', function()
     it('renders actual flags when envelope has enriched flag data', function()
       local rows = {
         {
-          env = { id = '1', subject = 'Unseen', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00',
-                  flags = {}, has_attachment = false },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          env = {
+            id = '1',
+            subject = 'Unseen',
+            from = { name = 'Alice' },
+            date = '2024-01-01 10:00:00+00:00',
+            flags = {},
+            has_attachment = false,
+          },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
         {
-          env = { id = '2', subject = 'Seen', from = { name = 'Bob' }, date = '2024-01-02 10:00:00+00:00',
-                  flags = { 'Seen', 'Answered' }, has_attachment = true },
-          depth = 1, is_last_child = true, prefix = '\xe2\x94\x94\xe2\x94\x80', thread_idx = 1,
+          env = {
+            id = '2',
+            subject = 'Seen',
+            from = { name = 'Bob' },
+            date = '2024-01-02 10:00:00+00:00',
+            flags = { 'Seen', 'Answered' },
+            has_attachment = true,
+          },
+          depth = 1,
+          is_last_child = true,
+          prefix = '\xe2\x94\x94\xe2\x94\x80',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 100)
@@ -129,7 +170,10 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '1', subject = 'NoFlags', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 80)
@@ -144,7 +188,10 @@ describe('himalaya.ui.thread_renderer', function()
       local rows = {
         {
           env = { id = '1', subject = 'Test', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
-          depth = 0, is_last_child = true, prefix = '', thread_idx = 1,
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
         },
       }
       local result = thread_renderer.render(rows, 60)

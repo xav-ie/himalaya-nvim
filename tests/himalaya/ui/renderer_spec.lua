@@ -32,10 +32,13 @@ describe('himalaya.ui.renderer', function()
     end)
 
     it('fills all slots when all flags present', function()
-      assert.are.equal('! * R @ ', renderer.format_flags({
-        flags = { 'Answered', 'Flagged' },
-        has_attachment = true,
-      }))
+      assert.are.equal(
+        '! * R @ ',
+        renderer.format_flags({
+          flags = { 'Answered', 'Flagged' },
+          has_attachment = true,
+        })
+      )
     end)
   end)
 
@@ -113,8 +116,8 @@ describe('himalaya.ui.renderer', function()
       assert.is_truthy(result.header:find('FROM'))
       assert.is_truthy(result.header:find('DATE'))
       -- Separator line contains box-drawing chars
-      assert.is_truthy(result.separator:find('\xe2\x94\x80'))  -- ─
-      assert.is_truthy(result.separator:find('\xe2\x94\xbc'))  -- ┼
+      assert.is_truthy(result.separator:find('\xe2\x94\x80')) -- ─
+      assert.is_truthy(result.separator:find('\xe2\x94\xbc')) -- ┼
       -- Data line contains the envelope data
       assert.is_truthy(result.lines[1]:find('1'))
       assert.is_truthy(result.lines[1]:find('Alice'))
@@ -132,8 +135,8 @@ describe('himalaya.ui.renderer', function()
       }
       local result = renderer.render(envelopes, 80)
       -- Header and data lines use │ separators, no left/right borders
-      assert.is_truthy(result.header:find('\xe2\x94\x82'))  -- │
-      assert.is_truthy(result.header:match('^ '))  -- starts with space, not border
+      assert.is_truthy(result.header:find('\xe2\x94\x82')) -- │
+      assert.is_truthy(result.header:match('^ ')) -- starts with space, not border
       assert.is_truthy(result.lines[1]:find('\xe2\x94\x82'))
     end)
 
@@ -168,13 +171,15 @@ describe('himalaya.ui.renderer', function()
 
   describe('custom flags', function()
     before_each(function()
-      config.setup({ flags = {
-        header = '\xef\x80\xa4',
-        flagged = '\xf3\xb0\x88\xbf',
-        unseen = '\xef\x93\xb5',
-        answered = '\xef\x84\x92',
-        attachment = '\xef\x83\x86',
-      }})
+      config.setup({
+        flags = {
+          header = '\xef\x80\xa4',
+          flagged = '\xf3\xb0\x88\xbf',
+          unseen = '\xef\x93\xb5',
+          answered = '\xef\x84\x92',
+          attachment = '\xef\x83\x86',
+        },
+      })
     end)
 
     it('puts custom flagged icon in slot 1', function()
