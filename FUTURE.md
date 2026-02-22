@@ -106,10 +106,10 @@ disorganized; premature without friction), standardized error types
 invariant documentation (already covered by 7850 lines of tests),
 extract renderer layout (pure functions already testable in-place),
 search query DSL (current builder is clear; 728 lines reflects domain
-complexity not debt).*
+complexity not debt), integration tests for key workflows (unit tests
+already cover critical paths individually — compose answered flag,
+mark_envelope_seen dispatch, page boundary warnings; mocked-boundary
+integration tests would only test buffer variable propagation with no
+realistic independent failure mode).*
 
-- **Integration tests for key workflows** — Add 2-3 high-value
-  integration tests covering multi-step flows: reply workflow
-  (list → read → reply → send → answered flag), flag mutations across
-  buffer types, and account switching between tabs. Focus on top failure
-  modes rather than comprehensive e2e coverage.
+*No open items — section cleared.*
