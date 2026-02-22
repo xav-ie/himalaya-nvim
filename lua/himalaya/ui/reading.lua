@@ -72,6 +72,15 @@ function M.setup(bufnr)
     },
     { 'n', '?', keybinds.show_help, 'help' },
   })
+
+  local account = vim.b[bufnr].himalaya_account or ''
+  local folder = vim.b[bufnr].himalaya_folder or ''
+  local email_id = vim.b[bufnr].himalaya_current_email_id or ''
+  local label = string.format('[%s] [%s] email %s', account, folder, email_id)
+  local winid = win.find_by_bufnr(bufnr)
+  if winid then
+    vim.wo[winid].winbar = '%#HimalayaHead#' .. label:gsub('%%', '%%%%')
+  end
 end
 
 return M

@@ -6,6 +6,7 @@ local probe = require('himalaya.domain.email.probe')
 local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
+local log = require('himalaya.log')
 
 local M = {}
 
@@ -298,7 +299,7 @@ function M.next_page()
   local ps = require('himalaya.ui.listing').effective_page_size()
   local total_pages = math.max(1, math.ceil(#all_display_rows / ps))
   if current_page >= total_pages then
-    vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
+    log.warn('Already on last page')
     return
   end
   M.render_page(current_page + 1)
@@ -310,7 +311,7 @@ function M.previous_page()
     return
   end
   if current_page <= 1 then
-    vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
+    log.warn('Already on first page')
     return
   end
   M.render_page(math.max(1, current_page - 1))

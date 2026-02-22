@@ -1,6 +1,7 @@
 local request = require('himalaya.request')
 local account_state = require('himalaya.state.account')
 local pickers = require('himalaya.pickers')
+local log = require('himalaya.log')
 
 local M = {}
 
@@ -98,7 +99,7 @@ function M.select_next_page()
   end
   -- Partial page means we're already on the last page.
   if vim.api.nvim_buf_line_count(0) < ps then
-    vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
+    log.warn('Already on last page')
     return
   end
   -- When the probe knows the exact total, prevent going past the last page
@@ -109,7 +110,7 @@ function M.select_next_page()
     local probe = require('himalaya.domain.email.probe')
     local total = probe.total_count(cache_key)
     if total and page >= math.ceil(total / ps) then
-      vim.cmd('echohl WarningMsg | echo "Already on last page" | echohl None')
+      log.warn('Already on last page')
       return
     end
   end
@@ -124,7 +125,7 @@ function M.select_previous_page()
     return
   end
   if (vim.b.himalaya_page or 1) <= 1 then
-    vim.cmd('echohl WarningMsg | echo "Already on first page" | echohl None')
+    log.warn('Already on first page')
     return
   end
   vim.b.himalaya_page = math.max(1, (vim.b.himalaya_page or 1) - 1)

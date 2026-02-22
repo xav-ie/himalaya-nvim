@@ -30,6 +30,9 @@ describe('himalaya.ui.reading', function()
     }
     package.loaded['himalaya.ui.win'] = {
       find_by_buftype = noop,
+      find_by_bufnr = function(b)
+        return vim.fn.bufwinid(b)
+      end,
     }
     package.loaded['himalaya.config'] = {
       get = function()
@@ -80,6 +83,17 @@ describe('himalaya.ui.reading', function()
       end
       assert.is_true(found, 'expected keybind ' .. key .. ' to be registered')
     end
+  end)
+
+  it('setup() sets winbar with account/folder context', function()
+    vim.b[bufnr].himalaya_account = 'work'
+    vim.b[bufnr].himalaya_folder = 'INBOX'
+    vim.b[bufnr].himalaya_current_email_id = '42'
+    reading.setup(bufnr)
+    local winid = vim.fn.bufwinid(bufnr)
+    assert.is_truthy(vim.wo[winid].winbar:find('%[work%]'))
+    assert.is_truthy(vim.wo[winid].winbar:find('%[INBOX%]'))
+    assert.is_truthy(vim.wo[winid].winbar:find('42'))
   end)
 
   it('setup() registers exactly 12 normal-mode keybinds', function()

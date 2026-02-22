@@ -1,5 +1,6 @@
 local config = require('himalaya.config')
 local compose = require('himalaya.domain.email.compose')
+local win = require('himalaya.ui.win')
 
 local M = {}
 
@@ -44,6 +45,20 @@ function M.setup(bufnr)
       compose.process_draft(ev.buf)
     end,
   })
+
+  local account = vim.b[bufnr].himalaya_account or ''
+  local bufname = vim.api.nvim_buf_get_name(bufnr)
+  local kind = 'compose'
+  if bufname:find('reply') then
+    kind = 'reply'
+  elseif bufname:find('forward') then
+    kind = 'forward'
+  end
+  local label = string.format('[%s] %s', account, kind)
+  local winid = win.find_by_bufnr(bufnr)
+  if winid then
+    vim.wo[winid].winbar = '%#HimalayaHead#' .. label:gsub('%%', '%%%%')
+  end
 end
 
 return M

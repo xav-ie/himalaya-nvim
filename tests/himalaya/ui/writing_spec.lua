@@ -23,6 +23,11 @@ describe('himalaya.ui.writing', function()
       save_draft = noop,
       process_draft = noop,
     }
+    package.loaded['himalaya.ui.win'] = {
+      find_by_bufnr = function(b)
+        return vim.fn.bufwinid(b)
+      end,
+    }
 
     writing = require('himalaya.ui.writing')
 
@@ -60,6 +65,15 @@ describe('himalaya.ui.writing', function()
   it('setup() does not set completefunc when config has no complete_contact_cmd', function()
     writing.setup(bufnr)
     assert.equals('', vim.bo[bufnr].completefunc)
+  end)
+
+  it('setup() sets winbar with account context', function()
+    vim.b[bufnr].himalaya_account = 'personal'
+    vim.api.nvim_buf_set_name(bufnr, 'Himalaya/reply [42]')
+    writing.setup(bufnr)
+    local winid = vim.fn.bufwinid(bufnr)
+    assert.is_truthy(vim.wo[winid].winbar:find('%[personal%]'))
+    assert.is_truthy(vim.wo[winid].winbar:find('reply'))
   end)
 
   it('setup() creates BufWriteCmd, BufLeave, and BufHidden autocmds', function()

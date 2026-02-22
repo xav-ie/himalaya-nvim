@@ -31,15 +31,16 @@ describe('himalaya.domain.folder', function()
 
   describe('select_previous_page', function()
     it('shows warning on first page', function()
-      local cmds = {}
-      local orig_cmd = vim.cmd
-      vim.cmd = function(s)
-        table.insert(cmds, s)
+      local notifications = {}
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notifications, { msg = msg, level = level })
       end
       folder_domain.select_previous_page()
-      vim.cmd = orig_cmd
-      assert.are.equal(1, #cmds)
-      assert.is_truthy(cmds[1]:find('Already on first page'))
+      vim.notify = orig_notify
+      assert.are.equal(1, #notifications)
+      assert.is_truthy(notifications[1].msg:find('Already on first page'))
+      assert.are.equal(vim.log.levels.WARN, notifications[1].level)
     end)
   end)
 
@@ -52,18 +53,19 @@ describe('himalaya.domain.folder', function()
         return 10
       end
 
-      local cmds = {}
-      local orig_cmd = vim.cmd
-      vim.cmd = function(s)
-        table.insert(cmds, s)
+      local notifications = {}
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notifications, { msg = msg, level = level })
       end
       folder_domain.select_next_page()
-      vim.cmd = orig_cmd
+      vim.notify = orig_notify
       vim.api.nvim_buf_line_count = orig_count
       vim.b.himalaya_page_size = nil
 
-      assert.are.equal(1, #cmds)
-      assert.is_truthy(cmds[1]:find('Already on last page'))
+      assert.are.equal(1, #notifications)
+      assert.is_truthy(notifications[1].msg:find('Already on last page'))
+      assert.are.equal(vim.log.levels.WARN, notifications[1].level)
     end)
 
     it('does nothing without page_size', function()
