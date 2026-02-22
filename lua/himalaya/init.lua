@@ -11,6 +11,7 @@ function M.setup(opts)
     log.err('Himalaya CLI not found, see https://pimalaya.org/himalaya/cli/latest/installation/')
     return
   end
+  require('himalaya.state.account').warmup()
 end
 
 function M.register_commands()

@@ -48,6 +48,7 @@ describe('himalaya', function()
       list = function()
         return {}
       end,
+      warmup = spy.new(function() end),
     }
 
     package.loaded['himalaya.domain.email.thread_listing'] = {
@@ -94,6 +95,28 @@ describe('himalaya', function()
 
       himalaya.setup({})
       assert.spy(package.loaded['himalaya.log'].err).was_not_called()
+    end)
+
+    it('calls account warmup when executable is found', function()
+      package.loaded['himalaya.config'].get = function()
+        return { executable = 'sh' }
+      end
+      package.loaded['himalaya'] = nil
+      himalaya = require('himalaya')
+
+      himalaya.setup({})
+      assert.spy(package.loaded['himalaya.state.account'].warmup).was_called(1)
+    end)
+
+    it('does not call account warmup when executable is not found', function()
+      package.loaded['himalaya.config'].get = function()
+        return { executable = 'nonexistent-binary-that-will-never-exist' }
+      end
+      package.loaded['himalaya'] = nil
+      himalaya = require('himalaya')
+
+      himalaya.setup({})
+      assert.spy(package.loaded['himalaya.state.account'].warmup).was_not_called()
     end)
   end)
 

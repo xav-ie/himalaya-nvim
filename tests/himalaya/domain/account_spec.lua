@@ -23,8 +23,8 @@ describe('himalaya.domain.account', function()
   describe('open_picker', function()
     it('rotates so next account after current is first', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'A', 'B', 'C' }
+        list_async = function(cb)
+          cb({ 'A', 'B', 'C' })
         end,
         current = function()
           return 'B'
@@ -43,8 +43,8 @@ describe('himalaya.domain.account', function()
 
     it('rotates when current is first account', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'A', 'B', 'C' }
+        list_async = function(cb)
+          cb({ 'A', 'B', 'C' })
         end,
         current = function()
           return 'A'
@@ -63,8 +63,8 @@ describe('himalaya.domain.account', function()
 
     it('wraps around when current is last account', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'A', 'B', 'C' }
+        list_async = function(cb)
+          cb({ 'A', 'B', 'C' })
         end,
         current = function()
           return 'C'
@@ -83,8 +83,8 @@ describe('himalaya.domain.account', function()
 
     it('handles a single account', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'only' }
+        list_async = function(cb)
+          cb({ 'only' })
         end,
         current = function()
           return 'only'
@@ -100,8 +100,8 @@ describe('himalaya.domain.account', function()
 
     it('preserves order when current is not in list', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'A', 'B', 'C' }
+        list_async = function(cb)
+          cb({ 'A', 'B', 'C' })
         end,
         current = function()
           return 'D'
@@ -120,8 +120,8 @@ describe('himalaya.domain.account', function()
 
     it('wrapper strips (current) suffix before passing to callback', function()
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'X' }
+        list_async = function(cb)
+          cb({ 'X' })
         end,
         current = function()
           return 'X'
@@ -144,8 +144,8 @@ describe('himalaya.domain.account', function()
     it('dispatches to email.list when buffer type is not thread-listing', function()
       local email_list_arg
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'acct1' }
+        list_async = function(cb)
+          cb({ 'acct1' })
         end,
         current = function()
           return 'acct1'
@@ -174,8 +174,8 @@ describe('himalaya.domain.account', function()
       local thread_list_called = false
       local account_select_arg
       package.loaded['himalaya.state.account'] = {
-        list = function()
-          return { 'acct1' }
+        list_async = function(cb)
+          cb({ 'acct1' })
         end,
         current = function()
           return 'acct1'

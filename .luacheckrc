@@ -9,7 +9,7 @@ files["tests/"] = {
     "pending", "finally", "jit",
   },
   globals = {
-    "vim.fn", "vim.api", "vim.cmd", "vim.ui", "vim.notify",
+    "vim.fn", "vim.api", "vim.cmd", "vim.ui", "vim.notify", "vim.uv",
   },
 }
 
