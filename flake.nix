@@ -74,6 +74,7 @@
               # Linting + formatting
               stylua
               luajitPackages.luacheck
+              parallel
 
               # Testing + coverage
               busted-nlua

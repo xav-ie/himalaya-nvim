@@ -1,4 +1,10 @@
-.PHONY: test perf coverage lint fmt fmt-check
+.PHONY: check test perf coverage lint fmt fmt-check
+
+check:
+	nix develop --command parallel --tagstring '[{#}:{=s/ .*//=}]' --line-buffer ::: \
+		'stylua --check lua/ tests/ plugin/' \
+		'luacheck lua/ tests/' \
+		'busted'
 
 test:
 	nix develop --command busted
