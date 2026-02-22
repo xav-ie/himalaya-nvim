@@ -75,11 +75,8 @@ dead code `flags.complete()` + `autoload/` directory,
 `config.set()` for proper mutation + `toggle_reverse` fix,
 `search.open` account flag bypass,
 `probe.on_cancel_cb` double-cancel callback loss,
-`folder.select_next_page` buffer type dispatch.*
+`folder.select_next_page` buffer type dispatch,
+missing test coverage (`perf`, `account`, `thread_listing`, pickers,
+`listing`/`reading`/`writing` setup, `ui/win`, `init`).*
 
-### 1. Missing test coverage
-
-No tests for: `perf.lua`, `domain/account.lua` (picker rotation),
-`ui/thread_listing.lua` (setup/keybinds), picker modules beyond native.
-UI setup test files (`listing_spec`, `reading_spec`, `writing_spec`) are
-minimal stubs.
+*No open items — section cleared.*
