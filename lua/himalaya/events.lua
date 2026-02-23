@@ -86,7 +86,7 @@ end
 --- @param event string
 --- @param data? table
 function M.emit(event, data)
-  assert(registered[event], '[himalaya.events] unregistered event: ' .. event)
+  assert(not registered or registered[event], '[himalaya.events] unregistered event: ' .. event)
   local subs = listeners[event]
   if not subs then
     return
@@ -120,9 +120,11 @@ function M.count(event)
 end
 
 --- Clear all state. For test isolation.
+--- Sets registered to nil to allow arbitrary event names.
 function M._reset()
   listeners = {}
   next_id = 1
+  registered = nil
 end
 
 return M
