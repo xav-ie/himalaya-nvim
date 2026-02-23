@@ -2,12 +2,14 @@
   <img src="./logo.svg" alt="Logo" width="128" height="128" />
   <h1>Himalaya Vim</h1>
   <p>Neovim front-end for the email client <a href="https://github.com/xav-ie/himalaya">Himalaya CLI</a></p>
+  <p><em>🌱 A heavily modified fork of <a href="https://github.com/pimalaya/himalaya-vim">pimalaya/himalaya-vim</a></em></p>
   <p>
     <a href="https://github.com/xav-ie/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/xav-ie/himalaya?color=success"/></a>
+    <a href="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml/badge.svg"/></a>
   </p>
 </div>
 
-<video src="https://himalaya-nvim.xav.ie/himalaya.mp4" controls width="100%"></video>
+[Watch demo](https://himalaya-nvim.xav.ie/himalaya.mp4)
 
 ## Features
 
@@ -30,6 +32,13 @@
 - Neovim >= 0.10
 - [Himalaya CLI](https://pimalaya.org/himalaya/cli/latest/installation/) (not needed in mock mode)
 
+**Optional picker integrations** (auto-detected if installed):
+- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- [fzf.vim](https://github.com/junegunn/fzf.vim)
+
+Falls back to a built-in native picker if none are present.
+
 ## Installation
 
 Install and configure the [Himalaya CLI](https://github.com/xav-ie/himalaya), then add
@@ -38,22 +47,22 @@ the plugin with [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   'xav-ie/himalaya-vim',
+  cmd = 'Himalaya',
   config = function()
-    require('himalaya').setup({
-      -- see Configuration below
-    })
+    require('himalaya').setup({})
   end,
 }
 ```
 
 > **Note:** `require('himalaya').setup()` is required. It validates the CLI binary and applies configuration.
 
+> **Try it without an account:** pass `mock = true` to explore the full UI with built-in sample data — no CLI binary or email account needed. See [mock mode](#mock-mode) in CONTRIBUTING.md.
+
 ## Configuration
 
 All options with their defaults:
 
 <!-- GEN:config -->
-
 ```lua
 require('himalaya').setup({
   -- Path to the himalaya CLI binary
@@ -118,7 +127,6 @@ require('himalaya').setup({
   mock = false,
 })
 ```
-
 <!-- /GEN:config -->
 
 ## Usage
@@ -129,7 +137,7 @@ Open the email listing:
 :Himalaya
 ```
 
-<video src="https://himalaya-nvim.xav.ie/listing.mp4" controls width="100%"></video>
+[Watch listing demo](https://himalaya-nvim.xav.ie/listing.mp4)
 
 ### Flat listing
 
@@ -161,7 +169,7 @@ Open the email listing:
 | `]u` / `[u` | Jump to next/previous unread         |
 | `?`         | Show keybind help                    |
 
-<video src="https://himalaya-nvim.xav.ie/reply.mp4" controls width="100%"></video>
+[Watch reply demo](https://himalaya-nvim.xav.ie/reply.mp4)
 
 ### Reading
 
@@ -179,7 +187,7 @@ Open the email listing:
 | `gb` | Open in browser      |
 | `?`  | Show keybind help    |
 
-<video src="https://himalaya-nvim.xav.ie/search.mp4" controls width="100%"></video>
+[Watch search demo](https://himalaya-nvim.xav.ie/search.mp4)
 
 ### Search
 
@@ -201,7 +209,7 @@ The search popup (`g/`) provides structured per-field input:
 - **Enter** — submit search
 - **Esc** — cancel
 
-<video src="https://himalaya-nvim.xav.ie/compose.mp4" controls width="100%"></video>
+[Watch compose demo](https://himalaya-nvim.xav.ie/compose.mp4)
 
 ### Composing
 
@@ -260,19 +268,12 @@ Subscribe to plugin events for custom behavior:
 ```lua
 local events = require('himalaya.events')
 
-events.on('EmailsListed', function(data)
-  -- data: { account, folder, page, count }
-end)
-
-events.on('EmailRead', function(data)
-  -- data: { account, folder, email_id, bufnr }
-end)
-
-events.on('ComposeOpened', function(data)
-  -- data: { account, bufnr, kind }
-  -- kind: 'write', 'reply', 'reply_all', 'forward'
-end)
+events.on('EmailsListed', function(data) ... end)
+events.on('EmailRead', function(data) ... end)
+events.on('ComposeOpened', function(data) ... end)
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md#all-events) for the full list of events and their payloads.
 
 ### Signatures
 

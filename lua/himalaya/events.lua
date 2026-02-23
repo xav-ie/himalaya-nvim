@@ -5,20 +5,28 @@ local M = {}
 --- Complete list of events emitted by the plugin.
 --- Each entry: { name, payload = { field, ... }, note? }
 M.catalog = {
-  { name = 'EmailsListed',      payload = { 'account', 'folder', 'page', 'count' } },
-  { name = 'EmailRead',         payload = { 'account', 'folder', 'email_id', 'bufnr' } },
-  { name = 'EmailDeleted',      payload = { 'account', 'folder', 'ids' } },
-  { name = 'EmailCopied',       payload = { 'account', 'folder', 'ids', 'target_folder' } },
-  { name = 'EmailMoved',        payload = { 'account', 'folder', 'ids', 'target_folder' } },
-  { name = 'EmailFlagAdded',    payload = { 'account', 'folder', 'ids', 'flag' } },
-  { name = 'EmailFlagRemoved',  payload = { 'account', 'folder', 'ids', 'flag' } },
-  { name = 'EmailMarkedSeen',   payload = { 'account', 'folder', 'ids' } },
+  { name = 'EmailsListed', payload = { 'account', 'folder', 'page', 'count' } },
+  { name = 'EmailRead', payload = { 'account', 'folder', 'email_id', 'bufnr' } },
+  { name = 'EmailDeleted', payload = { 'account', 'folder', 'ids' } },
+  { name = 'EmailCopied', payload = { 'account', 'folder', 'ids', 'target_folder' } },
+  { name = 'EmailMoved', payload = { 'account', 'folder', 'ids', 'target_folder' } },
+  { name = 'EmailFlagAdded', payload = { 'account', 'folder', 'ids', 'flag' } },
+  { name = 'EmailFlagRemoved', payload = { 'account', 'folder', 'ids', 'flag' } },
+  { name = 'EmailMarkedSeen', payload = { 'account', 'folder', 'ids' } },
   { name = 'EmailMarkedUnseen', payload = { 'account', 'folder', 'ids' } },
-  { name = 'ComposeOpened',     payload = { 'account', 'folder', 'mode', 'bufnr' }, note = 'mode: `write`, `reply`, `reply_all`, `forward`' },
-  { name = 'EmailSent',         payload = { 'account', 'folder', 'reply_id' } },
-  { name = 'DraftSaved',        payload = { 'account' } },
-  { name = 'FolderChanged',     payload = { 'account', 'folder' } },
-  { name = 'NewMail',           payload = { 'account', 'folder', 'count', 'new_ids' }, note = 'fired by background sync' },
+  {
+    name = 'ComposeOpened',
+    payload = { 'account', 'folder', 'mode', 'bufnr' },
+    note = 'mode: `write`, `reply`, `reply_all`, `forward`',
+  },
+  { name = 'EmailSent', payload = { 'account', 'folder', 'reply_id' } },
+  { name = 'DraftSaved', payload = { 'account' } },
+  { name = 'FolderChanged', payload = { 'account', 'folder' } },
+  {
+    name = 'NewMail',
+    payload = { 'account', 'folder', 'count', 'new_ids' },
+    note = 'fired by background sync',
+  },
 }
 
 local registered = {}

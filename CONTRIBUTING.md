@@ -19,6 +19,23 @@ add specs for it.
 
 ---
 
+## Commit messages
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Prefix | When to use |
+| ----------- | --------------------------------------- |
+| `feat:` | New feature or behaviour |
+| `fix:` | Bug fix |
+| `docs:` | Documentation only |
+| `refactor:` | Code change with no behaviour change |
+| `test:` | Test additions or corrections |
+| `chore:` | Build, CI, or tooling changes |
+
+An optional scope in parentheses narrows the subject: `feat(compose): add cc field`.
+
+---
+
 ## Development setup
 
 ### Prerequisites
@@ -40,10 +57,11 @@ everything else needed to work on the plugin.
 ### Run the plugin from source
 
 ```sh
-nvim -u demo/init.lua
+nvim -u demo/init.lua          # standard view
+nvim -u demo/init_threads.lua  # thread view (thread_view = true)
 ```
 
-This loads the plugin directly from the working tree with mock mode enabled — no
+Both load the plugin directly from the working tree with mock mode enabled — no
 CLI binary or email account needed. See [mock mode](#mock-mode) below.
 
 ---
@@ -76,6 +94,7 @@ Spec files mirror the `lua/himalaya/` directory structure under `tests/himalaya/
 make test          # run the full test suite
 make coverage      # run tests and generate luacov.report.out
 make coverage-check  # enforce 90% minimum per file (runs in CI)
+make perf          # run performance benchmarks; results written to perf-results.json
 ```
 
 A single spec file:
@@ -101,8 +120,9 @@ Test structure conventions:
 
 ```sh
 make lint          # luacheck lua/ tests/
-make fmt           # format in place (stylua + nixfmt via nix fmt)
+make fmt           # format in place via nix fmt (stylua + nixfmt, orchestrated by treefmt-nix)
 make fmt-check     # fail if anything is unformatted (runs in CI)
+make check         # run all CI checks at once (fmt-check, lint, coverage-check, gen-docs-check)
 ```
 
 Key style settings (from `.stylua.toml`):
@@ -111,8 +131,23 @@ Key style settings (from `.stylua.toml`):
 - Single quotes preferred
 - Parentheses always on function calls
 
-CI runs format check, lint, and coverage-check in parallel. A PR must pass all
-three.
+`make check` runs fmt-check and lint in parallel, then coverage-check and
+gen-docs-check. A PR must pass all four.
+
+---
+
+## Docs generation
+
+The configuration table in `README.md` and the events table in `CONTRIBUTING.md`
+are generated from source by `scripts/gen-docs.lua`. After changing
+`lua/himalaya/config.lua` defaults or adding/removing event emits, regenerate:
+
+```sh
+make gen-docs
+```
+
+CI fails if the generated sections are out of date (`gen-docs-check` in `make check`).
+Commit the updated docs alongside the code change that necessitated them.
 
 ---
 
@@ -154,7 +189,7 @@ local events = require('himalaya.events')
 -- Persistent listener; returns an id you can use to unsubscribe
 local id = events.on('EmailRead', function(data) ... end)
 
--- One-shot listener; auto-removed after the first emit
+-- One-shot listener; auto-removed after the first emit (also returns an id)
 events.once('EmailSent', function(data) ... end)
 
 -- Unsubscribe
