@@ -62,6 +62,14 @@ function M.setup(bufnr)
     group = augroup,
     callback = on_resize,
   })
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    group = augroup,
+    buffer = bufnr,
+    callback = function()
+      thread_listing.cleanup()
+      require('himalaya.domain.email.probe').cleanup()
+    end,
+  })
 end
 
 return M

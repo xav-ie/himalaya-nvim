@@ -29,6 +29,11 @@ describe('himalaya.ui.thread_listing', function()
       toggle_to_flat = function() end,
       toggle_reverse = function() end,
       resize = function() end,
+      cleanup = function() end,
+    }
+
+    package.loaded['himalaya.domain.email.probe'] = {
+      cleanup = function() end,
     }
 
     package.loaded['himalaya.ui.win'] = {
@@ -123,7 +128,7 @@ describe('himalaya.ui.thread_listing', function()
     end
   end)
 
-  it('creates VimResized and WinResized autocmds in HimalayaThreadListing augroup', function()
+  it('creates VimResized, WinResized, and BufWipeout autocmds in HimalayaThreadListing augroup', function()
     thread_listing.setup(bufnr)
 
     local autocmds = vim.api.nvim_get_autocmds({ group = 'HimalayaThreadListing' })
@@ -133,6 +138,7 @@ describe('himalaya.ui.thread_listing', function()
     end
     assert.is_true(events['VimResized'] or false)
     assert.is_true(events['WinResized'] or false)
+    assert.is_true(events['BufWipeout'] or false)
   end)
 
   it('calls listing.define_highlights()', function()

@@ -29,6 +29,7 @@ describe('himalaya.domain.email', function()
     assert.is_function(email.complete_contact)
     assert.is_function(email.set_list_envelopes_query)
     assert.is_function(email.resize_listing)
+    assert.is_function(email.cleanup)
   end)
 
   it('exposes compose functions', function()

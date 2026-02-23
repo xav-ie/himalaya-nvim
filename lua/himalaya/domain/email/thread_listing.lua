@@ -47,6 +47,16 @@ function M.cancel_jobs()
   end
 end
 
+--- Clean up all module-local state for buffer teardown.
+function M.cleanup()
+  M.cancel_jobs()
+  all_display_rows = nil
+  id_to_index = nil
+  last_edges = nil
+  thread_query = ''
+  current_page = 1
+end
+
 --- Render one page of the cached thread display rows into the current buffer.
 --- @param page number
 --- @param opts? table  Optional: { restore_cursor = {line, col} }

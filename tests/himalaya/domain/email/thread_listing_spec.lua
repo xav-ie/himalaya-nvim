@@ -63,6 +63,41 @@ describe('himalaya.domain.email.thread_listing', function()
     end)
   end)
 
+  describe('cleanup', function()
+    it('clears state so resize becomes a no-op', function()
+      local rows = {}
+      for i = 1, 5 do
+        rows[i] = {
+          env = { id = tostring(i), subject = 'S' .. i, from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
+        }
+      end
+      thread_listing._set_state(rows, 1)
+
+      local bufnr = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_set_current_buf(bufnr)
+      vim.b.himalaya_buffer_type = 'thread-listing'
+      vim.bo.buftype = 'nofile'
+
+      -- Render once so buffer has content
+      thread_listing.render_page(1)
+      -- Cleanup then overwrite buffer with sentinel
+      thread_listing.cleanup()
+      vim.bo[bufnr].modifiable = true
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { 'unchanged' })
+      vim.bo[bufnr].modifiable = false
+
+      -- resize should be a no-op since all_display_rows is nil
+      thread_listing.resize()
+      assert.are.equal('unchanged', vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)[1])
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
   describe('resize', function()
     it('follows selected email across page boundary on shrink', function()
       local rows = {}

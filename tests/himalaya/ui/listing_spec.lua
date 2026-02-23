@@ -216,6 +216,10 @@ describe('himalaya.ui.listing', function()
         set_list_envelopes_query = function() end,
         resize_listing = function() end,
         cancel_resize = function() end,
+        cleanup = function() end,
+      }
+      package.loaded['himalaya.domain.email.probe'] = {
+        cleanup = function() end,
       }
       package.loaded['himalaya.domain.folder'] = {
         select_previous_page = function() end,

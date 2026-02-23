@@ -207,4 +207,11 @@ function M.restart()
   end
 end
 
+--- Clean up all module-local state for buffer teardown.
+function M.cleanup()
+  M.cancel_sync()
+  totals = {}
+  saved_args = nil
+end
+
 return M

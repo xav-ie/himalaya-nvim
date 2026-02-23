@@ -1039,6 +1039,16 @@ function M.cancel_resize()
   end
 end
 
+--- Clean up all module-local state for buffer teardown.
+--- Subsumes cancel_resize() since _cancel_jobs() handles the same timer/job teardown.
+function M.cleanup()
+  M._cancel_jobs()
+  saved_view = nil
+  saved_cursor_id = nil
+  contact_cache_base = ''
+  contact_cache_items = {}
+end
+
 --- Set the list envelopes query and refresh.
 function M.set_list_envelopes_query()
   local context = require('himalaya.state.context')

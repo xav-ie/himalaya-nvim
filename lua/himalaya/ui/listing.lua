@@ -1,6 +1,7 @@
 local keybinds = require('himalaya.keybinds')
 local email = require('himalaya.domain.email')
 local folder = require('himalaya.domain.folder')
+local probe = require('himalaya.domain.email.probe')
 local perf = require('himalaya.perf')
 local win = require('himalaya.ui.win')
 
@@ -172,7 +173,8 @@ function M.setup(bufnr)
     group = augroup,
     buffer = bufnr,
     callback = function()
-      email.cancel_resize()
+      email.cleanup()
+      probe.cleanup()
     end,
   })
 end

@@ -195,6 +195,16 @@ describe('himalaya.domain.email.probe', function()
     end)
   end)
 
+  describe('cleanup', function()
+    it('clears the totals cache', function()
+      local key = 'acct\0folder\0'
+      probe.set_total_from_data(key, 1, 50, 30)
+      assert.are.equal(30, probe.total_count(key))
+      probe.cleanup()
+      assert.is_nil(probe.total_count(key))
+    end)
+  end)
+
   describe('total_pages_str', function()
     it('returns ? when unknown', function()
       assert.are.equal('?', probe.total_pages_str('unknown\0key\0', 50))
