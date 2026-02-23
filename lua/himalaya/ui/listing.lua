@@ -198,6 +198,7 @@ function M.setup(bufnr)
     { 'n', 'gn', folder.select_next_page, 'folder-select-next-page' },
     { 'n', '<cr>', email.read, 'email-read' },
     { 'n', 'g/', email.set_list_envelopes_query, 'email-set-list-envelopes-query' },
+    { 'n', 'g?', email.apply_search_preset, 'email-search-preset' },
     {
       'n',
       'gt',

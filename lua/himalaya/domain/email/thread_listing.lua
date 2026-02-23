@@ -406,6 +406,27 @@ function M.set_thread_query()
   end, thread_query, folder, account)
 end
 
+--- Apply a search preset from config and refresh the thread listing.
+function M.apply_search_preset()
+  local presets = config.get().search_presets
+  if #presets == 0 then
+    vim.notify('No search presets configured', vim.log.levels.INFO)
+    return
+  end
+  vim.ui.select(presets, {
+    prompt = 'Search preset:',
+    format_item = function(item)
+      return item.name .. '  —  ' .. item.query
+    end,
+  }, function(choice)
+    if not choice then
+      return
+    end
+    thread_query = choice.query
+    M.list()
+  end)
+end
+
 --- Re-render on resize: recomputes which page the selected email belongs
 --- to at the new window height and places cursor on that email.
 function M.resize()

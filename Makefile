@@ -5,8 +5,8 @@ MIN_COVERAGE ?= 90
 check:
 	nix develop --command parallel --tagstring '[{#}:{=s/ .*//=}]' --line-buffer ::: \
 		'stylua --check lua/ tests/ plugin/' \
-		'luacheck lua/ tests/' \
-		'busted'
+		'luacheck lua/ tests/'
+	$(MAKE) coverage-check
 
 test:
 	nix develop --command busted

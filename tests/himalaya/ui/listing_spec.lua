@@ -264,6 +264,7 @@ describe('himalaya.ui.listing', function()
       package.loaded['himalaya.domain.email'] = {
         read = function() end,
         set_list_envelopes_query = function() end,
+        apply_search_preset = function() end,
         resize_listing = function() end,
         cancel_resize = function() end,
         cleanup = function() end,

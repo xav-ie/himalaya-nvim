@@ -19,6 +19,7 @@ local defaults = {
   date_format = '%Y-%m-%d %H:%M',
   thread_view = false,
   thread_reverse = false,
+  search_presets = {},
   keymaps = {},
   background_sync = false,
   sync_interval = 60,

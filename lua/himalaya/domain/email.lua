@@ -1076,6 +1076,28 @@ function M.set_list_envelopes_query()
   end, vim.b.himalaya_query or '', folder, account)
 end
 
+--- Apply a search preset from config and refresh the listing.
+function M.apply_search_preset()
+  local presets = config.get().search_presets
+  if #presets == 0 then
+    vim.notify('No search presets configured', vim.log.levels.INFO)
+    return
+  end
+  vim.ui.select(presets, {
+    prompt = 'Search preset:',
+    format_item = function(item)
+      return item.name .. '  —  ' .. item.query
+    end,
+  }, function(choice)
+    if not choice then
+      return
+    end
+    vim.b.himalaya_query = choice.query
+    vim.b.himalaya_page = 1
+    M.list()
+  end)
+end
+
 --- Check whether any user-initiated CLI job is in-flight.
 --- Used by the sync module to avoid database lock contention.
 --- @return boolean

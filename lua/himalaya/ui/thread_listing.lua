@@ -25,6 +25,7 @@ function M.setup(bufnr)
     { 'n', 'gp', thread_listing.previous_page, 'thread-previous-page' },
     { 'n', 'gn', thread_listing.next_page, 'thread-next-page' },
     { 'n', 'g/', thread_listing.set_thread_query, 'thread-search' },
+    { 'n', 'g?', thread_listing.apply_search_preset, 'thread-search-preset' },
     { 'n', 'gt', thread_listing.toggle_to_flat, 'thread-toggle-flat' },
     { 'n', 'gT', thread_listing.toggle_reverse, 'thread-toggle-reverse' },
   })

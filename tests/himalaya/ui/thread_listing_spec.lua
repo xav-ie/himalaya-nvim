@@ -28,6 +28,7 @@ describe('himalaya.ui.thread_listing', function()
       set_thread_query = function() end,
       toggle_to_flat = function() end,
       toggle_reverse = function() end,
+      apply_search_preset = function() end,
       resize = function() end,
       cleanup = function() end,
     }
@@ -112,15 +113,15 @@ describe('himalaya.ui.thread_listing', function()
     assert.are.equal('Comment', hl.link)
   end)
 
-  it('registers 6 thread-specific keybinds via keybinds.define', function()
+  it('registers 7 thread-specific keybinds via keybinds.define', function()
     thread_listing.setup(bufnr)
 
     assert.spy(define_spy).was_called()
     local call_args = define_spy.calls[1].vals
     local bindings = call_args[2]
-    assert.are.equal(6, #bindings)
+    assert.are.equal(7, #bindings)
 
-    local expected_keys = { '<cr>', 'gp', 'gn', 'g/', 'gt', 'gT' }
+    local expected_keys = { '<cr>', 'gp', 'gn', 'g/', 'g?', 'gt', 'gT' }
     for i, expected in ipairs(expected_keys) do
       assert.are.equal(expected, bindings[i][2])
     end
