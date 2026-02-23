@@ -261,7 +261,7 @@ describe('himalaya.ui.renderer', function()
         return item
       end)
       assert.is_true(layout.narrow)
-      assert.are.equal(4, layout.from_w)
+      assert.are.equal(2, layout.from_w)
     end)
 
     it('sets narrow=false at normal width', function()

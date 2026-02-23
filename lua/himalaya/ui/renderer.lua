@@ -224,7 +224,7 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
   local from_w = remaining - subject_w
 
   local narrow = false
-  local NARROW_FROM_W = 4
+  local NARROW_FROM_W = 2
   local NARROW_THRESHOLD = 12
   if from_w < NARROW_THRESHOLD then
     narrow = true
