@@ -255,6 +255,13 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
   vim.fn.winrestview({ topline = 1 })
   restore_cursor(display)
 
+  require('himalaya.events').emit('EmailsListed', {
+    account = account,
+    folder = folder,
+    page = page,
+    count = #data,
+  })
+
   probe.start(acct_flag, folder, pg_size, page, qry, bufnr)
 end
 
@@ -500,6 +507,12 @@ function M.read()
         vim.bo.filetype = 'himalaya-email-reading'
         vim.bo.modified = false
         vim.cmd('0')
+        require('himalaya.events').emit('EmailRead', {
+          account = account,
+          folder = folder,
+          email_id = current_id,
+          bufnr = vim.api.nvim_get_current_buf(),
+        })
         mark_envelope_seen(current_id)
         -- Wipe stale email reading buffers
         local cur_buf = vim.api.nvim_get_current_buf()
@@ -546,6 +559,11 @@ function M.delete(first_line, last_line)
       args = { account_flag(account), folder, ids },
       msg = 'Deleting email',
       on_data = function()
+        require('himalaya.events').emit('EmailDeleted', {
+          account = account,
+          folder = folder,
+          ids = ids,
+        })
         saved_view = vim.fn.winsaveview()
         refresh_listing(account, folder, { restore_cursor_line = cursor_line })
       end,

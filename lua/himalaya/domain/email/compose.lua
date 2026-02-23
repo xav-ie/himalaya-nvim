@@ -33,7 +33,8 @@ end
 --- @param account? string account to stamp on buffer
 --- @param folder? string folder to stamp on buffer
 --- @param reply_id? string email ID being replied to
-local function open_write_buffer(msg, content, account, folder, reply_id)
+--- @param mode? string compose mode ('write', 'reply', 'reply_all', 'forward')
+local function open_write_buffer(msg, content, account, folder, reply_id, mode)
   local bufname = string.format('Himalaya/%s', msg)
   if vim.fn.winnr('$') == 1 then
     vim.cmd(string.format('silent! botright split %s', bufname))
@@ -58,6 +59,13 @@ local function open_write_buffer(msg, content, account, folder, reply_id)
   vim.bo.filetype = 'himalaya-email-writing'
   vim.bo.modified = false
   vim.cmd('0')
+  require('himalaya.events').emit('ComposeOpened', {
+    account = account,
+    folder = folder,
+    mode = mode or 'write',
+    bufnr = vim.api.nvim_get_current_buf(),
+    reply_id = reply_id,
+  })
 end
 
 --- Compose a new email. If template is provided, use it; otherwise fetch from CLI.
@@ -66,14 +74,14 @@ function M.write(template)
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   if template then
-    open_write_buffer('edit', template, account, folder)
+    open_write_buffer('edit', template, account, folder, nil, 'write')
   else
     request.plain({
       cmd = 'template write %s',
       args = { account_flag(account) },
       msg = 'Fetching new template',
       on_data = function(data)
-        open_write_buffer('write', data, account, folder)
+        open_write_buffer('write', data, account, folder, nil, 'write')
       end,
     })
   end
@@ -89,7 +97,7 @@ function M.reply()
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply template',
     on_data = function(data)
-      open_write_buffer(string.format('reply [%s]', id), data, account, folder, id)
+      open_write_buffer(string.format('reply [%s]', id), data, account, folder, id, 'reply')
     end,
   })
 end
@@ -104,7 +112,7 @@ function M.reply_all()
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply all template',
     on_data = function(data)
-      open_write_buffer(string.format('reply all [%s]', id), data, account, folder, id)
+      open_write_buffer(string.format('reply all [%s]', id), data, account, folder, id, 'reply_all')
     end,
   })
 end
@@ -119,7 +127,7 @@ function M.forward()
     args = { account_flag(account), folder, id },
     msg = 'Fetching forward template',
     on_data = function(data)
-      open_write_buffer(string.format('forward [%s]', id), data, account, folder)
+      open_write_buffer(string.format('forward [%s]', id), data, account, folder, nil, 'forward')
     end,
   })
 end
@@ -156,6 +164,11 @@ function M.send(bufnr)
         vim.bo[bufnr].modified = false
       end
       log.info('Send [OK]')
+      require('himalaya.events').emit('EmailSent', {
+        account = account,
+        folder = folder,
+        reply_id = reply_id,
+      })
 
       -- Add "answered" flag only for replies
       if reply_id and reply_id ~= '' then

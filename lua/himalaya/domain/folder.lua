@@ -84,6 +84,10 @@ end
 function M.set(folder)
   vim.b.himalaya_folder = folder
   vim.b.himalaya_page = 1
+  require('himalaya.events').emit('FolderChanged', {
+    account = vim.b.himalaya_account or '',
+    folder = folder,
+  })
   require('himalaya.domain.email').list()
 end
 
