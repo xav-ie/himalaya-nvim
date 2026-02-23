@@ -198,4 +198,250 @@ describe('himalaya.domain.email.compose', function()
       assert.is_false(vim.bo.modified)
     end)
   end)
+
+  describe('process_draft cancel', function()
+    it('re-displays buffer on "c" choice', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'draft body' })
+      vim.api.nvim_buf_set_var(buf, 'himalaya_account', 'test-acct')
+
+      vim.fn.input = function()
+        return 'c'
+      end
+      compose.process_draft(buf)
+      -- Buffer should be displayed in a window
+      assert.are.equal(buf, vim.api.nvim_win_get_buf(0))
+      assert.are.equal(0, #request_calls)
+
+      -- cleanup
+      while #vim.api.nvim_tabpage_list_wins(0) > 1 do
+        local wins = vim.api.nvim_tabpage_list_wins(0)
+        pcall(vim.api.nvim_win_close, wins[#wins], true)
+      end
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end)
+
+    it('logs error when process_draft pcall fails', function()
+      local logged_errors = {}
+      package.loaded['himalaya.log'].err = function(msg)
+        table.insert(logged_errors, msg)
+      end
+
+      vim.fn.input = function()
+        error('test-error')
+      end
+      compose.process_draft()
+      assert.are.equal(1, #logged_errors)
+      assert.is_truthy(logged_errors[1]:find('test%-error'))
+    end)
+  end)
+end)
+
+describe('himalaya.domain.email.compose (write/reply/forward)', function()
+  local compose
+  local request_calls
+  local emitted_events
+  local tracked_bufs = {}
+
+  local function track(buf)
+    tracked_bufs[#tracked_bufs + 1] = buf
+    return buf
+  end
+
+  before_each(function()
+    request_calls = {}
+    emitted_events = {}
+
+    package.loaded['himalaya.domain.email.compose'] = nil
+    package.loaded['himalaya.request'] = nil
+    package.loaded['himalaya.log'] = nil
+    package.loaded['himalaya.state.account'] = nil
+    package.loaded['himalaya.state.context'] = nil
+    package.loaded['himalaya.domain.email'] = nil
+    package.loaded['himalaya.events'] = nil
+    package.loaded['himalaya.ui.win'] = nil
+
+    package.loaded['himalaya.request'] = {
+      plain = function(opts)
+        table.insert(request_calls, opts)
+      end,
+      json = function() end,
+    }
+    package.loaded['himalaya.log'] = {
+      info = function() end,
+      warn = function() end,
+      err = function() end,
+      debug = function() end,
+    }
+    package.loaded['himalaya.state.account'] = {
+      flag = function(acct)
+        if acct == '' then
+          return ''
+        end
+        return '--account ' .. acct
+      end,
+    }
+    package.loaded['himalaya.state.context'] = {
+      resolve = function()
+        return 'test-acct', 'INBOX'
+      end,
+    }
+    package.loaded['himalaya.domain.email'] = {
+      context_email_id = function()
+        return '42'
+      end,
+    }
+    package.loaded['himalaya.events'] = {
+      emit = function(event, data)
+        table.insert(emitted_events, { event = event, data = data })
+      end,
+      _reset = function() end,
+    }
+    package.loaded['himalaya.ui.win'] = {
+      find_by_name = function()
+        return nil
+      end,
+    }
+
+    compose = require('himalaya.domain.email.compose')
+  end)
+
+  after_each(function()
+    for _, b in ipairs(tracked_bufs) do
+      if vim.api.nvim_buf_is_valid(b) then
+        vim.api.nvim_buf_delete(b, { force = true })
+      end
+    end
+    tracked_bufs = {}
+    while #vim.api.nvim_tabpage_list_wins(0) > 1 do
+      local wins = vim.api.nvim_tabpage_list_wins(0)
+      pcall(vim.api.nvim_win_close, wins[#wins], true)
+    end
+  end)
+
+  describe('write', function()
+    it('opens compose buffer with provided template', function()
+      compose.write('To: \nSubject: \n\nBody')
+      -- open_write_buffer creates a new buffer via vim.cmd split/edit
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      assert.are.equal('test-acct', vim.b.himalaya_account)
+      assert.are.equal('INBOX', vim.b.himalaya_folder)
+      assert.is_nil(vim.b.himalaya_reply_id)
+      assert.are.equal(1, #emitted_events)
+      assert.are.equal('ComposeOpened', emitted_events[1].event)
+      assert.are.equal('write', emitted_events[1].data.mode)
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('fetches template via request when no template given', function()
+      compose.write()
+      assert.are.equal(1, #request_calls)
+      assert.is_truthy(request_calls[1].cmd:find('template write'))
+      -- Trigger on_data callback
+      request_calls[1].on_data('To: \nSubject: \n\nFetched body')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      assert.are.equal(1, #emitted_events)
+      assert.are.equal('ComposeOpened', emitted_events[1].event)
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('strips carriage returns and trailing empty line from content', function()
+      compose.write('line1\r\nline2\r\n')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      -- \r should be stripped; trailing empty line removed
+      for _, line in ipairs(lines) do
+        assert.is_falsy(line:find('\r'))
+      end
+      assert.are_not.equal('', lines[#lines])
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
+
+  describe('reply', function()
+    it('fetches reply template and opens buffer', function()
+      compose.reply()
+      assert.are.equal(1, #request_calls)
+      assert.is_truthy(request_calls[1].cmd:find('template reply'))
+      assert.is_falsy(request_calls[1].cmd:find('%-%-all'))
+      -- Trigger on_data
+      request_calls[1].on_data('Re: Test\n\n> original')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      assert.are.equal('42', vim.b.himalaya_reply_id)
+      assert.are.equal(1, #emitted_events)
+      assert.are.equal('reply', emitted_events[1].data.mode)
+      assert.are.equal('42', emitted_events[1].data.reply_id)
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
+
+  describe('reply_all', function()
+    it('fetches reply-all template and opens buffer', function()
+      compose.reply_all()
+      assert.are.equal(1, #request_calls)
+      assert.is_truthy(request_calls[1].cmd:find('template reply'))
+      assert.is_truthy(request_calls[1].cmd:find('%-%-all'))
+      -- Trigger on_data
+      request_calls[1].on_data('Re: Test\n\n> original')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      assert.are.equal('42', vim.b.himalaya_reply_id)
+      assert.are.equal(1, #emitted_events)
+      assert.are.equal('reply_all', emitted_events[1].data.mode)
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
+
+  describe('forward', function()
+    it('fetches forward template and opens buffer', function()
+      compose.forward()
+      assert.are.equal(1, #request_calls)
+      assert.is_truthy(request_calls[1].cmd:find('template forward'))
+      -- Trigger on_data
+      request_calls[1].on_data('Fwd: Test\n\nforwarded body')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      -- forward does NOT set reply_id
+      assert.is_nil(vim.b.himalaya_reply_id)
+      assert.are.equal(1, #emitted_events)
+      assert.are.equal('forward', emitted_events[1].data.mode)
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
+
+  describe('open_write_buffer multi-window', function()
+    it('uses edit when multiple windows exist', function()
+      -- Create a second window so winnr('$') > 1
+      vim.cmd('botright split')
+      compose.write('Template content')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('reuses reading window when it exists', function()
+      -- Create a "reading" window
+      local read_buf = vim.api.nvim_create_buf(true, true)
+      track(read_buf)
+      vim.api.nvim_open_win(read_buf, false, { split = 'below' })
+      vim.api.nvim_buf_set_name(read_buf, 'Himalaya/read email [42]')
+
+      -- Stub win.find_by_name to return the reading window
+      local read_win = nil
+      for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        if vim.api.nvim_win_get_buf(w) == read_buf then
+          read_win = w
+          break
+        end
+      end
+      package.loaded['himalaya.ui.win'].find_by_name = function()
+        return read_win
+      end
+      -- Re-require compose to pick up the new win stub
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+
+      compose.write('Template in reading win')
+      assert.are.equal('himalaya-email-writing', vim.bo.filetype)
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
 end)

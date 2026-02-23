@@ -124,4 +124,145 @@ describe('himalaya.request', function()
       assert.are.equal('/usr/local/bin/himalaya', cmd[1])
     end)
   end)
+
+  describe('plain', function()
+    local captured_on_exit
+
+    before_each(function()
+      captured_on_exit = nil
+      package.loaded['himalaya.job'] = {
+        run = function(_cmd, opts)
+          captured_on_exit = opts.on_exit
+          return {}
+        end,
+      }
+      package.loaded['himalaya.request'] = nil
+      request = require('himalaya.request')
+    end)
+
+    it('calls on_data with raw stdout on success', function()
+      local result
+      request.plain({
+        cmd = 'folder list',
+        msg = 'test',
+        on_data = function(data)
+          result = data
+        end,
+      })
+      captured_on_exit('INBOX\nSent\nDrafts', '', 0)
+      assert.are.equal('INBOX\nSent\nDrafts', result)
+    end)
+
+    it('calls on_error on non-zero exit code', function()
+      local errored = false
+      request.plain({
+        cmd = 'folder list',
+        msg = 'test',
+        silent = true,
+        on_data = function() end,
+        on_error = function()
+          errored = true
+        end,
+      })
+      captured_on_exit('', 'boom', 1)
+      assert.is_true(errored)
+    end)
+
+    it('passes stdin through to job.run', function()
+      local captured_stdin
+      package.loaded['himalaya.job'] = {
+        run = function(_cmd, opts)
+          captured_stdin = opts.stdin
+          captured_on_exit = opts.on_exit
+          return {}
+        end,
+      }
+      package.loaded['himalaya.request'] = nil
+      request = require('himalaya.request')
+      request.plain({
+        cmd = 'message send',
+        msg = 'test',
+        stdin = 'email body',
+        on_data = function() end,
+      })
+      assert.are.equal('email body', captured_stdin)
+    end)
+  end)
+
+  describe('on_exit non-silent error paths', function()
+    local captured_on_exit
+    local notify_calls
+
+    before_each(function()
+      captured_on_exit = nil
+      notify_calls = {}
+      package.loaded['himalaya.job'] = {
+        run = function(_cmd, opts)
+          captured_on_exit = opts.on_exit
+          return {}
+        end,
+      }
+      package.loaded['himalaya.request'] = nil
+      -- suppress vim.notify to capture log.err calls
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+      request = require('himalaya.request')
+      vim.notify = orig_notify
+    end)
+
+    it('logs error message with stderr for non-zero exit (non-silent)', function()
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+      request.json({
+        cmd = 'envelope list',
+        msg = 'Listing envelopes',
+        on_data = function() end,
+      })
+      captured_on_exit('', 'connection refused\nbacktrace here', 1)
+      vim.notify = orig_notify
+      assert.is_true(#notify_calls > 0)
+      local err_msg = notify_calls[#notify_calls].msg
+      assert.is_truthy(err_msg:find('FAIL'))
+      assert.is_truthy(err_msg:find('connection refused'))
+    end)
+
+    it('logs error message without stderr for non-zero exit (non-silent)', function()
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+      request.json({
+        cmd = 'envelope list',
+        msg = 'Listing envelopes',
+        on_data = function() end,
+      })
+      captured_on_exit('', '', 2)
+      vim.notify = orig_notify
+      assert.is_true(#notify_calls > 0)
+      local err_msg = notify_calls[#notify_calls].msg
+      assert.is_truthy(err_msg:find('FAIL'))
+      assert.is_truthy(err_msg:find('exit code 2'))
+    end)
+
+    it('logs JSON parse error for invalid JSON (non-silent)', function()
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+      request.json({
+        cmd = 'envelope list',
+        msg = 'test',
+        on_data = function() end,
+      })
+      captured_on_exit('not json{{{', '', 0)
+      vim.notify = orig_notify
+      assert.is_true(#notify_calls > 0)
+      local err_msg = notify_calls[#notify_calls].msg
+      assert.is_truthy(err_msg:find('Failed to parse JSON'))
+    end)
+  end)
 end)

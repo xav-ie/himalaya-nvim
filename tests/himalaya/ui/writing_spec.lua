@@ -87,4 +87,62 @@ describe('himalaya.ui.writing', function()
     assert.is_not_nil(events['BufLeave'])
     assert.is_not_nil(events['BufHidden'])
   end)
+
+  it('setup() detects forward kind from buffer name', function()
+    vim.b[bufnr].himalaya_account = 'work'
+    vim.api.nvim_buf_set_name(bufnr, 'Himalaya/forward [99]')
+    writing.setup(bufnr)
+    local winid = vim.fn.bufwinid(bufnr)
+    assert.is_truthy(vim.wo[winid].winbar:find('forward'))
+  end)
+
+  it('BufWriteCmd autocmd calls compose.send', function()
+    local send_called_with = nil
+    package.loaded['himalaya.domain.email.compose'] = {
+      send = function(b)
+        send_called_with = b
+      end,
+      save_draft = noop,
+      process_draft = noop,
+    }
+    package.loaded['himalaya.ui.writing'] = nil
+    writing = require('himalaya.ui.writing')
+    writing.setup(bufnr)
+    -- set modified so BufWriteCmd triggers properly
+    vim.bo[bufnr].modified = true
+    vim.api.nvim_exec_autocmds('BufWriteCmd', { buffer = bufnr })
+    assert.are.equal(bufnr, send_called_with)
+  end)
+
+  it('BufLeave autocmd calls compose.save_draft', function()
+    local draft_saved = false
+    package.loaded['himalaya.domain.email.compose'] = {
+      send = noop,
+      save_draft = function()
+        draft_saved = true
+      end,
+      process_draft = noop,
+    }
+    package.loaded['himalaya.ui.writing'] = nil
+    writing = require('himalaya.ui.writing')
+    writing.setup(bufnr)
+    vim.api.nvim_exec_autocmds('BufLeave', { buffer = bufnr })
+    assert.is_true(draft_saved)
+  end)
+
+  it('BufHidden autocmd calls compose.process_draft with buffer', function()
+    local process_buf = nil
+    package.loaded['himalaya.domain.email.compose'] = {
+      send = noop,
+      save_draft = noop,
+      process_draft = function(b)
+        process_buf = b
+      end,
+    }
+    package.loaded['himalaya.ui.writing'] = nil
+    writing = require('himalaya.ui.writing')
+    writing.setup(bufnr)
+    vim.api.nvim_exec_autocmds('BufHidden', { buffer = bufnr })
+    assert.are.equal(bufnr, process_buf)
+  end)
 end)

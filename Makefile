@@ -1,4 +1,6 @@
-.PHONY: check test perf coverage lint fmt fmt-check
+.PHONY: check test perf coverage coverage-check lint fmt fmt-check
+
+MIN_COVERAGE ?= 90
 
 check:
 	nix develop --command parallel --tagstring '[{#}:{=s/ .*//=}]' --line-buffer ::: \
@@ -22,6 +24,12 @@ coverage:
 	nix develop --command luacov
 	@echo ""
 	@echo "Coverage report: luacov.report.out"
+
+coverage-check: coverage
+	@awk '/^lua\/himalaya\/.*\.lua\s/ { \
+		split($$0, a); pct = a[length(a)]; gsub(/%/, "", pct); \
+		if (pct + 0 < $(MIN_COVERAGE)) { printf "FAIL: %s at %s%% (min $(MIN_COVERAGE)%%)\n", a[1], pct; fail=1 } \
+	} END { if (fail) exit 1; print "All files >= $(MIN_COVERAGE)% coverage" }' luacov.report.out
 
 lint:
 	nix develop --command luacheck lua/ tests/
