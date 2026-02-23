@@ -7,12 +7,24 @@
     treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
-  outputs = inputs@{ flake-parts, ... }:
+  outputs =
+    inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
       imports = [ inputs.treefmt-nix.flakeModule ];
 
-      perSystem = { pkgs, self', system, ... }:
+      perSystem =
+        {
+          pkgs,
+          self',
+          system,
+          ...
+        }:
         let
           busted-nlua = pkgs.luajitPackages.busted.overrideAttrs (oa: {
             propagatedBuildInputs = oa.propagatedBuildInputs ++ [
@@ -25,8 +37,8 @@
               wrapProgram $out/bin/busted --add-flags "--lua=nlua"
             '';
           });
-          plugin = name:
-            builtins.trace "${name} rev: ${pkgs.vimPlugins.${name}.src.rev}" pkgs.vimPlugins.${name};
+          plugin =
+            name: builtins.trace "${name} rev: ${pkgs.vimPlugins.${name}.src.rev}" pkgs.vimPlugins.${name};
           plugins = map plugin;
           customRC = ''
             syntax on
@@ -44,7 +56,7 @@
           treefmt = {
             projectRootFile = "flake.nix";
             programs.stylua.enable = true;
-            programs.nixpkgs-fmt.enable = true;
+            programs.nixfmt.enable = true;
           };
 
           # nix run .#upload-demo
@@ -58,6 +70,12 @@
               --endpoint-url "$endpoint" --exclude "*" --include "*.mp4" \
               --content-type "video/mp4"
             echo "Done. Files available at https://himalaya-nvim.xav.ie/"
+          '';
+
+          # nix run .#gen-docs
+          packages.gen-docs = pkgs.writeShellScriptBin "gen-docs" ''
+            set -euo pipefail
+            ${pkgs.lib.getExe pkgs.neovim} --headless -l scripts/gen-docs.lua
           '';
 
           # nix run .#build-demo
@@ -136,7 +154,11 @@
                 configure = {
                   inherit customRC;
                   packages.myPlugins = {
-                    start = plugins [ "telescope-nvim" "fzf-vim" "plenary-nvim" ];
+                    start = plugins [
+                      "telescope-nvim"
+                      "fzf-vim"
+                      "plenary-nvim"
+                    ];
                     opt = [ self'.packages.default ];
                   };
                 };

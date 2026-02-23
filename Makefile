@@ -1,4 +1,4 @@
-.PHONY: check test perf coverage coverage-check lint fmt fmt-check
+.PHONY: check test perf coverage coverage-check lint fmt fmt-check gen-docs gen-docs-check
 
 MIN_COVERAGE ?= 90
 
@@ -6,7 +6,14 @@ check:
 	nix develop --command parallel --tagstring '[{#}:{=s/ .*//=}]' --line-buffer ::: \
 		'nix fmt -- --fail-on-change' \
 		'luacheck lua/ tests/'
-	$(MAKE) coverage-check
+	$(MAKE) coverage-check gen-docs-check
+
+gen-docs:
+	nix develop --command nvim --headless -l scripts/gen-docs.lua
+
+gen-docs-check: gen-docs
+	@git diff --exit-code README.md CONTRIBUTING.md || \
+		(echo ""; echo "FAIL: docs are out of date — run 'make gen-docs' and commit the result"; exit 1)
 
 test:
 	nix develop --command busted

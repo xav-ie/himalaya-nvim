@@ -1,8 +1,8 @@
 *himalaya.txt*  Neovim front-end for the Himalaya CLI email client
 
-Author:  soywod <https://github.com/soywod>
+Authors:  soywod <https://github.com/soywod> & xavier <https://github.com/xav-ie>
 License: MIT
-URL:     https://github.com/pimalaya/himalaya-vim
+URL:     https://github.com/xav-ie/himalaya-vim
 
 ==============================================================================
 CONTENTS                                                  *himalaya-contents*

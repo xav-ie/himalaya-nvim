@@ -1,13 +1,29 @@
 local M = {}
 
 local defaults = {
+  -- Path to the himalaya CLI binary
   executable = 'himalaya',
+
+  -- Path to a custom himalaya config file (nil = CLI default)
   config_path = nil,
+
+  -- Folder/account picker: 'native', 'fzf', 'fzf-lua', or 'telescope'
+  -- nil = auto-detect (telescope > fzf-lua > fzf > native)
   folder_picker = nil,
+
+  -- Show preview in Telescope picker
   telescope_preview = false,
+
+  -- Shell command for contact completion (omnifunc); %s = query
   complete_contact_cmd = nil,
+
+  -- Additional flags for flag completion
   custom_flags = {},
+
+  -- Prompt before destructive actions (delete, move)
   always_confirm = true,
+
+  -- Flag display characters in the listing
   flags = {
     header = 'FLGS',
     flagged = '!',
@@ -15,15 +31,35 @@ local defaults = {
     answered = 'R',
     attachment = '@',
   },
+
+  -- Show vertical separators between columns
   gutters = true,
+
+  -- Date format (strftime)
   date_format = '%Y-%m-%d %H:%M',
+
+  -- Start in thread view instead of flat listing
   thread_view = false,
+
+  -- Show newest messages at top in thread view
   thread_reverse = false,
+
+  -- Named search presets for quick access via g?
   search_presets = {},
+
+  -- Override default keybinds (key = plug-name, value = key or false)
   keymaps = {},
+
+  -- Periodically re-fetch envelopes in the background
   background_sync = false,
+
+  -- Background sync interval in seconds
   sync_interval = 60,
+
+  -- Per-account email signatures: string or { account_name = string }
   signature = nil,
+
+  -- Enable mock mode (no CLI binary or email account needed)
   mock = false,
 }
 
