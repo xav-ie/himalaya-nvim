@@ -26,10 +26,6 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
   `]`, `[` are auto-registered when which-key is installed (`g` is
   left alone since it holds native Neovim bindings).
 
-- **Telescope extension** — Build a full Telescope extension with
-  live email search (with preview), account switcher, and search
-  preset picker, going beyond the current folder-only picker.
-
 ## Performance
 
 *19 items completed, 8 declined (see git history for details).
