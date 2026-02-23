@@ -23,10 +23,9 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
 
 ## Plugin Integration
 
-- **which-key.nvim group labels** — All keybinds already set `desc`
-  so which-key displays them automatically. Adding group registrations
-  for prefix keys (`g`, `gF`, `]`, `[`) would label the sub-menus
-  instead of showing "prefix".
+- ~~**which-key.nvim group labels**~~ — Done. Group labels for `gF`,
+  `]`, `[` are auto-registered when which-key is installed (`g` is
+  left alone since it holds native Neovim bindings).
 
 - **Telescope extension** — Build a full Telescope extension with
   live email search (with preview), account switcher, and search

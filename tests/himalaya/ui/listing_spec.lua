@@ -260,6 +260,7 @@ describe('himalaya.ui.listing', function()
           end
         end,
         shared_listing_keybinds = function() end,
+        register_which_key_groups = function() end,
       }
       package.loaded['himalaya.domain.email'] = {
         read = function() end,

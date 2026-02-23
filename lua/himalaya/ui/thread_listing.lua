@@ -30,6 +30,12 @@ function M.setup(bufnr)
     { 'n', 'gT', thread_listing.toggle_reverse, 'thread-toggle-reverse' },
   })
 
+  keybinds.register_which_key_groups(bufnr, {
+    { 'gF', 'Flags' },
+    { ']', 'Next' },
+    { '[', 'Prev' },
+  })
+
   local augroup = vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   local function on_resize()
     local winid = win.find_by_bufnr(bufnr)

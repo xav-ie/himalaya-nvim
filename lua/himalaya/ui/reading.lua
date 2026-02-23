@@ -73,6 +73,11 @@ function M.setup(bufnr)
     { 'n', '?', keybinds.show_help, 'help' },
   })
 
+  keybinds.register_which_key_groups(bufnr, {
+    { ']', 'Next' },
+    { '[', 'Prev' },
+  })
+
   local account = vim.b[bufnr].himalaya_account or ''
   local folder = vim.b[bufnr].himalaya_folder or ''
   local email_id = vim.b[bufnr].himalaya_current_email_id or ''

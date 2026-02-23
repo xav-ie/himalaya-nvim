@@ -19,6 +19,7 @@ describe('himalaya.ui.thread_listing', function()
     package.loaded['himalaya.keybinds'] = {
       define = define_spy,
       shared_listing_keybinds = shared_spy,
+      register_which_key_groups = function() end,
     }
 
     package.loaded['himalaya.domain.email.thread_listing'] = {

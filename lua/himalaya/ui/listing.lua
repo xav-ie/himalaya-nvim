@@ -210,6 +210,12 @@ function M.setup(bufnr)
     },
   })
 
+  keybinds.register_which_key_groups(bufnr, {
+    { 'gF', 'Flags' },
+    { ']', 'Next' },
+    { '[', 'Prev' },
+  })
+
   local augroup = vim.api.nvim_create_augroup('HimalayaListing', { clear = true })
   local function on_resize()
     local winid = win.find_by_bufnr(bufnr)

@@ -91,6 +91,22 @@ function M.show_help()
   end, { buffer = float_buf })
 end
 
+--- Register which-key group labels for Himalaya prefix keys.
+--- No-op when which-key.nvim is not installed.
+--- @param bufnr number
+--- @param groups table[] list of {key, group_name} pairs
+function M.register_which_key_groups(bufnr, groups)
+  local ok, wk = pcall(require, 'which-key')
+  if not ok then
+    return
+  end
+  local specs = {}
+  for _, g in ipairs(groups) do
+    specs[#specs + 1] = { g[1], group = g[2], buffer = bufnr }
+  end
+  wk.add(specs)
+end
+
 --- Define keybinds shared between flat listing and thread listing.
 --- Both modes share compose, account, attachment, copy/move, delete,
 --- seen/unseen, and flag add/remove bindings.
