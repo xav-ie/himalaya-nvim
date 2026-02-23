@@ -319,6 +319,8 @@ function M.list_with(account, folder, page, qry)
     vim.wo.winbar = '%#Comment# loading...%*'
   end
 
+  local listing_win = vim.api.nvim_get_current_win()
+
   local ps = page_size()
   -- On first load the winbar hasn't been set yet, so winheight still
   -- includes that row.  Reserve one line for the header winbar.
@@ -349,13 +351,22 @@ function M.list_with(account, folder, page, qry)
     on_error = function()
       fetch_job = nil
       -- Clear loading indicator on failure
-      if in_listing_buffer() and vim.wo.winbar:find('loading') then
-        vim.wo.winbar = ''
+      if vim.api.nvim_win_is_valid(listing_win) then
+        vim.api.nvim_win_call(listing_win, function()
+          if in_listing_buffer() and vim.wo.winbar:find('loading') then
+            vim.wo.winbar = ''
+          end
+        end)
       end
     end,
     on_data = function(data)
       fetch_job = nil
-      on_list_with(account, folder, page, ps, qry, data, fetch_offset)
+      if not vim.api.nvim_win_is_valid(listing_win) then
+        return
+      end
+      vim.api.nvim_win_call(listing_win, function()
+        on_list_with(account, folder, page, ps, qry, data, fetch_offset)
+      end)
     end,
   })
 end

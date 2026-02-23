@@ -102,6 +102,30 @@ describe('himalaya.domain.email.compose', function()
       assert.are.equal(1, #request_calls)
     end)
 
+    it('handles buffer deleted before on_data fires', function()
+      -- Create a scratch buffer and set reply vars on it
+      local scratch = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(scratch, 0, -1, false, { 'body' })
+      vim.api.nvim_buf_set_var(scratch, 'himalaya_account', 'test-acct')
+      vim.api.nvim_buf_set_var(scratch, 'himalaya_folder', 'INBOX')
+      vim.api.nvim_buf_set_var(scratch, 'himalaya_reply_id', '99')
+
+      compose.send(scratch)
+      assert.are.equal(1, #request_calls)
+
+      -- Delete the buffer before the callback fires
+      vim.api.nvim_buf_delete(scratch, { force = true })
+      assert.is_false(vim.api.nvim_buf_is_valid(scratch))
+
+      -- on_data should not error, and should still fire the answered flag request
+      assert.has_no.errors(function()
+        request_calls[1].on_data()
+      end)
+      assert.are.equal(2, #request_calls)
+      assert.is_truthy(request_calls[2].cmd:find('flag add'))
+      assert.are.equal('99', request_calls[2].args[3])
+    end)
+
     it('prevents double-send', function()
       compose.send()
       request_calls[1].on_data()

@@ -143,6 +143,7 @@ function M.send(bufnr)
   local account = vim.b[bufnr].himalaya_account or ''
   local folder = vim.b[bufnr].himalaya_folder or 'INBOX'
   local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n') .. '\n'
+  local reply_id = vim.b[bufnr].himalaya_reply_id
 
   request.plain({
     cmd = 'template send %s',
@@ -151,11 +152,12 @@ function M.send(bufnr)
     msg = 'Sending email',
     on_data = function()
       sent = true
-      vim.bo[bufnr].modified = false
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.bo[bufnr].modified = false
+      end
       log.info('Send [OK]')
 
       -- Add "answered" flag only for replies
-      local reply_id = vim.b[bufnr].himalaya_reply_id
       if reply_id and reply_id ~= '' then
         request.plain({
           cmd = 'flag add %s --folder %s answered %s',
