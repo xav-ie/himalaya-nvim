@@ -50,10 +50,13 @@ function M.setup(bufnr)
     group = augroup,
     buffer = bufnr,
     callback = function()
+      require('himalaya.sync').stop()
       thread_listing.cleanup()
       require('himalaya.domain.email.probe').cleanup()
     end,
   })
+
+  require('himalaya.sync').start()
 end
 
 return M

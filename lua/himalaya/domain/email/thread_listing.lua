@@ -474,6 +474,13 @@ function M.mark_seen_optimistic(email_id)
   end
 end
 
+--- Check whether any user-initiated thread listing job is in-flight.
+--- Used by the sync module to avoid database lock contention.
+--- @return boolean
+function M.is_busy()
+  return list_job ~= nil or enrich_job ~= nil
+end
+
 --- Test-only accessor to set module-local state.
 function M._set_state(rows, page)
   all_display_rows = rows

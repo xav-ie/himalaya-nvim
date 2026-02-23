@@ -230,10 +230,13 @@ function M.setup(bufnr)
     group = augroup,
     buffer = bufnr,
     callback = function()
+      require('himalaya.sync').stop()
       email.cleanup()
       probe.cleanup()
     end,
   })
+
+  require('himalaya.sync').start()
 end
 
 M.define_highlights()

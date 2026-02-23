@@ -20,6 +20,8 @@ local defaults = {
   thread_view = false,
   thread_reverse = false,
   keymaps = {},
+  background_sync = false,
+  sync_interval = 60,
 }
 
 local current = vim.deepcopy(defaults)

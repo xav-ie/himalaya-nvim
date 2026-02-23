@@ -1076,6 +1076,13 @@ function M.set_list_envelopes_query()
   end, vim.b.himalaya_query or '', folder, account)
 end
 
+--- Check whether any user-initiated CLI job is in-flight.
+--- Used by the sync module to avoid database lock contention.
+--- @return boolean
+function M.is_busy()
+  return fetch_job ~= nil or resize_job ~= nil
+end
+
 --- Test-only accessor for mark_envelope_seen.
 M._mark_envelope_seen = mark_envelope_seen
 
