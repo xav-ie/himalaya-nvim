@@ -9,9 +9,9 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
 
 *26 items completed, 12 declined (see git history for details).*
 
-- **Adaptive column layout for narrow terminals** — Collapse the FROM
-  column to initials when terminal width drops below a threshold so
-  listings stay readable on small screens.
+- ~~**Adaptive column layout for narrow terminals**~~ — Done. FROM
+  column collapses to 2-char initials when `from_w < 12`, freeing
+  space for the subject column (`dfbff5b`, `822541d`).
 
 - ~~**Search input validation**~~ — Done. CLI errors from bad queries
   are now surfaced via stderr error logging (`a3e14a7`).
