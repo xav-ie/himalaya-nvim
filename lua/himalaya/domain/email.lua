@@ -1232,10 +1232,10 @@ function M._get_resize_job()
   return resize_job
 end
 
---- Open a picker to choose sort field and direction, then refresh.
+--- Open a floating picker to choose sort field and direction, then refresh.
 function M.toggle_sort()
-  local bufnr = vim.api.nvim_get_current_buf()
-  local buf_type = vim.b[bufnr].himalaya_buffer_type
+  local listing_bufnr = vim.api.nvim_get_current_buf()
+  local buf_type = vim.b[listing_bufnr].himalaya_buffer_type
   local fields = { 'date', 'from', 'subject', 'to' }
   local directions = { 'desc', 'asc' }
   local choices = {}
@@ -1244,25 +1244,66 @@ function M.toggle_sort()
       choices[#choices + 1] = f .. ' ' .. d
     end
   end
-  vim.ui.select(choices, {
-    prompt = 'Sort by:',
-    format_item = function(item)
-      local field, dir = item:match('^(%S+)%s+(%S+)$')
-      local arrow = dir == 'desc' and '↓' or '↑'
-      return string.format('%s %s', field, arrow)
-    end,
-  }, function(choice)
-    if not choice then
-      return
+
+  local lines = {}
+  for i, item in ipairs(choices) do
+    local field, dir = item:match('^(%S+)%s+(%S+)$')
+    local arrow = dir == 'desc' and '↓' or '↑'
+    lines[#lines + 1] = string.format(' %d  %s %s', i, field, arrow)
+  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.bo[buf].modifiable = false
+
+  local width = 16
+  local height = #lines
+  local float_win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = math.floor((vim.o.lines - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+    style = 'minimal',
+    border = 'rounded',
+    title = ' Sort by ',
+    title_pos = 'center',
+  })
+  vim.wo[float_win].cursorline = true
+
+  local function close()
+    if vim.api.nvim_win_is_valid(float_win) then
+      vim.api.nvim_win_close(float_win, true)
     end
-    vim.b[bufnr].himalaya_sort = choice
-    vim.b[bufnr].himalaya_page = 1
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
+
+  local function pick(nr)
+    close()
+    local choice = choices[nr]
+    vim.b[listing_bufnr].himalaya_sort = choice
+    vim.b[listing_bufnr].himalaya_page = 1
     if buf_type == 'thread-listing' then
       require('himalaya.domain.email.thread_listing').list()
     else
       M.list()
     end
-  end)
+  end
+
+  local map_opts = { buffer = buf, noremap = true, silent = true }
+  for i = 1, #choices do
+    vim.keymap.set('n', tostring(i), function()
+      pick(i)
+    end, map_opts)
+  end
+  vim.keymap.set('n', '<Esc>', close, map_opts)
+  vim.keymap.set('n', 'q', close, map_opts)
+  vim.keymap.set('n', '<CR>', function()
+    local row = vim.api.nvim_win_get_cursor(float_win)[1]
+    pick(row)
+  end, map_opts)
 end
 
 --- Check whether an envelope has the Seen flag.

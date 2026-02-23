@@ -279,7 +279,7 @@ function M.list(account, opts)
       list_job = nil
       last_edges = data
       local reverse = config.get().thread_reverse
-      local rows = tree.build(data, { reverse = reverse })
+      local rows = tree.build(data, { reverse = reverse, sort = sort })
       tree.build_prefix(rows, { reverse = reverse })
 
       -- Save flag data from current display rows before replacing
@@ -422,7 +422,8 @@ function M.toggle_reverse()
   local reverse = not config.get().thread_reverse
   config.set('thread_reverse', reverse)
   if last_edges then
-    local rows = tree.build(last_edges, { reverse = reverse })
+    local sort = vim.b.himalaya_sort or 'date desc'
+    local rows = tree.build(last_edges, { reverse = reverse, sort = sort })
     tree.build_prefix(rows, { reverse = reverse })
     all_display_rows = rows
     rebuild_id_index()

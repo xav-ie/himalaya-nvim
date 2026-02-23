@@ -53,7 +53,7 @@ end
 --- 6. Compute is_last_child for tree rendering.
 ---
 --- @param edges table[] Array of {parent_env, child_env, depth_int}
---- @param opts? table  Optional: { reverse = bool } — reverse sorts siblings newest-first
+--- @param opts? table  Optional: { reverse = bool, sort = string ('date desc', 'from asc', etc.) }
 --- @return table[] Array of {env, depth, is_last_child, thread_idx}
 function M.build(edges, opts)
   perf.start('tree.build')
@@ -195,11 +195,39 @@ function M.build(edges, opts)
     groups[#groups + 1] = g
   end
 
-  -- Phase 4: Sort groups by latest date descending (newest thread first),
-  -- with thread_id as tiebreaker for deterministic ordering.
+  -- Phase 4: Sort thread groups by the user's chosen field/direction.
+  local sort_str = opts.sort or 'date desc'
+  local sort_field, sort_dir = sort_str:match('^(%S+)%s+(%S+)$')
+  sort_field = sort_field or 'date'
+  sort_dir = sort_dir or 'desc'
+  local ascending = sort_dir == 'asc'
+
+  -- Extract the comparison key for a group's root node.
+  local function group_key(g)
+    if sort_field == 'date' then
+      return g.latest_epoch
+    end
+    local root = g.nodes[1] and g.nodes[1].env or {}
+    if sort_field == 'from' then
+      local f = root.from
+      return type(f) == 'table' and (f.name or '') or (f or '')
+    elseif sort_field == 'subject' then
+      return root.subject or ''
+    elseif sort_field == 'to' then
+      local t = root.to
+      return type(t) == 'table' and (t.name or '') or (t or '')
+    end
+    return g.latest_epoch
+  end
+
   table.sort(groups, function(a, b)
-    if a.latest_epoch ~= b.latest_epoch then
-      return a.latest_epoch > b.latest_epoch
+    local ka, kb = group_key(a), group_key(b)
+    if ka ~= kb then
+      if ascending then
+        return ka < kb
+      else
+        return ka > kb
+      end
     end
     return a.thread_id < b.thread_id
   end)

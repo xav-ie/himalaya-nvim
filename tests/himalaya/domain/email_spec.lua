@@ -440,30 +440,38 @@ describe('himalaya.domain.email (extended)', function()
   end)
 
   describe('toggle_sort', function()
-    it('applies selected sort and refreshes', function()
-      local orig_select = vim.ui.select
-      vim.ui.select = function(_items, _, cb)
-        cb('from asc')
+    --- Helper: open toggle_sort float, press a key, clean up any leftover float.
+    local function sort_press(key)
+      email.toggle_sort()
+      -- The float is now open and focused; simulate the keypress.
+      vim.api.nvim_feedkeys(key, 'x', false)
+    end
+
+    after_each(function()
+      -- Clean up any leftover floating windows.
+      for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        local cfg = vim.api.nvim_win_get_config(winid)
+        if cfg.relative and cfg.relative ~= '' then
+          pcall(vim.api.nvim_win_close, winid, true)
+        end
       end
+    end)
+
+    it('applies selected sort and refreshes', function()
+      -- 'from asc' is choice 4 (date desc=1, date asc=2, from desc=3, from asc=4)
       local buf = track(make_listing_buf({ 1 }))
       vim.b[buf].himalaya_page = 3
-      email.toggle_sort()
-      vim.ui.select = orig_select
+      sort_press('4')
       assert.are.equal('from asc', vim.b[buf].himalaya_sort)
       assert.are.equal(1, vim.b[buf].himalaya_page)
       assert.is_not_nil(captured_json)
     end)
 
     it('does nothing when user cancels picker', function()
-      local orig_select = vim.ui.select
-      vim.ui.select = function(_, _, cb)
-        cb(nil)
-      end
       local buf = track(make_listing_buf({ 1 }))
       vim.b[buf].himalaya_sort = 'date desc'
       vim.b[buf].himalaya_page = 3
-      email.toggle_sort()
-      vim.ui.select = orig_select
+      sort_press('q')
       assert.are.equal('date desc', vim.b[buf].himalaya_sort)
       assert.are.equal(3, vim.b[buf].himalaya_page)
     end)
@@ -473,16 +481,22 @@ describe('himalaya.domain.email (extended)', function()
       package.loaded['himalaya.domain.email.thread_listing'].list = function()
         thread_list_called = true
       end
-      local orig_select = vim.ui.select
-      vim.ui.select = function(_, _, cb)
-        cb('subject desc')
-      end
+      -- 'subject desc' is choice 5
       local buf = track(make_listing_buf({ 1 }))
       vim.b[buf].himalaya_buffer_type = 'thread-listing'
-      email.toggle_sort()
-      vim.ui.select = orig_select
+      sort_press('5')
       assert.is_true(thread_list_called)
       assert.are.equal('subject desc', vim.b[buf].himalaya_sort)
+    end)
+
+    it('selects via Enter on cursor line', function()
+      local buf = track(make_listing_buf({ 1 }))
+      email.toggle_sort()
+      -- Move cursor to line 3 ('from desc') and press Enter
+      local float_win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_cursor(float_win, { 3, 0 })
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<CR>', true, false, true), 'x', false)
+      assert.are.equal('from desc', vim.b[buf].himalaya_sort)
     end)
   end)
 
