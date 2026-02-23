@@ -60,6 +60,33 @@ function M.format_from(from)
   return ''
 end
 
+--- Extract uppercase initials (max 2) from sender name, or first char of addr.
+--- @param from table|nil
+--- @return string
+function M.format_from_initials(from)
+  if not from then
+    return ''
+  end
+  local name = from.name
+  if name and name ~= vim.NIL and name ~= '' then
+    local initials = ''
+    for word in name:gmatch('%S+') do
+      local first = word:sub(1, 1)
+      if first:match('%a') then
+        initials = initials .. first:upper()
+      end
+    end
+    if initials ~= '' then
+      return initials:sub(1, 2)
+    end
+  end
+  local addr = from.addr
+  if addr and addr ~= vim.NIL and addr ~= '' then
+    return addr:sub(1, 1)
+  end
+  return ''
+end
+
 --- Format a date string using the configured format.
 --- Parses ISO-ish dates from himalaya (e.g. "2026-02-17 13:18+00:00")
 --- and reformats using strftime-style tokens. Converts to local time.
@@ -196,16 +223,26 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
   local subject_w = math.floor(remaining * 0.6)
   local from_w = remaining - subject_w
 
+  local narrow = false
+  local NARROW_FROM_W = 4
+  local NARROW_THRESHOLD = 12
+  if from_w < NARROW_THRESHOLD then
+    narrow = true
+    subject_w = subject_w + from_w - NARROW_FROM_W
+    from_w = NARROW_FROM_W
+  end
+
   local col_sep = gutters and (' ' .. BOX_V .. ' ') or BOX_V
   local leading = gutters and ' ' or ''
   local row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
 
+  local from_label = narrow and 'FR' or 'FROM'
   local header = string.format(
     row_fmt,
     M.fit('ID', id_w),
     M.fit(cfg_flags.header or 'FLGS', flags_w),
     M.fit('SUBJECT', subject_w),
-    M.fit('FROM', from_w),
+    M.fit(from_label, from_w),
     M.fit('DATE', date_w)
   )
 
@@ -228,6 +265,7 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     date_w = date_w,
     subject_w = subject_w,
     from_w = from_w,
+    narrow = narrow,
     row_fmt = row_fmt,
     header = header,
     separator = separator,
@@ -252,6 +290,7 @@ function M.render(envelopes, total_width, cfg)
   cfg = cfg or config.get()
   local layout = M.compute_layout(envelopes, total_width, env_identity, cfg)
 
+  local format_from_fn = layout.narrow and M.format_from_initials or M.format_from
   local lines = {}
   for _, env in ipairs(envelopes) do
     local id = tostring(env.id or '')
@@ -260,9 +299,9 @@ function M.render(envelopes, total_width, cfg)
     local from = ''
     if env.from and env.from ~= vim.NIL then
       if env.from.name or env.from.addr then
-        from = M.format_from(env.from)
+        from = format_from_fn(env.from)
       elseif type(env.from) == 'table' and #env.from > 0 then
-        from = M.format_from(env.from[1])
+        from = format_from_fn(env.from[1])
       end
     end
     local date = M.format_date(env.date or '', cfg)

@@ -183,6 +183,21 @@ describe('himalaya.ui.thread_renderer', function()
       assert.is_truthy(flags_col and flags_col:match('^%s+$'))
     end)
 
+    it('uses initials at narrow width', function()
+      local rows = {
+        {
+          env = { id = '1', subject = 'Test', from = { name = 'Alice Smith' }, date = '2024-01-01 10:00:00+00:00' },
+          depth = 0,
+          is_last_child = true,
+          prefix = '',
+          thread_idx = 1,
+        },
+      }
+      local result = thread_renderer.render(rows, 40)
+      assert.is_truthy(result.lines[1]:find('AS'))
+      assert.is_falsy(result.lines[1]:find('Alice Smith'))
+    end)
+
     it('works without gutters', function()
       config.setup({ gutters = false })
       local rows = {

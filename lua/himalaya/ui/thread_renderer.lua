@@ -21,6 +21,7 @@ function M.render(display_rows, total_width, cfg)
   local layout = renderer.compute_layout(display_rows, total_width, get_env, cfg)
   local empty_flags = string.rep(' ', layout.flags_w)
 
+  local format_from_fn = layout.narrow and renderer.format_from_initials or renderer.format_from
   local lines = {}
   for _, row in ipairs(display_rows) do
     local env = row.env
@@ -39,9 +40,9 @@ function M.render(display_rows, total_width, cfg)
     local from = ''
     if env.from and env.from ~= vim.NIL then
       if env.from.name or env.from.addr then
-        from = renderer.format_from(env.from)
+        from = format_from_fn(env.from)
       elseif type(env.from) == 'table' and #env.from > 0 then
-        from = renderer.format_from(env.from[1])
+        from = format_from_fn(env.from[1])
       end
     end
 

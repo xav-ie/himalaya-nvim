@@ -64,6 +64,48 @@ describe('himalaya.ui.renderer', function()
     end)
   end)
 
+  describe('format_from_initials', function()
+    it('extracts initials from multi-word name', function()
+      assert.are.equal('AS', renderer.format_from_initials({ name = 'Alice Smith' }))
+    end)
+
+    it('extracts single initial from single name', function()
+      assert.are.equal('A', renderer.format_from_initials({ name = 'Alice' }))
+    end)
+
+    it('handles hyphenated names', function()
+      assert.are.equal('JP', renderer.format_from_initials({ name = 'Jean-Luc Picard' }))
+    end)
+
+    it('caps at 2 characters for 3+ word names', function()
+      assert.are.equal('AB', renderer.format_from_initials({ name = 'Alice Bob Carol' }))
+    end)
+
+    it('falls back to first char of addr', function()
+      assert.are.equal('a', renderer.format_from_initials({ addr = 'alice@foo.com' }))
+    end)
+
+    it('returns empty for nil', function()
+      assert.are.equal('', renderer.format_from_initials(nil))
+    end)
+
+    it('returns empty for empty table', function()
+      assert.are.equal('', renderer.format_from_initials({}))
+    end)
+
+    it('falls back to addr when name is empty', function()
+      assert.are.equal('b', renderer.format_from_initials({ name = '', addr = 'bob@test.com' }))
+    end)
+
+    it('falls back to addr when name is vim.NIL', function()
+      assert.are.equal('c', renderer.format_from_initials({ name = vim.NIL, addr = 'charlie@test.com' }))
+    end)
+
+    it('uppercases initials', function()
+      assert.are.equal('AB', renderer.format_from_initials({ name = 'alice bob' }))
+    end)
+  end)
+
   describe('fit', function()
     it('pads short strings', function()
       assert.are.equal('hi    ', renderer.fit('hi', 6))
@@ -206,6 +248,58 @@ describe('himalaya.ui.renderer', function()
       local result = renderer.render({}, 80)
       assert.are.equal(0, #result.lines)
       assert.is_truthy(result.header:find('\xef\x80\xa4'))
+    end)
+  end)
+
+  describe('compute_layout narrow mode', function()
+    it('sets narrow=true and from_w=4 at narrow width', function()
+      local envelopes = {
+        { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },
+      }
+      -- Width 40 should force from_w < 12
+      local layout = renderer.compute_layout(envelopes, 40, function(item)
+        return item
+      end)
+      assert.is_true(layout.narrow)
+      assert.are.equal(4, layout.from_w)
+    end)
+
+    it('sets narrow=false at normal width', function()
+      local envelopes = {
+        { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },
+      }
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout.narrow)
+    end)
+
+    it('uses FR header label when narrow', function()
+      local envelopes = {
+        { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },
+      }
+      local layout = renderer.compute_layout(envelopes, 40, function(item)
+        return item
+      end)
+      assert.is_truthy(layout.header:find('FR'))
+      assert.is_falsy(layout.header:find('FROM'))
+    end)
+  end)
+
+  describe('render narrow mode', function()
+    it('uses initials at narrow width', function()
+      local envelopes = {
+        {
+          id = '1',
+          flags = { 'Seen' },
+          subject = 'Test subject',
+          from = { name = 'Alice Smith', addr = 'alice@example.com' },
+          date = '2024-01-15 09:30:00',
+        },
+      }
+      local result = renderer.render(envelopes, 40)
+      assert.is_truthy(result.lines[1]:find('AS'))
+      assert.is_falsy(result.lines[1]:find('Alice Smith'))
     end)
   end)
 
