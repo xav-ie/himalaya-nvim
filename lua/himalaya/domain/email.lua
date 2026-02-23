@@ -585,6 +585,12 @@ function M.copy(target_folder, first_line, last_line)
       },
       msg = 'Copying email',
       on_data = function()
+        require('himalaya.events').emit('EmailCopied', {
+          account = account,
+          folder = folder,
+          ids = ids,
+          target_folder = target_folder,
+        })
         refresh_listing(account, folder)
       end,
     })
@@ -626,6 +632,12 @@ function M.move(target_folder, first_line, last_line)
       },
       msg = 'Moving email',
       on_data = function()
+        require('himalaya.events').emit('EmailMoved', {
+          account = account,
+          folder = folder,
+          ids = ids,
+          target_folder = target_folder,
+        })
         refresh_listing(account, folder, { restore_cursor_line = cursor_line })
       end,
     })
@@ -691,6 +703,12 @@ function M.flag_add(first_line, last_line)
         args = { account_flag(account), folder, flag, ids },
         msg = 'Adding flag: ' .. flag,
         on_data = function()
+          require('himalaya.events').emit('EmailFlagAdded', {
+            account = account,
+            folder = folder,
+            ids = ids,
+            flag = flag,
+          })
           refresh_listing(account, folder)
         end,
       })
@@ -719,6 +737,12 @@ function M.flag_remove(first_line, last_line)
         args = { account_flag(account), folder, flag, ids },
         msg = 'Removing flag: ' .. flag,
         on_data = function()
+          require('himalaya.events').emit('EmailFlagRemoved', {
+            account = account,
+            folder = folder,
+            ids = ids,
+            flag = flag,
+          })
           refresh_listing(account, folder)
         end,
       })
@@ -740,6 +764,11 @@ function M.mark_seen(first_line, last_line)
       args = { account_flag(account), folder, ids },
       msg = 'Marking as seen',
       on_data = function()
+        require('himalaya.events').emit('EmailMarkedSeen', {
+          account = account,
+          folder = folder,
+          ids = ids,
+        })
         saved_view = vim.fn.winsaveview()
         refresh_listing(account, folder)
       end,
@@ -761,6 +790,11 @@ function M.mark_unseen(first_line, last_line)
       args = { account_flag(account), folder, ids },
       msg = 'Marking as unseen',
       on_data = function()
+        require('himalaya.events').emit('EmailMarkedUnseen', {
+          account = account,
+          folder = folder,
+          ids = ids,
+        })
         saved_view = vim.fn.winsaveview()
         refresh_listing(account, folder)
       end,

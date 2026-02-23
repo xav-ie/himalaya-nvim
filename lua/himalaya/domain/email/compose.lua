@@ -208,6 +208,7 @@ function M.process_draft(bufnr)
           stdin = content,
           msg = 'Saving draft',
         })
+        require('himalaya.events').emit('DraftSaved', { account = account })
         return
       elseif choice == 'q' or choice == '' then
         return

@@ -172,6 +172,7 @@ describe('himalaya.domain.email (extended)', function()
   local email
   local captured_json, captured_plain
   local job_kill_count
+  local emitted_events
 
   local function make_listing_buf(ids)
     local buf = vim.api.nvim_create_buf(false, true)
@@ -205,7 +206,14 @@ describe('himalaya.domain.email (extended)', function()
     captured_json = nil
     captured_plain = nil
     job_kill_count = 0
+    emitted_events = {}
 
+    package.loaded['himalaya.events'] = {
+      emit = function(event, data)
+        table.insert(emitted_events, { event = event, data = data })
+      end,
+      _reset = function() end,
+    }
     package.loaded['himalaya.request'] = {
       json = function(opts)
         captured_json = opts
@@ -484,6 +492,23 @@ describe('himalaya.domain.email (extended)', function()
       -- refresh_listing calls list_with which sets captured_json
       assert.is_not_nil(captured_json)
     end)
+
+    it('on_data emits EmailDeleted event', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.delete()
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailDeleted' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          found = true
+        end
+      end
+      assert.is_true(found)
+    end)
   end)
 
   describe('copy', function()
@@ -501,6 +526,24 @@ describe('himalaya.domain.email (extended)', function()
       email.copy('Archive')
       captured_plain.on_data()
       assert.is_not_nil(captured_json)
+    end)
+
+    it('on_data emits EmailCopied event', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.copy('Archive')
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailCopied' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          assert.are.equal('Archive', e.data.target_folder)
+          found = true
+        end
+      end
+      assert.is_true(found)
     end)
 
     it('supports visual range', function()
@@ -554,6 +597,24 @@ describe('himalaya.domain.email (extended)', function()
       captured_plain.on_data()
       assert.is_not_nil(captured_json)
     end)
+
+    it('on_data emits EmailMoved event', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.move('Trash')
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailMoved' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          assert.are.equal('Trash', e.data.target_folder)
+          found = true
+        end
+      end
+      assert.is_true(found)
+    end)
   end)
 
   describe('select_folder_then_copy', function()
@@ -601,6 +662,23 @@ describe('himalaya.domain.email (extended)', function()
       assert.is_not_nil(captured_json)
     end)
 
+    it('on_data emits EmailMarkedSeen event', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.mark_seen()
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailMarkedSeen' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          found = true
+        end
+      end
+      assert.is_true(found)
+    end)
+
     it('supports visual range', function()
       track(make_listing_buf({ 10, 20 }))
       email.mark_seen(1, 2)
@@ -616,6 +694,23 @@ describe('himalaya.domain.email (extended)', function()
       assert.is_not_nil(captured_plain)
       assert.truthy(captured_plain.cmd:find('flag remove'))
       assert.truthy(captured_plain.cmd:find('Seen'))
+    end)
+
+    it('on_data emits EmailMarkedUnseen event', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.mark_unseen()
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailMarkedUnseen' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          found = true
+        end
+      end
+      assert.is_true(found)
     end)
 
     it('supports visual range', function()
@@ -649,6 +744,29 @@ describe('himalaya.domain.email (extended)', function()
       email.flag_add()
       vim.ui.select = orig_select
       assert.is_nil(captured_plain)
+    end)
+
+    it('on_data emits EmailFlagAdded event', function()
+      local orig_select = vim.ui.select
+      vim.ui.select = function(items, _, cb)
+        cb(items[2]) -- 'Flagged'
+      end
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.flag_add()
+      vim.ui.select = orig_select
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailFlagAdded' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          assert.are.equal('Flagged', e.data.flag)
+          found = true
+        end
+      end
+      assert.is_true(found)
     end)
 
     it('supports visual range', function()
@@ -708,6 +826,32 @@ describe('himalaya.domain.email (extended)', function()
       email.flag_remove()
       vim.ui.select = orig_select
       assert.is_nil(captured_plain)
+    end)
+
+    it('on_data emits EmailFlagRemoved event', function()
+      local buf = track(make_listing_buf({ 42 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 42, flags = { 'Seen', 'Flagged' } },
+      }
+      local orig_select = vim.ui.select
+      vim.ui.select = function(items, _, cb)
+        cb(items[1]) -- 'Seen'
+      end
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.flag_remove()
+      vim.ui.select = orig_select
+      captured_plain.on_data()
+      local found = false
+      for _, e in ipairs(emitted_events) do
+        if e.event == 'EmailFlagRemoved' then
+          assert.are.equal('test-acct', e.data.account)
+          assert.are.equal('INBOX', e.data.folder)
+          assert.are.equal('42', e.data.ids)
+          assert.are.equal('Seen', e.data.flag)
+          found = true
+        end
+      end
+      assert.is_true(found)
     end)
   end)
 

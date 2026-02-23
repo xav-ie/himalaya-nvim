@@ -164,6 +164,31 @@ describe('himalaya.domain.email.compose', function()
       assert.is_falsy(request_calls[1].cmd:find('<'))
     end)
 
+    it('emits DraftSaved event on "d"', function()
+      -- Stub events module with capturing emit
+      local draft_events = {}
+      package.loaded['himalaya.events'] = {
+        emit = function(event, data)
+          table.insert(draft_events, { event = event, data = data })
+        end,
+        _reset = function() end,
+      }
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      vim.fn.input = function()
+        return 'd'
+      end
+      compose.process_draft()
+      local found = false
+      for _, e in ipairs(draft_events) do
+        if e.event == 'DraftSaved' then
+          assert.are.equal('test-acct', e.data.account)
+          found = true
+        end
+      end
+      assert.is_true(found)
+    end)
+
     it('quits without any request on "q"', function()
       vim.fn.input = function()
         return 'q'
