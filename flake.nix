@@ -42,6 +42,19 @@
           '';
         in
         rec {
+          # nix run .#upload-demo
+          # Requires: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars
+          # (R2 S3-compatible credentials from Cloudflare dashboard)
+          packages.upload-demo = pkgs.writeShellScriptBin "upload-demo" ''
+            set -euo pipefail
+            bucket="''${R2_BUCKET:-himalaya-nvim}"
+            endpoint="https://946b8d18ae9ef27fc85597e7716a1641.r2.cloudflarestorage.com"
+            ${pkgs.lib.getExe pkgs.awscli2} s3 sync demo/ "s3://$bucket/" \
+              --endpoint-url "$endpoint" --exclude "*" --include "*.mp4" \
+              --content-type "video/mp4"
+            echo "Done. Files available at https://himalaya-nvim.xav.ie/"
+          '';
+
           # nix run .#build-demo
           packages.build-demo = pkgs.writeShellScriptBin "build-demo" ''
             set -euo pipefail
@@ -97,9 +110,10 @@
               busted-nlua
               luajitPackages.luacov
 
-              # Demo recording
+              # Demo recording + upload
               vhs
               ffmpeg
+              awscli2
 
               # FZF
               fzf

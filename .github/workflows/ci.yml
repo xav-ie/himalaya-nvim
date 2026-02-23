@@ -10,7 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          summarize: false
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
       - run: make fmt-check
 
   lint:
@@ -18,7 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          summarize: false
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
       - run: make lint
 
   test:
@@ -26,7 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          summarize: false
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
       - run: make test
 
   coverage:
@@ -34,5 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          summarize: false
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
       - run: make coverage-check
