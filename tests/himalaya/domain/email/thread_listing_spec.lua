@@ -266,9 +266,9 @@ describe('himalaya.domain.email.thread_listing', function()
   end)
 
   -- ----------------------------------------------------------------
-  -- jump_to_unread
+  -- jump_to_next_unread
   -- ----------------------------------------------------------------
-  describe('jump_to_unread', function()
+  describe('jump_to_next_unread', function()
     it('moves cursor to unseen row', function()
       local rows = make_rows(3)
       rows[1].env.flags = { 'Seen' }
@@ -278,7 +278,7 @@ describe('himalaya.domain.email.thread_listing', function()
       local bufnr = make_buf()
       thread_listing.render_page(1)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
-      thread_listing.jump_to_unread()
+      thread_listing.jump_to_next_unread()
       assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
@@ -292,7 +292,7 @@ describe('himalaya.domain.email.thread_listing', function()
       local bufnr = make_buf()
       thread_listing.render_page(1)
       vim.api.nvim_win_set_cursor(0, { 2, 0 })
-      thread_listing.jump_to_unread()
+      thread_listing.jump_to_next_unread()
       assert.are.equal(1, vim.api.nvim_win_get_cursor(0)[1])
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
@@ -312,7 +312,7 @@ describe('himalaya.domain.email.thread_listing', function()
           notified = true
         end
       end
-      thread_listing.jump_to_unread()
+      thread_listing.jump_to_next_unread()
       vim.notify = orig
       assert.is_true(notified)
       vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -320,7 +320,117 @@ describe('himalaya.domain.email.thread_listing', function()
 
     it('is a no-op when no display rows', function()
       local bufnr = make_buf()
-      thread_listing.jump_to_unread() -- should not error
+      thread_listing.jump_to_next_unread() -- should not error
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  -- ----------------------------------------------------------------
+  -- jump_to_prev_unread
+  -- ----------------------------------------------------------------
+  describe('jump_to_prev_unread', function()
+    it('moves cursor to previous unseen row', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = { 'Seen' }
+      rows[2].env.flags = {}
+      rows[3].env.flags = { 'Seen' }
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
+      thread_listing.jump_to_prev_unread()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('wraps from beginning to end', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = { 'Seen' }
+      rows[2].env.flags = { 'Seen' }
+      rows[3].env.flags = {}
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      thread_listing.jump_to_prev_unread()
+      assert.are.equal(3, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('is a no-op when no display rows', function()
+      local bufnr = make_buf()
+      thread_listing.jump_to_prev_unread() -- should not error
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  -- ----------------------------------------------------------------
+  -- jump_to_next_read
+  -- ----------------------------------------------------------------
+  describe('jump_to_next_read', function()
+    it('moves cursor to next read row', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = {}
+      rows[2].env.flags = { 'Seen' }
+      rows[3].env.flags = {}
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      thread_listing.jump_to_next_read()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('notifies when no read emails', function()
+      local rows = make_rows(2)
+      rows[1].env.flags = {}
+      rows[2].env.flags = {}
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local notified = false
+      local orig = vim.notify
+      vim.notify = function(msg)
+        if type(msg) == 'string' and msg:find('No read') then
+          notified = true
+        end
+      end
+      thread_listing.jump_to_next_read()
+      vim.notify = orig
+      assert.is_true(notified)
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('is a no-op when no display rows', function()
+      local bufnr = make_buf()
+      thread_listing.jump_to_next_read() -- should not error
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  -- ----------------------------------------------------------------
+  -- jump_to_prev_read
+  -- ----------------------------------------------------------------
+  describe('jump_to_prev_read', function()
+    it('moves cursor to previous read row', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = {}
+      rows[2].env.flags = { 'Seen' }
+      rows[3].env.flags = {}
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
+      thread_listing.jump_to_prev_read()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('is a no-op when no display rows', function()
+      local bufnr = make_buf()
+      thread_listing.jump_to_prev_read() -- should not error
       vim.api.nvim_buf_delete(bufnr, { force = true })
     end)
   end)

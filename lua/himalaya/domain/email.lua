@@ -1190,12 +1190,18 @@ function M._get_resize_job()
   return resize_job
 end
 
---- Jump to the next unseen email in the listing, wrapping around.
-function M.jump_to_unread()
-  if vim.b.himalaya_buffer_type == 'thread-listing' then
-    require('himalaya.domain.email.thread_listing').jump_to_unread()
-    return
-  end
+--- Check whether an envelope has the Seen flag.
+--- @param env table
+--- @return boolean
+local function is_seen(env)
+  return not is_unseen(env)
+end
+
+--- Generic: search visible page for matching envelope in given direction.
+--- @param predicate function(env): boolean
+--- @param direction number  +1 for forward, -1 for backward
+--- @param no_match_msg string
+local function jump_in_listing(predicate, direction, no_match_msg)
   if not in_listing_buffer() then
     return
   end
@@ -1210,13 +1216,49 @@ function M.jump_to_unread()
   end
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   for i = 1, total do
-    local idx = ((cursor - 1 + i) % total) + 1
-    if is_unseen(display[idx]) then
+    local idx = ((cursor - 1 + i * direction) % total) + 1
+    if predicate(display[idx]) then
       vim.api.nvim_win_set_cursor(0, { idx, 0 })
       return
     end
   end
-  log.info('No unread emails on this page')
+  log.info(no_match_msg)
+end
+
+--- Jump to the next unseen email in the listing, wrapping around.
+function M.jump_to_next_unread()
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').jump_to_next_unread()
+    return
+  end
+  jump_in_listing(is_unseen, 1, 'No unread emails on this page')
+end
+
+--- Jump to the previous unseen email in the listing, wrapping around.
+function M.jump_to_prev_unread()
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').jump_to_prev_unread()
+    return
+  end
+  jump_in_listing(is_unseen, -1, 'No unread emails on this page')
+end
+
+--- Jump to the next read email in the listing, wrapping around.
+function M.jump_to_next_read()
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').jump_to_next_read()
+    return
+  end
+  jump_in_listing(is_seen, 1, 'No read emails on this page')
+end
+
+--- Jump to the previous read email in the listing, wrapping around.
+function M.jump_to_prev_read()
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').jump_to_prev_read()
+    return
+  end
+  jump_in_listing(is_seen, -1, 'No read emails on this page')
 end
 
 return M

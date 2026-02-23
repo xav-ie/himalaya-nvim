@@ -31,7 +31,10 @@ describe('himalaya.domain.email', function()
     assert.is_function(email.apply_search_preset)
     assert.is_function(email.resize_listing)
     assert.is_function(email.cleanup)
-    assert.is_function(email.jump_to_unread)
+    assert.is_function(email.jump_to_next_unread)
+    assert.is_function(email.jump_to_prev_unread)
+    assert.is_function(email.jump_to_next_read)
+    assert.is_function(email.jump_to_prev_read)
   end)
 
   it('exposes compose functions', function()
@@ -994,7 +997,7 @@ describe('himalaya.domain.email (extended)', function()
     end)
   end)
 
-  describe('jump_to_unread', function()
+  describe('jump_to_next_unread', function()
     it('moves cursor to first unseen line', function()
       local buf = track(make_listing_buf({ 10, 20, 30 }))
       vim.b[buf].himalaya_envelopes = {
@@ -1003,7 +1006,7 @@ describe('himalaya.domain.email (extended)', function()
         { id = 30, flags = { 'Seen' }, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
       }
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
-      email.jump_to_unread()
+      email.jump_to_next_unread()
       assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
     end)
 
@@ -1015,7 +1018,7 @@ describe('himalaya.domain.email (extended)', function()
         { id = 30, flags = { 'Seen' }, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
       }
       vim.api.nvim_win_set_cursor(0, { 2, 0 })
-      email.jump_to_unread()
+      email.jump_to_next_unread()
       assert.are.equal(1, vim.api.nvim_win_get_cursor(0)[1])
     end)
 
@@ -1033,19 +1036,125 @@ describe('himalaya.domain.email (extended)', function()
           notified = true
         end
       end
-      email.jump_to_unread()
+      email.jump_to_next_unread()
       vim.notify = orig
       assert.is_true(notified)
     end)
 
     it('delegates to thread_listing for thread-listing buffers', function()
       local jumped = false
-      package.loaded['himalaya.domain.email.thread_listing'].jump_to_unread = function()
+      package.loaded['himalaya.domain.email.thread_listing'].jump_to_next_unread = function()
         jumped = true
       end
       local buf = track(make_listing_buf({ 42 }))
       vim.b[buf].himalaya_buffer_type = 'thread-listing'
-      email.jump_to_unread()
+      email.jump_to_next_unread()
+      assert.is_true(jumped)
+    end)
+  end)
+
+  describe('jump_to_prev_unread', function()
+    it('moves cursor to previous unseen line', function()
+      local buf = track(make_listing_buf({ 10, 20, 30 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 10, flags = { 'Seen' }, subject = 'A', from = { name = 'X' }, date = '2024-01-01' },
+        { id = 20, flags = {}, subject = 'B', from = { name = 'Y' }, date = '2024-01-01' },
+        { id = 30, flags = { 'Seen' }, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
+      }
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
+      email.jump_to_prev_unread()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+    end)
+
+    it('wraps from beginning to end', function()
+      local buf = track(make_listing_buf({ 10, 20, 30 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 10, flags = { 'Seen' }, subject = 'A', from = { name = 'X' }, date = '2024-01-01' },
+        { id = 20, flags = { 'Seen' }, subject = 'B', from = { name = 'Y' }, date = '2024-01-01' },
+        { id = 30, flags = {}, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
+      }
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.jump_to_prev_unread()
+      assert.are.equal(3, vim.api.nvim_win_get_cursor(0)[1])
+    end)
+
+    it('delegates to thread_listing for thread-listing buffers', function()
+      local jumped = false
+      package.loaded['himalaya.domain.email.thread_listing'].jump_to_prev_unread = function()
+        jumped = true
+      end
+      local buf = track(make_listing_buf({ 42 }))
+      vim.b[buf].himalaya_buffer_type = 'thread-listing'
+      email.jump_to_prev_unread()
+      assert.is_true(jumped)
+    end)
+  end)
+
+  describe('jump_to_next_read', function()
+    it('moves cursor to next read line', function()
+      local buf = track(make_listing_buf({ 10, 20, 30 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 10, flags = {}, subject = 'A', from = { name = 'X' }, date = '2024-01-01' },
+        { id = 20, flags = { 'Seen' }, subject = 'B', from = { name = 'Y' }, date = '2024-01-01' },
+        { id = 30, flags = {}, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
+      }
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      email.jump_to_next_read()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+    end)
+
+    it('notifies when no read emails', function()
+      local buf = track(make_listing_buf({ 10, 20 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 10, flags = {}, subject = 'A', from = { name = 'X' }, date = '2024-01-01' },
+        { id = 20, flags = {}, subject = 'B', from = { name = 'Y' }, date = '2024-01-01' },
+      }
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local notified = false
+      local orig = vim.notify
+      vim.notify = function(msg)
+        if type(msg) == 'string' and msg:find('No read') then
+          notified = true
+        end
+      end
+      email.jump_to_next_read()
+      vim.notify = orig
+      assert.is_true(notified)
+    end)
+
+    it('delegates to thread_listing for thread-listing buffers', function()
+      local jumped = false
+      package.loaded['himalaya.domain.email.thread_listing'].jump_to_next_read = function()
+        jumped = true
+      end
+      local buf = track(make_listing_buf({ 42 }))
+      vim.b[buf].himalaya_buffer_type = 'thread-listing'
+      email.jump_to_next_read()
+      assert.is_true(jumped)
+    end)
+  end)
+
+  describe('jump_to_prev_read', function()
+    it('moves cursor to previous read line', function()
+      local buf = track(make_listing_buf({ 10, 20, 30 }))
+      vim.b[buf].himalaya_envelopes = {
+        { id = 10, flags = {}, subject = 'A', from = { name = 'X' }, date = '2024-01-01' },
+        { id = 20, flags = { 'Seen' }, subject = 'B', from = { name = 'Y' }, date = '2024-01-01' },
+        { id = 30, flags = {}, subject = 'C', from = { name = 'Z' }, date = '2024-01-01' },
+      }
+      vim.api.nvim_win_set_cursor(0, { 3, 0 })
+      email.jump_to_prev_read()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+    end)
+
+    it('delegates to thread_listing for thread-listing buffers', function()
+      local jumped = false
+      package.loaded['himalaya.domain.email.thread_listing'].jump_to_prev_read = function()
+        jumped = true
+      end
+      local buf = track(make_listing_buf({ 42 }))
+      vim.b[buf].himalaya_buffer_type = 'thread-listing'
+      email.jump_to_prev_read()
       assert.is_true(jumped)
     end)
   end)

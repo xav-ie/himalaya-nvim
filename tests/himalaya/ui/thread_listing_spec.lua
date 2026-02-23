@@ -121,7 +121,7 @@ describe('himalaya.ui.thread_listing', function()
     local bindings = call_args[2]
     assert.are.equal(7, #bindings)
 
-    local expected_keys = { '<cr>', 'gp', 'gn', 'g/', 'g?', 'gt', 'gT' }
+    local expected_keys = { '<cr>', '[[', ']]', 'g/', 'g?', 'gt', 'gT' }
     for i, expected in ipairs(expected_keys) do
       assert.are.equal(expected, bindings[i][2])
     end

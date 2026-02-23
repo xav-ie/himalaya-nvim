@@ -541,8 +541,18 @@ function M._set_state(rows, page)
   current_page = page
 end
 
---- Jump to the next unseen email in the thread listing, wrapping around.
-function M.jump_to_unread()
+--- Check whether an envelope has the Seen flag.
+--- @param env table
+--- @return boolean
+local function is_seen(env)
+  return not is_unseen(env)
+end
+
+--- Generic: search visible page for matching envelope in given direction.
+--- @param predicate function(env): boolean
+--- @param direction number  +1 for forward, -1 for backward
+--- @param no_match_msg string
+local function jump_in_thread_listing(predicate, direction, no_match_msg)
   if not all_display_rows then
     return
   end
@@ -556,14 +566,34 @@ function M.jump_to_unread()
   end
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   for i = 1, slice_len do
-    local idx = ((cursor - 1 + i) % slice_len) + 1
+    local idx = ((cursor - 1 + i * direction) % slice_len) + 1
     local row = all_display_rows[start_idx + idx - 1]
-    if is_unseen(row.env) then
+    if predicate(row.env) then
       vim.api.nvim_win_set_cursor(0, { idx, 0 })
       return
     end
   end
-  log.info('No unread emails on this page')
+  log.info(no_match_msg)
+end
+
+--- Jump to the next unseen email in the thread listing, wrapping around.
+function M.jump_to_next_unread()
+  jump_in_thread_listing(is_unseen, 1, 'No unread emails on this page')
+end
+
+--- Jump to the previous unseen email in the thread listing, wrapping around.
+function M.jump_to_prev_unread()
+  jump_in_thread_listing(is_unseen, -1, 'No unread emails on this page')
+end
+
+--- Jump to the next read email in the thread listing, wrapping around.
+function M.jump_to_next_read()
+  jump_in_thread_listing(is_seen, 1, 'No read emails on this page')
+end
+
+--- Jump to the previous read email in the thread listing, wrapping around.
+function M.jump_to_prev_read()
+  jump_in_thread_listing(is_seen, -1, 'No read emails on this page')
 end
 
 return M

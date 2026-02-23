@@ -72,7 +72,7 @@ describe('himalaya.ui.reading', function()
   it('setup() registers reading keybinds', function()
     reading.setup(bufnr)
     local maps = vim.api.nvim_buf_get_keymap(bufnr, 'n')
-    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gA', 'gC', 'gM', 'gD', 'go', 'gn', 'gp', '?' }
+    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gA', 'gC', 'gM', 'gD', 'go', ']]', '[[', '?' }
     for _, key in ipairs(expected_keys) do
       local found = false
       for _, map in ipairs(maps) do
@@ -177,36 +177,36 @@ describe('himalaya.ui.reading', function()
       end
     end)
 
-    it('gn navigates to next email', function()
+    it(']] navigates to next email', function()
       reading.setup(bufnr)
       -- Current window has bufnr, keymaps are buffer-local
-      vim.cmd('normal gn')
+      vim.cmd('normal ]]')
       assert.is_true(email_read_called)
       local row = vim.api.nvim_win_get_cursor(listing_winid)[1]
       assert.are.equal(3, row)
     end)
 
-    it('gp navigates to previous email', function()
+    it('[[ navigates to previous email', function()
       reading.setup(bufnr)
-      vim.cmd('normal gp')
+      vim.cmd('normal [[')
       assert.is_true(email_read_called)
       local row = vim.api.nvim_win_get_cursor(listing_winid)[1]
       assert.are.equal(1, row)
     end)
 
-    it('gn does nothing at last line', function()
+    it(']] does nothing at last line', function()
       vim.api.nvim_win_set_cursor(listing_winid, { 3, 0 })
       reading.setup(bufnr)
-      vim.cmd('normal gn')
+      vim.cmd('normal ]]')
       assert.is_false(email_read_called)
       local row = vim.api.nvim_win_get_cursor(listing_winid)[1]
       assert.are.equal(3, row)
     end)
 
-    it('gp does nothing at first line', function()
+    it('[[ does nothing at first line', function()
       vim.api.nvim_win_set_cursor(listing_winid, { 1, 0 })
       reading.setup(bufnr)
-      vim.cmd('normal gp')
+      vim.cmd('normal [[')
       assert.is_false(email_read_called)
       local row = vim.api.nvim_win_get_cursor(listing_winid)[1]
       assert.are.equal(1, row)
@@ -225,7 +225,7 @@ describe('himalaya.ui.reading', function()
       reading = require('himalaya.ui.reading')
       reading.setup(bufnr)
       -- Should not error
-      vim.cmd('normal gn')
+      vim.cmd('normal ]]')
       assert.is_false(email_read_called)
     end)
   end)

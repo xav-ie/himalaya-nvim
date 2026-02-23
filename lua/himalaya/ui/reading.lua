@@ -56,7 +56,7 @@ function M.setup(bufnr)
     { 'n', 'go', email.open_browser, 'email-open-browser' },
     {
       'n',
-      'gn',
+      ']]',
       function()
         navigate_email(1)
       end,
@@ -64,7 +64,7 @@ function M.setup(bufnr)
     },
     {
       'n',
-      'gp',
+      '[[',
       function()
         navigate_email(-1)
       end,

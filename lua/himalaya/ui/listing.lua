@@ -194,8 +194,8 @@ function M.setup(bufnr)
 
   keybinds.shared_listing_keybinds(bufnr)
   keybinds.define(bufnr, {
-    { 'n', 'gp', folder.select_previous_page, 'folder-select-previous-page' },
-    { 'n', 'gn', folder.select_next_page, 'folder-select-next-page' },
+    { 'n', '[[', folder.select_previous_page, 'folder-select-previous-page' },
+    { 'n', ']]', folder.select_next_page, 'folder-select-next-page' },
     { 'n', '<cr>', email.read, 'email-read' },
     { 'n', 'g/', email.set_list_envelopes_query, 'email-set-list-envelopes-query' },
     { 'n', 'g?', email.apply_search_preset, 'email-search-preset' },
