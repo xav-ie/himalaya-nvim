@@ -82,6 +82,38 @@ describe('himalaya.request', function()
       assert.is_true(errored)
     end)
 
+    it('calls on_error when exit 0 but stderr contains Error:', function()
+      local errored = false
+      local data_called = false
+      request.json({
+        cmd = 'envelope list',
+        msg = 'test',
+        silent = true,
+        on_data = function()
+          data_called = true
+        end,
+        on_error = function()
+          errored = true
+        end,
+      })
+      captured_on_exit('', '\27[31mError:\27[0m cannot parse search query', 0)
+      assert.is_true(errored)
+      assert.is_false(data_called)
+    end)
+
+    it('passes through when exit 0 with non-error stderr', function()
+      local result
+      request.json({
+        cmd = 'envelope list',
+        msg = 'test',
+        on_data = function(data)
+          result = data
+        end,
+      })
+      captured_on_exit('[{"id":1}]', 'some warning', 0)
+      assert.are.same({ { id = 1 } }, result)
+    end)
+
     it('bails out when is_stale returns true', function()
       local called = false
       request.json({
@@ -246,6 +278,24 @@ describe('himalaya.request', function()
       local err_msg = notify_calls[#notify_calls].msg
       assert.is_truthy(err_msg:find('FAIL'))
       assert.is_truthy(err_msg:find('exit code 2'))
+    end)
+
+    it('logs stderr error for exit 0 with Error: prefix (non-silent)', function()
+      local orig_notify = vim.notify
+      vim.notify = function(msg, level)
+        table.insert(notify_calls, { msg = msg, level = level })
+      end
+      request.json({
+        cmd = 'envelope list',
+        msg = 'Fetching envelopes',
+        on_data = function() end,
+      })
+      captured_on_exit('', '\27[31mError:\27[0m cannot parse search query `bad`', 0)
+      vim.notify = orig_notify
+      assert.is_true(#notify_calls > 0)
+      local err_msg = notify_calls[#notify_calls].msg
+      assert.is_truthy(err_msg:find('cannot parse'))
+      assert.is_truthy(err_msg:find('Fetching envelopes'))
     end)
 
     it('logs JSON parse error for invalid JSON (non-silent)', function()

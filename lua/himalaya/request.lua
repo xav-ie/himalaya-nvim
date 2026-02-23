@@ -57,6 +57,22 @@ local function on_exit(cmd, opts, parse_fn)
       return
     end
 
+    -- CLI may exit 0 but write errors to stderr (e.g. query parse failures).
+    -- Strip ANSI escapes and check for the standard "Error:" prefix.
+    if stderr ~= '' then
+      local plain_stderr = stderr:gsub('\27%[[%d;]*m', '')
+      if plain_stderr:match('^%s*Error:') then
+        if not opts.silent then
+          local first_line = plain_stderr:match('^%s*Error:%s*([^\n]+)') or plain_stderr:match('^[^\n]+')
+          log.err(string.format('%s: %s', opts.msg, first_line))
+        end
+        if opts.on_error then
+          opts.on_error()
+        end
+        return
+      end
+    end
+
     local data = parse_fn(stdout)
     if data == nil then
       if opts.on_error then
