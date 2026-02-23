@@ -103,23 +103,58 @@ local function render_listing_buffer(bufnr, envelopes)
   return result
 end
 
+--- Check whether an envelope lacks the Seen flag.
+--- @param env table
+--- @return boolean
+local function is_unseen(env)
+  local flags = env.flags
+  if not flags then
+    return true
+  end
+  for _, f in ipairs(flags) do
+    if f == 'Seen' then
+      return false
+    end
+  end
+  return true
+end
+
+--- Count unseen envelopes in a list.
+--- @param envelopes table[]
+--- @return number
+local function count_unseen(envelopes)
+  local n = 0
+  for _, env in ipairs(envelopes) do
+    if is_unseen(env) then
+      n = n + 1
+    end
+  end
+  return n
+end
+
 --- Update the buffer title with folder, query, page, and total info.
 --- @param folder string
 --- @param qry string
 --- @param pg number
 --- @param total_str string
 --- @param bufcmd? string  vim command to set name ('file' or 'edit', defaults to 'file')
-local function update_listing_title(folder, qry, pg, total_str, bufcmd)
+--- @param unread? number  count of unseen envelopes on the page
+local function update_listing_title(folder, qry, pg, total_str, bufcmd, unread)
   bufcmd = bufcmd or 'file'
   local display_query = qry == '' and 'all' or qry
+  local unread_str = ''
+  if unread and unread > 0 then
+    unread_str = string.format(' [%d unread]', unread)
+  end
   vim.cmd(
     string.format(
-      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]',
+      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]%s',
       bufcmd,
       folder,
       display_query,
       pg,
-      total_str
+      total_str,
+      unread_str
     )
   )
 end
@@ -207,7 +242,9 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
-  update_listing_title(folder, qry, page, total_str, bufcmd)
+  local new_offset = fetch_offset or ((page - 1) * pg_size)
+  local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
+  update_listing_title(folder, qry, page, total_str, bufcmd, count_unseen(page_data))
   vim.bo[bufnr].modifiable = true
   vim.b[bufnr].himalaya_account = account
   vim.b[bufnr].himalaya_folder = folder
@@ -215,7 +252,6 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
   vim.b[bufnr].himalaya_page_size = pg_size
   vim.b[bufnr].himalaya_query = qry
 
-  local new_offset = fetch_offset or ((page - 1) * pg_size)
   if vim.b[bufnr].himalaya_cache_key ~= cache_key then
     vim.b[bufnr].himalaya_envelopes = data
     vim.b[bufnr].himalaya_cache_offset = new_offset
@@ -226,8 +262,6 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
     vim.b[bufnr].himalaya_cache_offset = merged_offset
   end
   vim.b[bufnr].himalaya_cache_key = cache_key
-
-  local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
 
   local result = renderer.render(page_data, M._bufwidth())
   -- Set winbar first so page_size() reflects actual visible area
@@ -1035,7 +1069,7 @@ function M.resize_listing()
     local acct_flag = account_flag(vim.b.himalaya_account or '')
     local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. buf_query
     local total_str = probe.total_pages_str(cache_key, new_page_size)
-    update_listing_title(folder_name, buf_query, new_page, total_str)
+    update_listing_title(folder_name, buf_query, new_page, total_str, nil, count_unseen(display_envelopes))
 
     render_listing_buffer(bufnr, display_envelopes)
 
@@ -1154,6 +1188,35 @@ function M._set_resize_job(j)
 end
 function M._get_resize_job()
   return resize_job
+end
+
+--- Jump to the next unseen email in the listing, wrapping around.
+function M.jump_to_unread()
+  if vim.b.himalaya_buffer_type == 'thread-listing' then
+    require('himalaya.domain.email.thread_listing').jump_to_unread()
+    return
+  end
+  if not in_listing_buffer() then
+    return
+  end
+  local envelopes = vim.b.himalaya_envelopes
+  if not envelopes then
+    return
+  end
+  local display = display_slice(envelopes)
+  local total = #display
+  if total == 0 then
+    return
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)[1]
+  for i = 1, total do
+    local idx = ((cursor - 1 + i) % total) + 1
+    if is_unseen(display[idx]) then
+      vim.api.nvim_win_set_cursor(0, { idx, 0 })
+      return
+    end
+  end
+  log.info('No unread emails on this page')
 end
 
 return M

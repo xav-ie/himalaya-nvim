@@ -125,6 +125,7 @@ function M.shared_listing_keybinds(bufnr)
     { 'v', 'gs', M.visual_range(email.mark_seen), 'email-mark-seen-visual' },
     { 'n', 'gS', email.mark_unseen, 'email-mark-unseen' },
     { 'v', 'gS', M.visual_range(email.mark_unseen), 'email-mark-unseen-visual' },
+    { 'n', 'gu', email.jump_to_unread, 'email-jump-to-unread' },
     { 'n', 'gFa', email.flag_add, 'email-flag-add' },
     { 'v', 'gFa', M.visual_range(email.flag_add), 'email-flag-add-visual' },
     { 'n', 'gFr', email.flag_remove, 'email-flag-remove' },

@@ -266,6 +266,66 @@ describe('himalaya.domain.email.thread_listing', function()
   end)
 
   -- ----------------------------------------------------------------
+  -- jump_to_unread
+  -- ----------------------------------------------------------------
+  describe('jump_to_unread', function()
+    it('moves cursor to unseen row', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = { 'Seen' }
+      rows[2].env.flags = {}
+      rows[3].env.flags = { 'Seen' }
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      thread_listing.jump_to_unread()
+      assert.are.equal(2, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('wraps correctly', function()
+      local rows = make_rows(3)
+      rows[1].env.flags = {}
+      rows[2].env.flags = { 'Seen' }
+      rows[3].env.flags = { 'Seen' }
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 2, 0 })
+      thread_listing.jump_to_unread()
+      assert.are.equal(1, vim.api.nvim_win_get_cursor(0)[1])
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('notifies when all emails are seen', function()
+      local rows = make_rows(2)
+      rows[1].env.flags = { 'Seen' }
+      rows[2].env.flags = { 'Seen' }
+      thread_listing._set_state(rows, 1)
+      local bufnr = make_buf()
+      thread_listing.render_page(1)
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local notified = false
+      local orig = vim.notify
+      vim.notify = function(msg)
+        if type(msg) == 'string' and msg:find('No unread') then
+          notified = true
+        end
+      end
+      thread_listing.jump_to_unread()
+      vim.notify = orig
+      assert.is_true(notified)
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+
+    it('is a no-op when no display rows', function()
+      local bufnr = make_buf()
+      thread_listing.jump_to_unread() -- should not error
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+    end)
+  end)
+
+  -- ----------------------------------------------------------------
   -- toggle_reverse
   -- ----------------------------------------------------------------
   describe('toggle_reverse', function()

@@ -21,9 +21,6 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
   config that auto-populate cc/bcc/signature fields in compose
   buffers, accelerating repetitive email composition.
 
-- **Jump-to-unread** — Add a keybind to jump to the first unseen
-  email in the listing and show unread count in the buffer title.
-
 ## Plugin Integration
 
 - **which-key.nvim integration** — Auto-register all himalaya

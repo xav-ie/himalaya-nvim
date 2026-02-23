@@ -34,6 +34,35 @@ local function rebuild_id_index()
   end
 end
 
+--- Check whether an envelope lacks the Seen flag.
+--- @param env table
+--- @return boolean
+local function is_unseen(env)
+  local flags = env.flags
+  if not flags then
+    return true
+  end
+  for _, f in ipairs(flags) do
+    if f == 'Seen' then
+      return false
+    end
+  end
+  return true
+end
+
+--- Count unseen envelopes in a list of display rows.
+--- @param rows table[]
+--- @return number
+local function count_unseen_rows(rows)
+  local n = 0
+  for _, row in ipairs(rows) do
+    if is_unseen(row.env) then
+      n = n + 1
+    end
+  end
+  return n
+end
+
 --- Kill all in-flight thread listing jobs synchronously.
 --- Called before any new CLI command to avoid database lock contention.
 function M.cancel_jobs()
@@ -88,14 +117,17 @@ function M.render_page(page, opts)
   local folder = vim.b.himalaya_folder or 'INBOX'
   local display_query = thread_query == '' and 'all' or thread_query
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
+  local unread = count_unseen_rows(slice)
+  local unread_str = unread > 0 and string.format(' [%d unread]', unread) or ''
   vim.cmd(
     string.format(
-      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]',
+      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]%s',
       buftype,
       folder,
       display_query,
       page,
-      total_pages
+      total_pages,
+      unread_str
     )
   )
   vim.bo.modifiable = true
@@ -507,6 +539,31 @@ function M._set_state(rows, page)
   all_display_rows = rows
   rebuild_id_index()
   current_page = page
+end
+
+--- Jump to the next unseen email in the thread listing, wrapping around.
+function M.jump_to_unread()
+  if not all_display_rows then
+    return
+  end
+  local listing = require('himalaya.ui.listing')
+  local ps = listing.effective_page_size()
+  local start_idx = (current_page - 1) * ps + 1
+  local end_idx = math.min(#all_display_rows, start_idx + ps - 1)
+  local slice_len = end_idx - start_idx + 1
+  if slice_len <= 0 then
+    return
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)[1]
+  for i = 1, slice_len do
+    local idx = ((cursor - 1 + i) % slice_len) + 1
+    local row = all_display_rows[start_idx + idx - 1]
+    if is_unseen(row.env) then
+      vim.api.nvim_win_set_cursor(0, { idx, 0 })
+      return
+    end
+  end
+  log.info('No unread emails on this page')
 end
 
 return M
