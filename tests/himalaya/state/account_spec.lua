@@ -193,6 +193,61 @@ describe('himalaya.state.account', function()
     end)
   end)
 
+  describe('mock mode', function()
+    local mock_account
+
+    before_each(function()
+      package.loaded['himalaya.state.account'] = nil
+      package.loaded['himalaya.job'] = nil
+      package.loaded['himalaya.mock.data'] = nil
+
+      package.loaded['himalaya.job'] = {
+        run = function()
+          error('job.run should not be called in mock mode')
+        end,
+      }
+
+      package.loaded['himalaya.config'] = {
+        get = function()
+          return { executable = 'himalaya', mock = true }
+        end,
+      }
+
+      package.loaded['himalaya.mock.data'] = {
+        accounts = function()
+          return {
+            { name = 'personal', default = true },
+            { name = 'work', default = false },
+          }
+        end,
+      }
+
+      mock_account = require('himalaya.state.account')
+    end)
+
+    it('populates cache from mock data without job.run', function()
+      local result = mock_account.list()
+      assert.are.same({ 'personal', 'work' }, result)
+    end)
+
+    it('sets default account from mock data', function()
+      mock_account.warmup()
+      assert.are.equal('personal', mock_account.default())
+    end)
+
+    it('calls async callback via schedule', function()
+      local received
+      mock_account.list_async(function(names)
+        received = names
+      end)
+      -- callback is deferred via vim.schedule; flush it
+      vim.wait(50, function()
+        return received ~= nil
+      end)
+      assert.are.same({ 'personal', 'work' }, received)
+    end)
+  end)
+
   describe('error handling', function()
     it('preserves existing cache on failed refresh', function()
       -- Warm the cache

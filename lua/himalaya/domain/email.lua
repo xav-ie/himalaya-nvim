@@ -296,6 +296,22 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
   vim.b[bufnr].himalaya_cache_key = cache_key
 
   local result = renderer.render(page_data, M._bufwidth())
+  -- Empty folder: show placeholder and finish early
+  if #page_data == 0 then
+    listing.apply_header(bufnr, result.header)
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { '  (no emails)' })
+    vim.b[bufnr].himalaya_buffer_type = 'listing'
+    vim.bo[bufnr].filetype = 'himalaya-email-listing'
+    vim.bo[bufnr].modified = false
+    require('himalaya.events').emit('EmailsListed', {
+      account = account,
+      folder = folder,
+      page = page,
+      count = 0,
+    })
+    probe.start(acct_flag, folder, pg_size, page, cli_qry, bufnr)
+    return
+  end
   -- Set winbar first so page_size() reflects actual visible area
   listing.apply_header(bufnr, result.header)
   -- After winbar is set, visible area may have shrunk — truncate if needed

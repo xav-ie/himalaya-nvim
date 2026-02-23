@@ -86,6 +86,11 @@ local function on_exit(cmd, opts, parse_fn)
 end
 
 function M.json(opts)
+  local mock = require('himalaya.mock')
+  if mock.enabled() then
+    return mock.json(opts)
+  end
+
   local args = opts.args or {}
   local cmd = M._build_cmd(opts.cmd, args, 'json')
 
@@ -108,6 +113,11 @@ function M.json(opts)
 end
 
 function M.plain(opts)
+  local mock = require('himalaya.mock')
+  if mock.enabled() then
+    return mock.plain(opts)
+  end
+
   local args = opts.args or {}
   local cmd = M._build_cmd(opts.cmd, args, 'plain')
 

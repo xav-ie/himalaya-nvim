@@ -24,6 +24,7 @@ local defaults = {
   background_sync = false,
   sync_interval = 60,
   signature = nil,
+  mock = false,
 }
 
 local current = vim.deepcopy(defaults)

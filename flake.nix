@@ -42,6 +42,23 @@
           '';
         in
         rec {
+          # nix run .#build-demo
+          packages.build-demo = pkgs.writeShellScriptBin "build-demo" ''
+            set -euo pipefail
+            process_tape() {
+              tape="$1"
+              name="$(basename "$tape" .tape)"
+              ${pkgs.lib.getExe pkgs.vhs} "$tape" -o "demo/$name.mp4"
+              ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
+                -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
+                -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
+              mv "demo/$name-out.mp4" "demo/$name.mp4"
+            }
+            export -f process_tape
+            ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
+              process_tape ::: demo/*.tape
+          '';
+
           # nix build
           packages.default = pkgs.vimUtils.buildVimPlugin {
             name = "himalaya";
@@ -79,6 +96,10 @@
               # Testing + coverage
               busted-nlua
               luajitPackages.luacov
+
+              # Demo recording
+              vhs
+              ffmpeg
 
               # FZF
               fzf

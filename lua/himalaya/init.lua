@@ -7,7 +7,7 @@ function M.setup(opts)
   config.setup(opts)
 
   local cfg = config.get()
-  if vim.fn.executable(cfg.executable) == 0 then
+  if not cfg.mock and vim.fn.executable(cfg.executable) == 0 then
     log.err('Himalaya CLI not found, see https://pimalaya.org/himalaya/cli/latest/installation/')
     return
   end

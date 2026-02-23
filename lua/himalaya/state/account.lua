@@ -49,6 +49,33 @@ local function refresh(callback)
     return
   end
   refresh_in_flight = true
+
+  if config.get().mock then
+    local mock_data = require('himalaya.mock.data')
+    refresh_in_flight = false
+    local entries = mock_data.accounts()
+    local names = {}
+    local default_name = nil
+    for _, entry in ipairs(entries) do
+      names[#names + 1] = entry.name
+      if entry.default then
+        default_name = entry.name
+      end
+    end
+    table.sort(names)
+    cached_accounts = names
+    cache_ts = vim.uv.now()
+    if not default_account and default_name then
+      default_account = default_name
+    end
+    if callback then
+      vim.schedule(function()
+        callback(cached_accounts)
+      end)
+    end
+    return
+  end
+
   job.run(build_cmd(), {
     on_exit = function(stdout, _stderr, code)
       refresh_in_flight = false

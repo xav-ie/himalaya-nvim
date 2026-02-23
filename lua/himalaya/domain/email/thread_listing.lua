@@ -101,6 +101,20 @@ function M.render_page(page, opts)
   local thread_renderer = require('himalaya.ui.thread_renderer')
   local listing = require('himalaya.ui.listing')
 
+  -- Empty folder: show placeholder
+  if #all_display_rows == 0 then
+    local folder = vim.b.himalaya_folder or 'INBOX'
+    local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
+    vim.cmd(string.format('silent! %s Himalaya/threads [%s] [all] [page 1⁄1]', buftype, folder))
+    local bufnr = vim.api.nvim_get_current_buf()
+    vim.bo[bufnr].modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { '  (no emails)' })
+    vim.b[bufnr].himalaya_buffer_type = 'thread-listing'
+    vim.bo[bufnr].filetype = 'himalaya-thread-listing'
+    vim.bo[bufnr].modified = false
+    return
+  end
+
   local ps = listing.effective_page_size()
 
   local total_pages = math.max(1, math.ceil(#all_display_rows / ps))

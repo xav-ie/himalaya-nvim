@@ -76,7 +76,6 @@ local function open_write_buffer(msg, content, account, folder, reply_id, mode)
   end
   vim.bo.filetype = 'himalaya-email-writing'
   vim.bo.modified = false
-  vim.cmd('0')
   require('himalaya.events').emit('ComposeOpened', {
     account = account,
     folder = folder,
@@ -151,7 +150,11 @@ function M.forward()
 end
 
 --- Save current buffer content as draft.
+--- Skipped if the email was already sent via :w.
 function M.save_draft()
+  if sent then
+    return
+  end
   vim.cmd('redraw')
   log.info('Save draft [OK]')
   vim.bo.modified = false
