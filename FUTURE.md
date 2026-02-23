@@ -23,9 +23,10 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
 
 ## Plugin Integration
 
-- **which-key.nvim integration** — Auto-register all himalaya
-  keybinds with descriptive categories so the `g` prefix shows a
-  discoverable menu out of the box.
+- **which-key.nvim group labels** — All keybinds already set `desc`
+  so which-key displays them automatically. Adding group registrations
+  for prefix keys (`g`, `gF`, `]`, `[`) would label the sub-menus
+  instead of showing "prefix".
 
 - **Telescope extension** — Build a full Telescope extension with
   live email search (with preview), account switcher, and search
