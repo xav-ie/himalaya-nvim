@@ -22,7 +22,7 @@ Sleep 2s
 
 # Navigate
 Hide
-Type@0ms ":Msg Navigate: j/k — jump to unread with ]u"
+Type@0ms ":Msg Navigate: <j>/<k> — jump to unread with <]u>"
 Enter
 Sleep 100ms
 Show
@@ -64,7 +64,7 @@ Sleep 1s
 
 # Pagination
 Hide
-Type@0ms ":Msg Paginate with ]] and [["
+Type@0ms ":Msg Paginate with <]]> and <[[>"
 Enter
 Sleep 100ms
 Show
@@ -78,7 +78,7 @@ Sleep 2s
 
 # Switch to thread view
 Hide
-Type@0ms ":Msg Switch to thread view with gt"
+Type@0ms ":Msg Switch to thread view with <gt>"
 Enter
 Sleep 100ms
 Show
@@ -101,7 +101,7 @@ Sleep 300ms
 
 # Toggle reverse order
 Hide
-Type@0ms ":Msg Reverse thread order with gT"
+Type@0ms ":Msg Reverse thread order with <gT>"
 Enter
 Sleep 100ms
 Show

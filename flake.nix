@@ -3,18 +3,17 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
-    utils.url = "github:numtide/flake-utils";
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
-  outputs = { self, nixpkgs, utils, ... }:
-    utils.lib.eachDefaultSystem
-      (system:
+  outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      imports = [ inputs.treefmt-nix.flakeModule ];
+
+      perSystem = { pkgs, self', system, ... }:
         let
-          pkgs = import nixpkgs { inherit system; };
           busted-nlua = pkgs.luajitPackages.busted.overrideAttrs (oa: {
             propagatedBuildInputs = oa.propagatedBuildInputs ++ [
               pkgs.luajitPackages.nlua
@@ -41,7 +40,13 @@
             let g:himalaya_complete_contact_cmd = 'echo test@localhost'
           '';
         in
-        rec {
+        {
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.stylua.enable = true;
+            programs.nixpkgs-fmt.enable = true;
+          };
+
           # nix run .#upload-demo
           # Requires: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars
           # (R2 S3-compatible credentials from Cloudflare dashboard)
@@ -76,7 +81,7 @@
           packages.default = pkgs.vimUtils.buildVimPlugin {
             name = "himalaya";
             namePrefix = "";
-            src = self;
+            src = inputs.self;
             nvimRequireCheck = "himalaya";
             # buildInputs = with pkgs; [ himalaya ];
             # postPatch = with pkgs; ''
@@ -86,13 +91,12 @@
           };
 
           # nix develop
-          devShell = pkgs.mkShell {
-            buildInputs = self.packages.${system}.default.buildInputs;
+          devShells.default = pkgs.mkShell {
+            buildInputs = self'.packages.default.buildInputs;
             nativeBuildInputs = with pkgs; [
 
-              # Nix LSP + formatter
+              # Nix LSP
               nixd
-              nixpkgs-fmt
 
               # Vim LSP
               nodejs
@@ -101,8 +105,7 @@
               # Lua LSP
               lua-language-server
 
-              # Linting + formatting
-              stylua
+              # Linting
               luajitPackages.luacheck
               parallel
 
@@ -125,7 +128,7 @@
                   inherit customRC;
                   packages.myplugins = {
                     start = with pkgs.vimPlugins; [ fzf-vim ];
-                    opt = [ self.packages.${system}.default ];
+                    opt = [ self'.packages.default ];
                   };
                 };
               })
@@ -134,11 +137,12 @@
                   inherit customRC;
                   packages.myPlugins = {
                     start = plugins [ "telescope-nvim" "fzf-vim" "plenary-nvim" ];
-                    opt = [ self.packages.${system}.default ];
+                    opt = [ self'.packages.default ];
                   };
                 };
               })
             ];
           };
-        });
+        };
+    };
 }

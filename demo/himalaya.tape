@@ -15,7 +15,7 @@ Show
 
 # Open himalaya — flat listing
 Hide
-Type@0ms ":Msg Open the email listing with :Himalaya"
+Type@0ms ":Msg Open the email listing with <:Himalaya>"
 Enter
 Sleep 100ms
 Show
@@ -27,7 +27,7 @@ Sleep 2s
 
 # Help overlay — show keybinds first
 Hide
-Type@0ms ":Msg Press ? for keybind help"
+Type@0ms ":Msg Press <?> for keybind help"
 Enter
 Sleep 100ms
 Show
@@ -40,7 +40,7 @@ Sleep 1s
 
 # Navigate and read
 Hide
-Type@0ms ":Msg Navigate with j/k — read with Enter"
+Type@0ms ":Msg Navigate with <j>/<k> — read with <Enter>"
 Enter
 Sleep 100ms
 Show
@@ -62,7 +62,7 @@ Sleep 1s
 
 # Sort toggle
 Hide
-Type@0ms ":Msg Toggle sort order with go"
+Type@0ms ":Msg Toggle sort order with <go>"
 Enter
 Sleep 100ms
 Show
@@ -77,7 +77,7 @@ Sleep 2s
 
 # Search
 Hide
-Type@0ms ":Msg Search emails with g/"
+Type@0ms ":Msg Search emails with <g/>"
 Enter
 Sleep 100ms
 Show
@@ -93,7 +93,7 @@ Sleep 2s
 
 # Change folder
 Hide
-Type@0ms ":Msg Switch mailbox with gm"
+Type@0ms ":Msg Switch mailbox with <gm>"
 Enter
 Sleep 100ms
 Show
@@ -143,7 +143,7 @@ Sleep 1s
 
 # Compose a new email
 Hide
-Type@0ms ":Msg Compose a new email with gw"
+Type@0ms ":Msg Compose a new email with <gw>"
 Enter
 Sleep 100ms
 Show

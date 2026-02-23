@@ -4,7 +4,7 @@ MIN_COVERAGE ?= 90
 
 check:
 	nix develop --command parallel --tagstring '[{#}:{=s/ .*//=}]' --line-buffer ::: \
-		'stylua --check lua/ tests/ plugin/' \
+		'nix fmt -- --fail-on-change' \
 		'luacheck lua/ tests/'
 	$(MAKE) coverage-check
 
@@ -29,13 +29,13 @@ coverage-check: coverage
 	@awk '/^lua\/himalaya\/.*\.lua\s/ { \
 		split($$0, a); pct = a[length(a)]; gsub(/%/, "", pct); \
 		if (pct + 0 < $(MIN_COVERAGE)) { printf "FAIL: %s at %s%% (min $(MIN_COVERAGE)%%)\n", a[1], pct; fail=1 } \
-	} END { if (fail) exit 1; print "All files >= $(MIN_COVERAGE)% coverage" }' luacov.report.out
+	} END { if (fail) exit 1; print "Each file >= $(MIN_COVERAGE)% coverage" }' luacov.report.out
 
 lint:
 	nix develop --command luacheck lua/ tests/
 
 fmt:
-	nix develop --command stylua lua/ tests/ plugin/
+	nix fmt
 
 fmt-check:
-	nix develop --command stylua --check lua/ tests/ plugin/
+	nix fmt -- --fail-on-change

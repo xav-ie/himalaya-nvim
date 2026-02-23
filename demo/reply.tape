@@ -29,7 +29,7 @@ Sleep 2s
 
 # Reply from the reading view
 Hide
-Type@0ms ":Msg Reply with gr"
+Type@0ms ":Msg Reply with <gr>"
 Enter
 Sleep 100ms
 Show
@@ -46,7 +46,7 @@ Sleep 1s
 
 # Send the reply
 Hide
-Type@0ms ":Msg Send reply with :w"
+Type@0ms ":Msg Send reply with <:w>"
 Enter
 Sleep 100ms
 Show

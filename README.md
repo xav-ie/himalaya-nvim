@@ -10,7 +10,7 @@
   </p>
 </div>
 
-https://github.com/user-attachments/assets/himalaya-demo.mp4
+<video src="https://himalaya-nvim.xav.ie/himalaya.mp4" controls width="100%"></video>
 
 ## Features
 
@@ -155,6 +155,8 @@ Open the email listing:
 | `]r` / `[r` | Jump to next/previous read |
 | `?` | Show keybind help |
 
+<video src="https://himalaya-nvim.xav.ie/listing.mp4" controls width="100%"></video>
+
 ### Thread view
 
 | Key | Action |
@@ -186,6 +188,8 @@ Open the email listing:
 | `gb` | Open in browser |
 | `?` | Show keybind help |
 
+<video src="https://himalaya-nvim.xav.ie/reply.mp4" controls width="100%"></video>
+
 ### Search
 
 The search popup (`g/`) provides structured per-field input:
@@ -206,6 +210,8 @@ The search popup (`g/`) provides structured per-field input:
 - **Enter** — submit search
 - **Esc** — cancel
 
+<video src="https://himalaya-nvim.xav.ie/search.mp4" controls width="100%"></video>
+
 ### Composing
 
 | Key | Action |
@@ -219,6 +225,8 @@ In the compose buffer:
 - `:w` sends the email
 - Leaving the buffer auto-saves as draft
 - Contact completion: `Ctrl-x Ctrl-u` (requires `complete_contact_cmd`)
+
+<video src="https://himalaya-nvim.xav.ie/compose.mp4" controls width="100%"></video>
 
 ### Common bindings (listing and thread view)
 

@@ -13,7 +13,7 @@ Enter
 Type ":Himalaya"
 Enter
 Sleep 1s
-Type@0ms ":Msg Compose a new email with gw"
+Type@0ms ":Msg Compose a new email with <gw>"
 Enter
 Sleep 100ms
 Show
@@ -42,7 +42,7 @@ Sleep 1s
 
 # Send the email
 Hide
-Type@0ms ":Msg Send with :w"
+Type@0ms ":Msg Send with <:w>"
 Enter
 Sleep 100ms
 Show

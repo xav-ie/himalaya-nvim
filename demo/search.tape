@@ -13,7 +13,7 @@ Enter
 Type ":Himalaya"
 Enter
 Sleep 1s
-Type@0ms ":Msg Search by subject with g/"
+Type@0ms ":Msg Search by subject with <g/>"
 Enter
 Sleep 100ms
 Show
@@ -36,7 +36,7 @@ Sleep 1s
 
 # Explain that g/ resumes previous query
 Hide
-Type@0ms ":Msg g/ again resumes previous query for further refinement"
+Type@0ms ":Msg <g/> again resumes previous query for further refinement"
 Enter
 Sleep 100ms
 Show
