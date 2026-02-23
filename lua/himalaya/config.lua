@@ -23,6 +23,7 @@ local defaults = {
   keymaps = {},
   background_sync = false,
   sync_interval = 60,
+  signature = nil,
 }
 
 local current = vim.deepcopy(defaults)

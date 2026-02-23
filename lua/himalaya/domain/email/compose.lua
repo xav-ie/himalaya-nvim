@@ -27,6 +27,16 @@ local function set_buffer_content(content)
   end
 end
 
+--- Append a signature to the given buffer (blank line + signature lines).
+--- @param bufnr number
+--- @param sig string
+local function append_signature(bufnr, sig)
+  local lines = vim.split(sig, '\n')
+  local last = vim.api.nvim_buf_line_count(bufnr)
+  vim.api.nvim_buf_set_lines(bufnr, last, last, false, { '' })
+  vim.api.nvim_buf_set_lines(bufnr, last + 1, last + 1, false, lines)
+end
+
 --- Internal: open a write/reply/forward buffer with template content.
 --- @param msg string buffer name suffix
 --- @param content string template content
@@ -56,6 +66,14 @@ local function open_write_buffer(msg, content, account, folder, reply_id, mode)
     vim.b.himalaya_reply_id = reply_id
   end
   set_buffer_content(content)
+  local cfg = require('himalaya.config').get()
+  local sig = cfg.signature
+  if type(sig) == 'table' then
+    sig = sig[account]
+  end
+  if type(sig) == 'string' and sig ~= '' then
+    append_signature(vim.api.nvim_get_current_buf(), sig)
+  end
   vim.bo.filetype = 'himalaya-email-writing'
   vim.bo.modified = false
   vim.cmd('0')

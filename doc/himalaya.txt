@@ -14,6 +14,7 @@ CONTENTS                                                  *himalaya-contents*
   5. Commands .......................... |himalaya-commands|
   6. Keybindings ....................... |himalaya-keybindings|
   7. Folder Pickers .................... |himalaya-pickers|
+  8. Events ............................ |himalaya-events|
 
 ==============================================================================
 1. INTRODUCTION                                       *himalaya-introduction*
@@ -138,6 +139,28 @@ always_confirm ~
 
   When true, himalaya-vim prompts for confirmation before moving or
   deleting messages.
+
+                                              *himalaya-config-signature*
+signature ~
+  Type: `string|table|nil`
+  Default: `nil`
+
+  Email signature appended to compose buffers. When set, a blank line
+  followed by the signature text is appended after the template content.
+
+  As a string, the same signature is used for all accounts:
+>lua
+    signature = '--\nJohn Doe'
+<
+  As a table, keys are account names and values are signature strings:
+>lua
+    signature = {
+      work = '--\nJohn Doe | Acme Corp',
+      personal = '--\nJohn',
+    }
+<
+  When nil or when the current account has no matching key, no signature
+  is appended.
 
 ==============================================================================
 5. COMMANDS                                               *himalaya-commands*
@@ -273,6 +296,54 @@ used in the following order:
 
 To force a specific picker, set |himalaya-config-folder_picker| to one of:
 `'telescope'`, `'fzflua'`, `'fzf'`, or `'native'`.
+
+==============================================================================
+8. EVENTS                                                   *himalaya-events*
+
+Himalaya-vim emits events via `require('himalaya.events')`. You can
+register listeners with `on(event, fn)` for persistent handlers and
+`once(event, fn)` for one-shot handlers. Unsubscribe with `off(id)`.
+
+                                                    *himalaya-ComposeOpened*
+ComposeOpened ~
+  Fired after a compose buffer is created (write, reply, reply_all, or
+  forward). The callback receives a table with:
+
+    `account`   (string)  active account name
+    `folder`    (string)  active folder
+    `mode`      (string)  `'write'`, `'reply'`, `'reply_all'`, or `'forward'`
+    `bufnr`     (number)  buffer handle
+    `reply_id`  (string|nil) email ID being replied to
+
+  This event fires after the built-in signature is appended (see
+  |himalaya-config-signature|), so listeners can further modify the
+  buffer content. Use this as an escape hatch for advanced use cases
+  such as injecting cc/bcc headers or per-mode signatures:
+>lua
+    local events = require('himalaya.events')
+    events.on('ComposeOpened', function(data)
+      if data.mode == 'reply' then
+        -- Prepend a cc header to the buffer
+        local lines = vim.api.nvim_buf_get_lines(data.bufnr, 0, -1, false)
+        table.insert(lines, 2, 'Cc: team@example.com')
+        vim.api.nvim_buf_set_lines(data.bufnr, 0, -1, false, lines)
+      end
+    end)
+<
+
+                                                       *himalaya-EmailSent*
+EmailSent ~
+  Fired after an email is successfully sent. Payload:
+
+    `account`   (string)  account used
+    `folder`    (string)  active folder
+    `reply_id`  (string|nil) email ID replied to (nil for new compose)
+
+                                                      *himalaya-DraftSaved*
+DraftSaved ~
+  Fired after a draft is saved. Payload:
+
+    `account`   (string)  account used
 
 ==============================================================================
  vim:tw=78:ts=8:ft=help:norl:

@@ -330,10 +330,14 @@ describe('himalaya.domain.email.compose (write/reply/forward)', function()
       end,
     }
 
+    package.loaded['himalaya.config'] = nil
+    require('himalaya.config')._reset()
+
     compose = require('himalaya.domain.email.compose')
   end)
 
   after_each(function()
+    require('himalaya.config')._reset()
     for _, b in ipairs(tracked_bufs) do
       if vim.api.nvim_buf_is_valid(b) then
         vim.api.nvim_buf_delete(b, { force = true })
@@ -429,6 +433,72 @@ describe('himalaya.domain.email.compose (write/reply/forward)', function()
       assert.is_nil(vim.b.himalaya_reply_id)
       assert.are.equal(1, #emitted_events)
       assert.are.equal('forward', emitted_events[1].data.mode)
+      track(vim.api.nvim_get_current_buf())
+    end)
+  end)
+
+  describe('signature', function()
+    it('appends string signature to buffer', function()
+      require('himalaya.config').setup({ signature = '--\nJohn Doe' })
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      compose.write('To: \nSubject: \n\nBody')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal('', lines[#lines - 2])
+      assert.are.equal('--', lines[#lines - 1])
+      assert.are.equal('John Doe', lines[#lines])
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('appends per-account signature when account matches', function()
+      require('himalaya.config').setup({
+        signature = {
+          ['test-acct'] = '--\nWork Sig',
+          personal = '--\nPersonal Sig',
+        },
+      })
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      compose.write('To: \nSubject: \n\nBody')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal('', lines[#lines - 2])
+      assert.are.equal('--', lines[#lines - 1])
+      assert.are.equal('Work Sig', lines[#lines])
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('does not append signature when account is missing from table', function()
+      require('himalaya.config').setup({
+        signature = {
+          other = '--\nOther Sig',
+        },
+      })
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      compose.write('To: \nSubject: \n\nBody')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      -- Last line should be Body, no blank + signature appended
+      assert.are.equal('Body', lines[#lines])
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('does not append signature when signature is nil', function()
+      require('himalaya.config').setup({ signature = nil })
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      compose.write('To: \nSubject: \n\nBody')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal('Body', lines[#lines])
+      track(vim.api.nvim_get_current_buf())
+    end)
+
+    it('does not append blank line when signature is empty string', function()
+      require('himalaya.config').setup({ signature = '' })
+      package.loaded['himalaya.domain.email.compose'] = nil
+      compose = require('himalaya.domain.email.compose')
+      compose.write('To: \nSubject: \n\nBody')
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.equal('Body', lines[#lines])
       track(vim.api.nvim_get_current_buf())
     end)
   end)

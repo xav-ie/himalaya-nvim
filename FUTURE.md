@@ -16,9 +16,9 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
 - ~~**Search input validation**~~ — Done. CLI errors from bad queries
   are now surfaced via stderr error logging (`a3e14a7`).
 
-- **Compose templates** — Support user-defined Lua templates in
-  config that auto-populate cc/bcc/signature fields in compose
-  buffers, accelerating repetitive email composition.
+- ~~**Compose templates**~~ — Done (scoped). Per-account signatures
+  built-in via `signature` config option; advanced use cases (cc/bcc
+  injection, per-mode templates) documented via `ComposeOpened` event.
 
 ## Plugin Integration
 
