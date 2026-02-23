@@ -8,6 +8,13 @@ function M.open_picker(callback)
   account_state.list_async(function(names)
     local current = context.resolve()
 
+    -- When the initial listing was opened before warmup completed,
+    -- himalaya_account may be empty.  Fall back to the CLI default
+    -- so the rotation still works on the first picker invocation.
+    if current == '' then
+      current = account_state.default()
+    end
+
     -- Rotate so the account after the current one is first.
     -- ga<Enter> cycles to the next account.
     local start = 1
