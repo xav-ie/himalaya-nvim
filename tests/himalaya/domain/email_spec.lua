@@ -35,6 +35,7 @@ describe('himalaya.domain.email', function()
     assert.is_function(email.jump_to_prev_unread)
     assert.is_function(email.jump_to_next_read)
     assert.is_function(email.jump_to_prev_read)
+    assert.is_function(email.toggle_sort)
   end)
 
   it('exposes compose functions', function()
@@ -72,6 +73,24 @@ describe('himalaya.domain.email', function()
           '\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\xbc\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80'
         )
       )
+    end)
+  end)
+
+  describe('build_cli_query', function()
+    it('returns filter only when sort is empty', function()
+      assert.are.equal('subject hello', email._build_cli_query('subject hello', ''))
+    end)
+
+    it('returns order-by only when filter is empty', function()
+      assert.are.equal('order by date desc', email._build_cli_query('', 'date desc'))
+    end)
+
+    it('combines filter and sort', function()
+      assert.are.equal('subject hello order by date asc', email._build_cli_query('subject hello', 'date asc'))
+    end)
+
+    it('returns empty when both are empty', function()
+      assert.are.equal('', email._build_cli_query('', ''))
     end)
   end)
 
@@ -417,6 +436,75 @@ describe('himalaya.domain.email (extended)', function()
       email.list_with('acct', 'INBOX', 2, '')
       assert.is_true(first.is_stale())
       assert.is_false(captured_json.is_stale())
+    end)
+  end)
+
+  describe('toggle_sort', function()
+    it('applies selected sort and refreshes', function()
+      local orig_select = vim.ui.select
+      vim.ui.select = function(_items, _, cb)
+        cb('from asc')
+      end
+      local buf = track(make_listing_buf({ 1 }))
+      vim.b[buf].himalaya_page = 3
+      email.toggle_sort()
+      vim.ui.select = orig_select
+      assert.are.equal('from asc', vim.b[buf].himalaya_sort)
+      assert.are.equal(1, vim.b[buf].himalaya_page)
+      assert.is_not_nil(captured_json)
+    end)
+
+    it('does nothing when user cancels picker', function()
+      local orig_select = vim.ui.select
+      vim.ui.select = function(_, _, cb)
+        cb(nil)
+      end
+      local buf = track(make_listing_buf({ 1 }))
+      vim.b[buf].himalaya_sort = 'date desc'
+      vim.b[buf].himalaya_page = 3
+      email.toggle_sort()
+      vim.ui.select = orig_select
+      assert.are.equal('date desc', vim.b[buf].himalaya_sort)
+      assert.are.equal(3, vim.b[buf].himalaya_page)
+    end)
+
+    it('delegates to thread_listing.list for thread-listing buffers', function()
+      local thread_list_called = false
+      package.loaded['himalaya.domain.email.thread_listing'].list = function()
+        thread_list_called = true
+      end
+      local orig_select = vim.ui.select
+      vim.ui.select = function(_, _, cb)
+        cb('subject desc')
+      end
+      local buf = track(make_listing_buf({ 1 }))
+      vim.b[buf].himalaya_buffer_type = 'thread-listing'
+      email.toggle_sort()
+      vim.ui.select = orig_select
+      assert.is_true(thread_list_called)
+      assert.are.equal('subject desc', vim.b[buf].himalaya_sort)
+    end)
+  end)
+
+  describe('list_with sort integration', function()
+    it('includes order by in CLI query', function()
+      track(make_listing_buf({ 1 }))
+      email.list_with('acct', 'INBOX', 1, 'subject hello', 'date desc')
+      assert.is_not_nil(captured_json)
+      -- The last arg should contain the full CLI query
+      local args = captured_json.args
+      local cli_qry = args[#args]
+      assert.truthy(cli_qry:find('order by date desc'))
+      assert.truthy(cli_qry:find('subject hello'))
+    end)
+
+    it('defaults sort to date desc', function()
+      track(make_listing_buf({ 1 }))
+      email.list_with('acct', 'INBOX', 1, '')
+      assert.is_not_nil(captured_json)
+      local args = captured_json.args
+      local cli_qry = args[#args]
+      assert.truthy(cli_qry:find('order by date desc'))
     end)
   end)
 

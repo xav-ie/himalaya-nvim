@@ -252,6 +252,12 @@ Listing buffer (filetype: himalaya-email-listing) ~
   `gFa`     `<Plug>(himalaya-email-flag-add)`          Add flag
   `gFr`     `<Plug>(himalaya-email-flag-remove)`       Remove flag
   `g/`      `<Plug>(himalaya-email-set-list-envelopes-query)` Filter/sort
+  `go`      `<Plug>(himalaya-email-toggle-sort)`          Toggle sort order
+
+  The listing uses `order by date desc` by default. Press `go` to open
+  a picker with sort options: date, from, subject, or to — each in
+  ascending or descending order. The current sort is shown in the
+  title, e.g. `[date ↓]` or `[from ↑]`.
 
   Visual mode mappings are also available for `gD`, `gFa`, and `gFr` to
   operate on a range of emails.
@@ -268,7 +274,7 @@ Reading buffer (filetype: himalaya-email-reading) ~
   `gC`      `<Plug>(himalaya-email-select-folder-then-copy)` Copy to folder
   `gM`      `<Plug>(himalaya-email-select-folder-then-move)` Move to folder
   `gD`      `<Plug>(himalaya-email-delete)`            Delete email
-  `go`      `<Plug>(himalaya-email-open-browser)`      Open in browser
+  `gb`      `<Plug>(himalaya-email-open-browser)`      Open in browser
 
 Writing buffer (filetype: himalaya-email-writing) ~
                                               *himalaya-writing-keybindings*

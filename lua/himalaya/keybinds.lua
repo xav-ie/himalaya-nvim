@@ -157,7 +157,8 @@ function M.shared_listing_keybinds(bufnr)
       end,
       'folder-select',
     },
-    { 'n', 'go', email.open_browser, 'email-open-browser' },
+    { 'n', 'go', email.toggle_sort, 'email-toggle-sort' },
+    { 'n', 'gb', email.open_browser, 'email-open-browser' },
     { 'n', '?', M.show_help, 'help' },
   })
 end

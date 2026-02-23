@@ -72,7 +72,7 @@ describe('himalaya.ui.reading', function()
   it('setup() registers reading keybinds', function()
     reading.setup(bufnr)
     local maps = vim.api.nvim_buf_get_keymap(bufnr, 'n')
-    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gA', 'gC', 'gM', 'gD', 'go', ']]', '[[', '?' }
+    local expected_keys = { 'gw', 'gr', 'gR', 'gf', 'ga', 'gA', 'gC', 'gM', 'gD', 'gb', ']]', '[[', '?' }
     for _, key in ipairs(expected_keys) do
       local found = false
       for _, map in ipairs(maps) do

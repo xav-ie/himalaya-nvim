@@ -139,24 +139,47 @@ end
 --- @param total_str string
 --- @param bufcmd? string  vim command to set name ('file' or 'edit', defaults to 'file')
 --- @param unread? number  count of unseen envelopes on the page
-local function update_listing_title(folder, qry, pg, total_str, bufcmd, unread)
+--- @param sort? string  current sort clause (e.g. 'date desc')
+local function update_listing_title(folder, qry, pg, total_str, bufcmd, unread, sort)
   bufcmd = bufcmd or 'file'
   local display_query = qry == '' and 'all' or qry
   local unread_str = ''
   if unread and unread > 0 then
     unread_str = string.format(' [%d unread]', unread)
   end
+  local sort_indicator = ''
+  if sort then
+    local field, dir = sort:match('^(%S+)%s+(%S+)$')
+    local arrow = dir == 'desc' and '↓' or '↑'
+    sort_indicator = string.format(' [%s %s]', field or sort, arrow)
+  end
   vim.cmd(
     string.format(
-      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]%s',
+      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]%s%s',
       bufcmd,
       folder,
       display_query,
       pg,
       total_str,
-      unread_str
+      unread_str,
+      sort_indicator
     )
   )
+end
+
+--- Combine a filter query and sort clause into a full CLI query string.
+--- @param filter string  filter portion (may be empty)
+--- @param sort string  sort clause without 'order by' prefix (may be empty)
+--- @return string
+local function build_cli_query(filter, sort)
+  local parts = {}
+  if filter ~= '' then
+    parts[#parts + 1] = filter
+  end
+  if sort ~= '' then
+    parts[#parts + 1] = 'order by ' .. sort
+  end
+  return table.concat(parts, ' ')
 end
 
 --- Restore cursor position after a listing re-render.
@@ -193,7 +216,13 @@ local function refresh_listing(account, folder, opts)
       require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
     end
   else
-    M.list_with(account, folder, vim.b.himalaya_page or 1, vim.b.himalaya_query or '')
+    M.list_with(
+      account,
+      folder,
+      vim.b.himalaya_page or 1,
+      vim.b.himalaya_query or '',
+      vim.b.himalaya_sort or 'date desc'
+    )
   end
 end
 
@@ -229,12 +258,14 @@ local function resolve_target_ids(first_line, last_line)
 end
 
 --- Internal callback for list_with — populates the envelope listing buffer.
+--- @param sort string  sort clause (e.g. 'date desc')
 --- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*pg_size)
-local function on_list_with(account, folder, page, pg_size, qry, data, fetch_offset)
+local function on_list_with(account, folder, page, pg_size, qry, sort, data, fetch_offset)
   local acct_flag = account_flag(account)
-  probe.reset_if_changed(acct_flag, folder, qry)
+  local cli_qry = build_cli_query(qry, sort)
+  probe.reset_if_changed(acct_flag, folder, cli_qry)
 
-  local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
+  local cache_key = acct_flag .. '\0' .. folder .. '\0' .. cli_qry
   probe.set_total_from_data(cache_key, page, pg_size, #data)
   local total_str = probe.total_pages_str(cache_key, pg_size)
 
@@ -244,13 +275,14 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
   local new_offset = fetch_offset or ((page - 1) * pg_size)
   local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
-  update_listing_title(folder, qry, page, total_str, bufcmd, count_unseen(page_data))
+  update_listing_title(folder, qry, page, total_str, bufcmd, count_unseen(page_data), sort)
   vim.bo[bufnr].modifiable = true
   vim.b[bufnr].himalaya_account = account
   vim.b[bufnr].himalaya_folder = folder
   vim.b[bufnr].himalaya_page = page
   vim.b[bufnr].himalaya_page_size = pg_size
   vim.b[bufnr].himalaya_query = qry
+  vim.b[bufnr].himalaya_sort = sort
 
   if vim.b[bufnr].himalaya_cache_key ~= cache_key then
     vim.b[bufnr].himalaya_envelopes = data
@@ -296,7 +328,7 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
     count = #data,
   })
 
-  probe.start(acct_flag, folder, pg_size, page, qry, bufnr)
+  probe.start(acct_flag, folder, pg_size, page, cli_qry, bufnr)
 end
 
 --- List envelopes, optionally switching account first.
@@ -310,6 +342,7 @@ function M.list(account, opts)
     vim.b.himalaya_folder = 'INBOX'
     vim.b.himalaya_page = 1
     vim.b.himalaya_query = ''
+    vim.b.himalaya_sort = 'date desc'
   end
   if opts.restore_email_id then
     saved_cursor_id = opts.restore_email_id
@@ -318,7 +351,7 @@ function M.list(account, opts)
   if acct == '' then
     acct = account_state.default()
   end
-  M.list_with(acct, folder, vim.b.himalaya_page or 1, vim.b.himalaya_query or '')
+  M.list_with(acct, folder, vim.b.himalaya_page or 1, vim.b.himalaya_query or '', vim.b.himalaya_sort or 'date desc')
 end
 
 --- Kill all in-flight fetch/resize jobs synchronously.
@@ -344,8 +377,10 @@ end
 --- @param account string
 --- @param folder string
 --- @param page number
---- @param qry string
-function M.list_with(account, folder, page, qry)
+--- @param qry string  filter query (without 'order by')
+--- @param sort? string  sort clause (e.g. 'date desc'); defaults to 'date desc'
+function M.list_with(account, folder, page, qry, sort)
+  sort = sort or 'date desc'
   -- Kill all in-flight CLI jobs (ours, thread listing's, and probe) to
   -- avoid database lock contention on rapid mode switches / page changes.
   require('himalaya.domain.email.thread_listing').cancel_jobs()
@@ -376,6 +411,7 @@ function M.list_with(account, folder, page, qry)
   local fetch_ps = ps * 2
   local cli_page = math.ceil(page / 2)
   local fetch_offset = (cli_page - 1) * fetch_ps
+  local cli_qry = build_cli_query(qry, sort)
   fetch_job = request.json({
     cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
     args = {
@@ -383,7 +419,7 @@ function M.list_with(account, folder, page, qry)
       account_flag(account),
       fetch_ps,
       cli_page,
-      qry,
+      cli_qry,
     },
     msg = string.format('Fetching %s envelopes', folder),
     is_stale = function()
@@ -406,7 +442,7 @@ function M.list_with(account, folder, page, qry)
         return
       end
       vim.api.nvim_win_call(listing_win, function()
-        on_list_with(account, folder, page, ps, qry, data, fetch_offset)
+        on_list_with(account, folder, page, ps, qry, sort, data, fetch_offset)
       end)
     end,
   })
@@ -973,13 +1009,15 @@ local function schedule_phase2_refetch(bufnr)
       local account = vim.b[bufnr].himalaya_account or ''
       local folder_cur = vim.b[bufnr].himalaya_folder or 'INBOX'
       local cur_query = vim.b[bufnr].himalaya_query or ''
+      local cur_sort = vim.b[bufnr].himalaya_sort or 'date desc'
       local cur_page = vim.b[bufnr].himalaya_page or 1
       local ps = vim.b[bufnr].himalaya_page_size
+      local resize_cli_qry = build_cli_query(cur_query, cur_sort)
       resize_generation = resize_generation + 1
       local my_gen = resize_generation
       resize_job = request.json({
         cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
-        args = { folder_cur, account_flag(account), ps, cur_page, cur_query },
+        args = { folder_cur, account_flag(account), ps, cur_page, resize_cli_qry },
         msg = 'Refetching page after resize',
         silent = true,
         is_stale = function()
@@ -992,7 +1030,7 @@ local function schedule_phase2_refetch(bufnr)
           end
           saved_cursor_id = cursor_id
           vim.api.nvim_win_call(listing_win, function()
-            on_list_with(account, folder_cur, cur_page, ps, cur_query, data)
+            on_list_with(account, folder_cur, cur_page, ps, cur_query, cur_sort, data)
           end)
         end,
       })
@@ -1022,7 +1060,7 @@ function M.resize_listing()
       .. '\0'
       .. (vim.b.himalaya_folder or 'INBOX')
       .. '\0'
-      .. (vim.b.himalaya_query or '')
+      .. build_cli_query(vim.b.himalaya_query or '', vim.b.himalaya_sort or 'date desc')
     if buf_cache_key ~= current_key then
       return
     end
@@ -1066,10 +1104,11 @@ function M.resize_listing()
     local bufnr = vim.api.nvim_get_current_buf()
     local folder_name = vim.b.himalaya_folder or 'INBOX'
     local buf_query = vim.b.himalaya_query or ''
+    local buf_sort = vim.b.himalaya_sort or 'date desc'
     local acct_flag = account_flag(vim.b.himalaya_account or '')
-    local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. buf_query
+    local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. build_cli_query(buf_query, buf_sort)
     local total_str = probe.total_pages_str(cache_key, new_page_size)
-    update_listing_title(folder_name, buf_query, new_page, total_str, nil, count_unseen(display_envelopes))
+    update_listing_title(folder_name, buf_query, new_page, total_str, nil, count_unseen(display_envelopes), buf_sort)
 
     render_listing_buffer(bufnr, display_envelopes)
 
@@ -1176,6 +1215,9 @@ end
 --- Test-only accessor for mark_envelope_seen.
 M._mark_envelope_seen = mark_envelope_seen
 
+--- Test-only accessor for build_cli_query.
+M._build_cli_query = build_cli_query
+
 --- Test-only accessors for resize generation state.
 function M._get_resize_generation()
   return resize_generation
@@ -1188,6 +1230,39 @@ function M._set_resize_job(j)
 end
 function M._get_resize_job()
   return resize_job
+end
+
+--- Open a picker to choose sort field and direction, then refresh.
+function M.toggle_sort()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local buf_type = vim.b[bufnr].himalaya_buffer_type
+  local fields = { 'date', 'from', 'subject', 'to' }
+  local directions = { 'desc', 'asc' }
+  local choices = {}
+  for _, f in ipairs(fields) do
+    for _, d in ipairs(directions) do
+      choices[#choices + 1] = f .. ' ' .. d
+    end
+  end
+  vim.ui.select(choices, {
+    prompt = 'Sort by:',
+    format_item = function(item)
+      local field, dir = item:match('^(%S+)%s+(%S+)$')
+      local arrow = dir == 'desc' and '↓' or '↑'
+      return string.format('%s %s', field, arrow)
+    end,
+  }, function(choice)
+    if not choice then
+      return
+    end
+    vim.b[bufnr].himalaya_sort = choice
+    vim.b[bufnr].himalaya_page = 1
+    if buf_type == 'thread-listing' then
+      require('himalaya.domain.email.thread_listing').list()
+    else
+      M.list()
+    end
+  end)
 end
 
 --- Check whether an envelope has the Seen flag.

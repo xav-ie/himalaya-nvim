@@ -183,6 +183,7 @@ describe('himalaya.keybinds', function()
         flag_add = function() end,
         flag_remove = function() end,
         open_browser = function() end,
+        toggle_sort = function() end,
       }
       package.loaded['himalaya.keybinds'] = nil
       keybinds = require('himalaya.keybinds')
@@ -210,6 +211,7 @@ describe('himalaya.keybinds', function()
         'gFr',
         'gm',
         'go',
+        'gb',
         '?',
       })
     end)

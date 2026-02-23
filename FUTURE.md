@@ -20,6 +20,10 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
   built-in via `signature` config option; advanced use cases (cc/bcc
   injection, per-mode templates) documented via `ComposeOpened` event.
 
+- ~~**Sort-by toggle for envelope listing**~~ — Done. Default
+  `order by date desc` appended to CLI queries; `go` toggles between
+  `date desc` and `date asc`. Sort indicator (`[↓]`/`[↑]`) in title.
+
 ## Plugin Integration
 
 - ~~**which-key.nvim group labels**~~ — Done. Group labels for `gF`,

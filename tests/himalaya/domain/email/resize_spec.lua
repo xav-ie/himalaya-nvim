@@ -2373,7 +2373,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_page_size = 10
       vim.b.himalaya_cache_offset = 840
       vim.b.himalaya_query = ''
-      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0order by date desc'
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
@@ -2395,7 +2395,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_page_size = 10
       vim.b.himalaya_cache_offset = 840
       vim.b.himalaya_query = ''
-      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0order by date desc'
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
@@ -2417,7 +2417,7 @@ describe('himalaya.domain.email resize_listing', function()
       vim.b.himalaya_page_size = 10
       vim.b.himalaya_cache_offset = 0
       vim.b.himalaya_query = ''
-      vim.b.himalaya_cache_key = '--account test\0INBOX\0'
+      vim.b.himalaya_cache_key = '--account test\0INBOX\0order by date desc'
       seed_buffer_lines(10)
       vim.api.nvim_win_set_cursor(0, { 3, 0 })
 

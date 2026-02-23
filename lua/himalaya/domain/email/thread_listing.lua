@@ -119,15 +119,20 @@ function M.render_page(page, opts)
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
   local unread = count_unseen_rows(slice)
   local unread_str = unread > 0 and string.format(' [%d unread]', unread) or ''
+  local sort = vim.b.himalaya_sort or 'date desc'
+  local field, dir = sort:match('^(%S+)%s+(%S+)$')
+  local arrow = dir == 'desc' and '↓' or '↑'
+  local sort_indicator = string.format(' [%s %s]', field or sort, arrow)
   vim.cmd(
     string.format(
-      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]%s',
+      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]%s%s',
       buftype,
       folder,
       display_query,
       page,
       total_pages,
-      unread_str
+      unread_str,
+      sort_indicator
     )
   )
   vim.bo.modifiable = true
@@ -231,6 +236,7 @@ function M.list(account, opts)
   if account then
     vim.b.himalaya_account = account
     vim.b.himalaya_folder = 'INBOX'
+    vim.b.himalaya_sort = 'date desc'
   end
   local acct, folder = context.resolve()
   if acct == '' then
@@ -254,9 +260,11 @@ function M.list(account, opts)
     vim.wo.winbar = '%#Comment# loading...%*'
   end
 
+  local sort = vim.b.himalaya_sort or 'date desc'
+  local cli_qry = require('himalaya.domain.email')._build_cli_query(thread_query, sort)
   list_job = request.json({
     cmd = 'envelope thread --folder %s %s %s',
-    args = { folder, account_flag(acct), thread_query },
+    args = { folder, account_flag(acct), cli_qry },
     msg = string.format('Fetching %s threads', folder),
     is_stale = function()
       return my_gen ~= list_generation

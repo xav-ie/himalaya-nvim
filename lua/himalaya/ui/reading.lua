@@ -53,7 +53,7 @@ function M.setup(bufnr)
     { 'n', 'gC', email.select_folder_then_copy, 'email-select-folder-then-copy' },
     { 'n', 'gM', email.select_folder_then_move, 'email-select-folder-then-move' },
     { 'n', 'gD', email.delete, 'email-delete' },
-    { 'n', 'go', email.open_browser, 'email-open-browser' },
+    { 'n', 'gb', email.open_browser, 'email-open-browser' },
     {
       'n',
       ']]',
