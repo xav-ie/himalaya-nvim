@@ -124,7 +124,7 @@ describe('himalaya.ui.listing', function()
     end)
   end)
 
-  describe('apply_seen_highlights', function()
+  describe('apply_highlights', function()
     local buf
 
     before_each(function()
@@ -146,47 +146,97 @@ describe('himalaya.ui.listing', function()
       listing = require('himalaya.ui.listing')
 
       buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'line1', 'line2', 'line3' })
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        '  1│   │subj│sender│date',
+        '  2│   │subj│sender│date',
+        '  3│   │subj│sender│date',
+      })
     end)
 
     after_each(function()
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
 
-    it('places extmarks on Seen envelopes', function()
-      local envelopes = {
+    it('applies 9 extmarks on unseen lines (5 columns + 4 separators)', function()
+      listing.apply_highlights(buf, {
         { flags = {} },
         { flags = { 'Seen' } },
         { flags = { 'Flagged' } },
-      }
-      listing.apply_seen_highlights(buf, envelopes)
-
+      })
       local ns = vim.api.nvim_create_namespace('himalaya_seen')
-      local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-      -- Only envelope 2 is Seen, so exactly 1 extmark
-      assert.are.equal(1, #marks)
+      -- Line 1 (unseen): 5 columns + 4 separators = 9
+      local marks1 = vim.api.nvim_buf_get_extmarks(buf, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(9, #marks1)
+    end)
+
+    it('applies 4 extmarks on seen lines (separators only)', function()
+      listing.apply_highlights(buf, {
+        { flags = {} },
+        { flags = { 'Seen' } },
+        { flags = { 'Flagged' } },
+      })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+      -- Line 2 (seen): 4 separators only
+      local marks2 = vim.api.nvim_buf_get_extmarks(buf, ns, { 1, 0 }, { 1, -1 }, {})
+      assert.are.equal(4, #marks2)
+    end)
+
+    it('applies 4 extmarks on nil-flags lines (separators only)', function()
+      listing.apply_highlights(buf, {
+        { flags = {} },
+        { flags = { 'Seen' } },
+        {},
+      })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+      -- Line 3 (nil flags): 4 separators only
+      local marks3 = vim.api.nvim_buf_get_extmarks(buf, ns, { 2, 0 }, { 2, -1 }, {})
+      assert.are.equal(4, #marks3)
     end)
 
     it('clears previous extmarks before applying', function()
       local ns = vim.api.nvim_create_namespace('himalaya_seen')
 
-      -- First pass: 2 seen envelopes
-      listing.apply_seen_highlights(buf, {
-        { flags = { 'Seen' } },
-        { flags = { 'Seen' } },
+      listing.apply_highlights(buf, {
+        { flags = {} },
+        { flags = {} },
         { flags = {} },
       })
       local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-      assert.are.equal(2, #marks)
+      -- 3 unseen lines × 9 extmarks = 27
+      assert.are.equal(27, #marks)
 
-      -- Second pass: only 1 seen envelope — old extmarks must be cleared
-      listing.apply_seen_highlights(buf, {
-        { flags = {} },
+      -- Second pass: first line now seen — should drop to 4 + 9 + 9 = 22
+      listing.apply_highlights(buf, {
         { flags = { 'Seen' } },
+        { flags = {} },
         { flags = {} },
       })
       marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, {})
-      assert.are.equal(1, #marks)
+      assert.are.equal(22, #marks)
+    end)
+
+    it('mark_line_as_seen removes column extmarks, keeps separators', function()
+      listing.apply_highlights(buf, {
+        { flags = {} },
+        { flags = {} },
+        { flags = {} },
+      })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+
+      -- Line 1 should have 9 extmarks (unseen)
+      local marks = vim.api.nvim_buf_get_extmarks(buf, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(9, #marks)
+
+      -- Mark line 1 as seen
+      listing.mark_line_as_seen(buf, 0)
+
+      -- Now line 1 should have 4 extmarks (separators only)
+      marks = vim.api.nvim_buf_get_extmarks(buf, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(4, #marks)
+
+      -- Other lines unchanged
+      local marks2 = vim.api.nvim_buf_get_extmarks(buf, ns, { 1, 0 }, { 1, -1 }, {})
+      assert.are.equal(9, #marks2)
     end)
   end)
 

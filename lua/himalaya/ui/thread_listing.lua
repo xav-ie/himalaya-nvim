@@ -4,21 +4,7 @@ local win = require('himalaya.ui.win')
 
 local M = {}
 
---- Apply full 5-column syntax (same as flat listing) plus tree connector overlay.
---- Per-column coloring is active; read/unread distinction comes from extmark-based
---- seen highlights applied in render_page after flag enrichment.
---- @param bufnr number
-local function apply_syntax(bufnr)
-  local listing = require('himalaya.ui.listing')
-  listing.apply_syntax(bufnr)
-  vim.api.nvim_buf_call(bufnr, function()
-    vim.cmd([[
-      syntax match HimalayaTree /\%u250c\%u2500\|\%u251c\%u2500\|\%u2514\%u2500\|\%u2502 / contained containedin=HimalayaSubject
-    ]])
-  end)
-end
-
---- Set up the thread listing buffer: options, highlights, syntax, and keybinds.
+--- Set up the thread listing buffer: options, highlights, and keybinds.
 --- @param bufnr number
 function M.setup(bufnr)
   vim.bo[bufnr].buftype = 'nofile'
@@ -32,8 +18,6 @@ function M.setup(bufnr)
   local listing = require('himalaya.ui.listing')
   listing.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaTree', { default = true, link = 'Comment' })
-
-  apply_syntax(bufnr)
 
   keybinds.shared_listing_keybinds(bufnr)
   keybinds.define(bufnr, {

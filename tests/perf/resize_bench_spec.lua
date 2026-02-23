@@ -1,5 +1,5 @@
 --- Performance benchmark for email listing resize rendering.
---- Exercises the real renderer, real apply_syntax, real apply_seen_highlights,
+--- Exercises the real renderer, real apply_highlights,
 --- forces redraw to simulate actual screen rendering in headless mode.
 ---
 --- Run via: make perf
@@ -160,9 +160,6 @@ describe('resize perf baseline', function()
     perf.enable()
     envelopes = load_fixture()
 
-    -- Enable syntax engine so apply_syntax() rules are actually evaluated
-    vim.cmd('syntax enable')
-
     original_height = vim.api.nvim_win_get_height(0)
   end)
 
@@ -225,9 +222,9 @@ describe('resize perf baseline', function()
     )
   end)
 
-  -- ── apply_syntax() + redraw ────────────────────────────────────
+  -- ── apply_highlights() + redraw ──────────────────────────────
 
-  it('bench: apply_syntax() + redraw', function()
+  it('bench: apply_highlights() + redraw', function()
     local bufnr = vim.api.nvim_get_current_buf()
     local result = renderer.render(envelopes, WIDTH)
     vim.bo[bufnr].modifiable = true
@@ -236,12 +233,8 @@ describe('resize perf baseline', function()
 
     local samples = {}
     for _ = 1, ITERATIONS do
-      -- Clear syntax so each iteration re-registers from scratch
-      vim.api.nvim_buf_call(bufnr, function()
-        vim.cmd('syntax clear')
-      end)
       local t0 = vim.fn.reltime()
-      listing.apply_syntax(bufnr)
+      listing.apply_highlights(bufnr, envelopes)
       vim.cmd('redraw')
       local ms = vim.fn.reltimefloat(vim.fn.reltime(t0)) * 1000
       table.insert(samples, ms)
@@ -249,7 +242,7 @@ describe('resize perf baseline', function()
     local s = stats(samples)
 
     write_result({
-      label = 'apply_syntax_redraw',
+      label = 'apply_highlights_redraw',
       envelopes = #envelopes,
       iterations = ITERATIONS,
       min_ms = round2(s.min),
@@ -260,48 +253,7 @@ describe('resize perf baseline', function()
 
     print(
       string.format(
-        '\n  apply_syntax+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d)',
-        s.min,
-        s.median,
-        s.max,
-        ITERATIONS
-      )
-    )
-  end)
-
-  -- ── apply_seen_highlights() + redraw ───────────────────────────
-
-  it('bench: apply_seen_highlights() + redraw', function()
-    local bufnr = vim.api.nvim_get_current_buf()
-    local result = renderer.render(envelopes, WIDTH)
-    vim.bo[bufnr].modifiable = true
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-    vim.bo[bufnr].modifiable = false
-    listing.apply_syntax(bufnr)
-
-    local samples = {}
-    for _ = 1, ITERATIONS do
-      local t0 = vim.fn.reltime()
-      listing.apply_seen_highlights(bufnr, envelopes)
-      vim.cmd('redraw')
-      local ms = vim.fn.reltimefloat(vim.fn.reltime(t0)) * 1000
-      table.insert(samples, ms)
-    end
-    local s = stats(samples)
-
-    write_result({
-      label = 'apply_seen_highlights_redraw',
-      envelopes = #envelopes,
-      iterations = ITERATIONS,
-      min_ms = round2(s.min),
-      max_ms = round2(s.max),
-      median_ms = round2(s.median),
-      mean_ms = round2(s.mean),
-    })
-
-    print(
-      string.format(
-        '\n  apply_seen_highlights+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
+        '\n  apply_highlights+redraw: min=%.2fms median=%.2fms max=%.2fms (n=%d, %d envs)',
         s.min,
         s.median,
         s.max,
@@ -313,14 +265,13 @@ describe('resize perf baseline', function()
 
   -- ── redraw cost (isolated) ────────────────────────────────────
 
-  it('bench: redraw cost (syntax + extmarks, no mutation)', function()
+  it('bench: redraw cost (extmarks, no mutation)', function()
     local bufnr = vim.api.nvim_get_current_buf()
     local result = renderer.render(envelopes, WIDTH)
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
     vim.bo[bufnr].modifiable = false
-    listing.apply_syntax(bufnr)
-    listing.apply_seen_highlights(bufnr, envelopes)
+    listing.apply_highlights(bufnr, envelopes)
 
     -- Warm up: first redraw populates internal screen state
     vim.cmd('redraw')
@@ -365,7 +316,6 @@ describe('resize perf baseline', function()
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
     vim.bo[bufnr].modifiable = false
-    listing.apply_syntax(bufnr)
     vim.b.himalaya_buffer_type = 'listing'
     vim.b.himalaya_envelopes = envelopes
     vim.b.himalaya_page = 1
@@ -439,7 +389,6 @@ describe('resize perf baseline', function()
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
     vim.bo[bufnr].modifiable = false
-    listing.apply_syntax(bufnr)
     vim.b.himalaya_buffer_type = 'listing'
     vim.b.himalaya_envelopes = envelopes
     vim.b.himalaya_page = 1
@@ -520,7 +469,6 @@ describe('resize perf baseline', function()
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
     vim.bo[bufnr].modifiable = false
-    listing.apply_syntax(bufnr)
     vim.b.himalaya_buffer_type = 'listing'
     vim.b.himalaya_envelopes = envelopes
     vim.b.himalaya_page = 1

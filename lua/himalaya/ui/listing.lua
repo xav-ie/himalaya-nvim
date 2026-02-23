@@ -36,25 +36,25 @@ function M.define_highlights()
   vim.api.nvim_set_hl(0, 'HimalayaSender', { default = true, link = 'Structure' })
   vim.api.nvim_set_hl(0, 'HimalayaDate', { default = true, link = 'Constant' })
   vim.api.nvim_set_hl(0, 'HimalayaHead', { default = true, bold = true, underline = true })
-  vim.api.nvim_set_hl(0, 'HimalayaSeen', { default = true, link = 'Normal' })
 end
 
---- Apply syntax match rules to the given buffer.
---- @param bufnr number
-function M.apply_syntax(bufnr)
-  perf.start('apply_syntax')
-  vim.api.nvim_buf_call(bufnr, function()
-    -- Use \%u2502 (│), \%u2500 (─), \%u253c (┼) for box-drawing chars
-    vim.cmd([[
-      syntax match HimalayaSeparator /\%u2502\|\%u2500\|\%u253c/
-      syntax match HimalayaId        /^.\{-}\%u2502/                                                             contains=HimalayaSeparator
-      syntax match HimalayaFlags     /^.\{-}\%u2502.\{-}\%u2502/                                                 contains=HimalayaId,HimalayaSeparator
-      syntax match HimalayaSubject   /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                                     contains=HimalayaId,HimalayaFlags,HimalayaSeparator
-      syntax match HimalayaSender    /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502/                         contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSeparator
-      syntax match HimalayaDate      /^.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}\%u2502.\{-}$/                   contains=HimalayaId,HimalayaFlags,HimalayaSubject,HimalayaSender,HimalayaSeparator
-    ]])
-  end)
-  perf.stop('apply_syntax')
+local sep = '│'
+
+--- Find all │ (U+2502) separator byte positions in a line.
+--- @param line string
+--- @return table[] list of {start_byte, end_byte} (0-based start, 0-based exclusive end)
+local function find_separators(line)
+  local seps = {}
+  local start = 1
+  while true do
+    local s, e = line:find(sep, start, true)
+    if not s then
+      break
+    end
+    seps[#seps + 1] = { s - 1, e }
+    start = e + 1
+  end
+  return seps
 end
 
 --- Compute the gutter width (number column, fold column, sign column) for a window.
@@ -92,33 +92,91 @@ function M.apply_header(bufnr, header)
   vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
 end
 
---- Apply extmark-based highlights to dim seen (read) envelope lines.
---- Unseen lines keep per-column syntax coloring; seen lines get reset to Normal.
+local col_groups = { 'HimalayaId', 'HimalayaFlags', 'HimalayaSubject', 'HimalayaSender', 'HimalayaDate' }
+
+--- Apply per-column extmark highlights to unseen lines; seen/unknown lines
+--- receive separator extmarks only (default Normal text).
 --- @param bufnr number
 --- @param envelopes table[]
-function M.apply_seen_highlights(bufnr, envelopes)
-  perf.start('apply_seen_highlights')
+function M.apply_highlights(bufnr, envelopes)
+  perf.start('apply_highlights')
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-  for i, env in ipairs(envelopes) do
-    local flags = env.flags or {}
-    local seen = false
-    for _, f in ipairs(flags) do
-      if f == 'Seen' then
-        seen = true
-        break
-      end
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+  for i, line in ipairs(lines) do
+    local row = i - 1
+    local seps = find_separators(line)
+    if #seps < 4 then
+      goto continue
     end
-    if seen then
-      local line = i - 1 -- 0-based, no header offset
-      vim.api.nvim_buf_set_extmark(bufnr, ns, line, 0, {
-        end_row = line + 1,
-        hl_eol = true,
-        hl_group = 'HimalayaSeen',
+
+    -- Separator extmarks (always applied)
+    for _, sp in ipairs(seps) do
+      vim.api.nvim_buf_set_extmark(bufnr, ns, row, sp[1], {
+        end_col = sp[2],
+        hl_group = 'HimalayaSeparator',
         priority = 200,
       })
     end
+
+    -- Column extmarks (only for unseen lines with known flags)
+    local env = envelopes[i]
+    local flags = env and env.flags
+    if flags then
+      local seen = false
+      for _, f in ipairs(flags) do
+        if f == 'Seen' then
+          seen = true
+          break
+        end
+      end
+      if not seen then
+        local ranges = {
+          { 0, seps[1][1] },
+          { seps[1][2], seps[2][1] },
+          { seps[2][2], seps[3][1] },
+          { seps[3][2], seps[4][1] },
+          { seps[4][2], #line },
+        }
+        for j, range in ipairs(ranges) do
+          if range[2] > range[1] then
+            vim.api.nvim_buf_set_extmark(bufnr, ns, row, range[1], {
+              end_col = range[2],
+              hl_group = col_groups[j],
+              priority = 200,
+            })
+          end
+        end
+      end
+    end
+
+    ::continue::
   end
-  perf.stop('apply_seen_highlights')
+  perf.stop('apply_highlights')
+end
+
+--- Remove column extmarks from a single line, keeping separator extmarks only.
+--- Used for optimistic mark-as-seen without a full re-render.
+--- @param bufnr number
+--- @param line_idx number 0-based line index
+function M.mark_line_as_seen(bufnr, line_idx)
+  local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns, { line_idx, 0 }, { line_idx, -1 }, {})
+  for _, mark in ipairs(marks) do
+    vim.api.nvim_buf_del_extmark(bufnr, ns, mark[1])
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(bufnr, line_idx, line_idx + 1, false)
+  if #lines == 0 then
+    return
+  end
+  local seps = find_separators(lines[1])
+  for _, sp in ipairs(seps) do
+    vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, sp[1], {
+      end_col = sp[2],
+      hl_group = 'HimalayaSeparator',
+      priority = 200,
+    })
+  end
 end
 
 --- Set up the listing buffer: options, highlights, syntax, and keybinds.
@@ -133,7 +191,6 @@ function M.setup(bufnr)
   vim.bo[bufnr].modifiable = false
 
   M.define_highlights()
-  M.apply_syntax(bufnr)
 
   keybinds.shared_listing_keybinds(bufnr)
   keybinds.define(bufnr, {
@@ -178,5 +235,7 @@ function M.setup(bufnr)
     end,
   })
 end
+
+M.define_highlights()
 
 return M

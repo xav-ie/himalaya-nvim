@@ -150,8 +150,8 @@ describe('himalaya.domain.email resize_listing', function()
     }
     package.loaded['himalaya.ui.listing'] = {
       apply_header = function() end,
-      apply_seen_highlights = function() end,
-      apply_syntax = function() end,
+      apply_highlights = function() end,
+      mark_line_as_seen = function() end,
       gutter_width = function()
         return 0
       end,

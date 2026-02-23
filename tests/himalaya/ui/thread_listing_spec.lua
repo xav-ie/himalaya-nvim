@@ -1,7 +1,7 @@
 describe('himalaya.ui.thread_listing', function()
   local thread_listing
   local define_spy, shared_spy
-  local define_highlights_spy, apply_syntax_spy
+  local define_highlights_spy
   local bufnr
 
   before_each(function()
@@ -42,12 +42,10 @@ describe('himalaya.ui.thread_listing', function()
       end,
     }
 
-    -- Lazy-loaded inside setup() and apply_syntax()
+    -- Lazy-loaded inside setup()
     define_highlights_spy = spy.new(function() end)
-    apply_syntax_spy = spy.new(function() end)
     package.loaded['himalaya.ui.listing'] = {
       define_highlights = define_highlights_spy,
-      apply_syntax = apply_syntax_spy,
     }
 
     package.loaded['himalaya.perf'] = {

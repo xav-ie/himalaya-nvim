@@ -98,7 +98,7 @@ local function render_listing_buffer(bufnr, envelopes)
   vim.bo[bufnr].modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_seen_highlights(bufnr, envelopes)
+  listing.apply_highlights(bufnr, envelopes)
   vim.bo[bufnr].modifiable = false
   return result
 end
@@ -248,7 +248,7 @@ local function on_list_with(account, folder, page, pg_size, qry, data, fetch_off
     vim.b[bufnr].himalaya_page_size = actual_ps
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_seen_highlights(bufnr, display)
+  listing.apply_highlights(bufnr, display)
   vim.b[bufnr].himalaya_buffer_type = 'listing'
   vim.bo[bufnr].filetype = 'himalaya-email-listing'
   vim.bo[bufnr].modified = false
@@ -423,18 +423,12 @@ local function mark_envelope_seen(email_id)
   end
   vim.api.nvim_buf_set_var(listing_bufnr, 'himalaya_envelopes', envelopes)
 
-  -- Apply single seen extmark (same approach as thread listing).
+  -- Apply seen highlight (remove column extmarks, keep separators).
   local listing_mod = require('himalaya.ui.listing')
-  local ns = vim.api.nvim_create_namespace('himalaya_seen')
   local lines = vim.api.nvim_buf_get_lines(listing_bufnr, 0, -1, false)
   for i, line in ipairs(lines) do
     if listing_mod.get_email_id_from_line(line) == eid then
-      vim.api.nvim_buf_set_extmark(listing_bufnr, ns, i - 1, 0, {
-        end_row = i,
-        hl_eol = true,
-        hl_group = 'HimalayaSeen',
-        priority = 200,
-      })
+      listing_mod.mark_line_as_seen(listing_bufnr, i - 1)
       break
     end
   end

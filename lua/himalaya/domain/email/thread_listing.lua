@@ -19,6 +19,7 @@ local current_page = 1
 local list_generation = 0 -- incremented on each list(); stale callbacks bail out
 local list_job = nil -- in-flight thread fetch job handle
 local enrich_job = nil -- in-flight enrich_with_flags job handle
+local flag_cache = {} -- maps id string → {flags, has_attachment} across re-fetches
 
 local account_flag = account_state.flag
 
@@ -53,6 +54,7 @@ function M.cleanup()
   all_display_rows = nil
   id_to_index = nil
   last_edges = nil
+  flag_cache = {}
   thread_query = ''
   current_page = 1
 end
@@ -120,7 +122,7 @@ function M.render_page(page, opts)
   for _, row in ipairs(slice) do
     envs[#envs + 1] = row.env
   end
-  listing.apply_seen_highlights(bufnr, envs)
+  listing.apply_highlights(bufnr, envs)
 
   vim.b.himalaya_buffer_type = 'thread-listing'
   vim.bo.filetype = 'himalaya-thread-listing'
@@ -240,8 +242,27 @@ function M.list(account, opts)
       local rows = tree.build(data, { reverse = reverse })
       tree.build_prefix(rows, { reverse = reverse })
 
-      -- Pre-populate flags from cached flat listing envelopes so the
-      -- initial render shows flags instead of blank columns.
+      -- Save flag data from current display rows before replacing
+      if all_display_rows then
+        for _, row in ipairs(all_display_rows) do
+          if row.env.flags then
+            flag_cache[tostring(row.env.id)] = {
+              flags = row.env.flags,
+              has_attachment = row.env.has_attachment,
+            }
+          end
+        end
+      end
+
+      -- Pre-populate flags: flag_cache first (covers most rows after
+      -- delete), then fall back to flat listing cache for any remaining.
+      for _, row in ipairs(rows) do
+        local cached = flag_cache[tostring(row.env.id)]
+        if cached then
+          row.env.flags = cached.flags
+          row.env.has_attachment = cached.has_attachment
+        end
+      end
       local ok, cached_envs =
         pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
       if ok and cached_envs then
@@ -250,10 +271,12 @@ function M.list(account, opts)
           id_map[tostring(env.id)] = env
         end
         for _, row in ipairs(rows) do
-          local cached = id_map[tostring(row.env.id)]
-          if cached then
-            row.env.flags = cached.flags
-            row.env.has_attachment = cached.has_attachment
+          if not row.env.flags then
+            local flat = id_map[tostring(row.env.id)]
+            if flat then
+              row.env.flags = flat.flags
+              row.env.has_attachment = flat.has_attachment
+            end
           end
         end
       end
@@ -295,7 +318,17 @@ function M.list(account, opts)
           M.render_page(1)
         end
 
-        enrich_with_flags(acct, folder, listing_win, my_gen)
+        -- Skip the enrich round-trip if all rows already have flag data
+        local all_have_flags = true
+        for _, row in ipairs(all_display_rows) do
+          if not row.env.flags then
+            all_have_flags = false
+            break
+          end
+        end
+        if not all_have_flags then
+          enrich_with_flags(acct, folder, listing_win, my_gen)
+        end
       end)
     end,
   })
@@ -427,7 +460,6 @@ function M.mark_seen_optimistic(email_id)
   -- re-rendering.  The WinResized handler will do the full page
   -- recalculation and re-render with correct highlights.
   local listing_mod = require('himalaya.ui.listing')
-  local ns_seen = vim.api.nvim_create_namespace('himalaya_seen')
   local eid = tostring(email_id)
   local _, buf = win.find_by_buftype('thread-listing')
   if not buf then
@@ -436,12 +468,7 @@ function M.mark_seen_optimistic(email_id)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
     if listing_mod.get_email_id_from_line(line) == eid then
-      vim.api.nvim_buf_set_extmark(buf, ns_seen, i - 1, 0, {
-        end_row = i,
-        hl_eol = true,
-        hl_group = 'HimalayaSeen',
-        priority = 200,
-      })
+      listing_mod.mark_line_as_seen(buf, i - 1)
       break
     end
   end
