@@ -1,0 +1,11 @@
+name: "Setup Nix"
+description: "Install Nix with Determinate Systems installer and magic cache"
+runs:
+  using: composite
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@main
+      with:
+        summarize: false
+    - uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false

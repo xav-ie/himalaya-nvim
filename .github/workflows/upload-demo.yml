@@ -9,12 +9,7 @@ jobs:
     environment: CI
     steps:
       - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          summarize: false
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-        with:
-          use-flakehub: false
+      - uses: ./.github/actions/setup-nix
       - run: nix run .#build-demo
       - run: nix run .#upload-demo
         env:
