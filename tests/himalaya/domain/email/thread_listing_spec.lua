@@ -693,7 +693,14 @@ describe('himalaya.domain.email.thread_listing', function()
       -- on_data for enrich (calls[2] is the enrich request)
       assert.is_true(#calls >= 2)
       calls[2].on_data({
-        { id = '1', flags = { 'Seen' }, has_attachment = true, subject = 'Msg', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+        {
+          id = '1',
+          flags = { 'Seen' },
+          has_attachment = true,
+          subject = 'Msg',
+          from = { name = 'X' },
+          date = '2024-01-01 10:00:00+00:00',
+        },
       })
 
       -- Buffer should still be valid and have content

@@ -119,7 +119,11 @@ describe('himalaya.events', function()
       events.on('TestEvent', function()
         table.insert(calls, 'after')
       end)
+      -- Suppress vim.notify so the expected warning doesn't leak to stderr
+      local orig_notify = vim.notify
+      vim.notify = function() end
       events.emit('TestEvent')
+      vim.notify = orig_notify
       assert.are.same({ 'before', 'after' }, calls)
     end)
 
