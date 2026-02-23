@@ -13,9 +13,8 @@ double-send, compose window, flags, bufnr safety, visual-mode IDs).*
   column to initials when terminal width drops below a threshold so
   listings stay readable on small screens.
 
-- **Search input validation** — Highlight the query in the search
-  popup when it has syntax errors and show a brief hint, rather than
-  letting the CLI fail silently.
+- ~~**Search input validation**~~ — Done. CLI errors from bad queries
+  are now surfaced via stderr error logging (`a3e14a7`).
 
 - **Compose templates** — Support user-defined Lua templates in
   config that auto-populate cc/bcc/signature fields in compose
