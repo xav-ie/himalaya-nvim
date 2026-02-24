@@ -27,7 +27,10 @@ Type "g/"
 Sleep 1.5s
 
 # Type subject search
-Type "alpha"
+Hide
+Type@0ms "alpha"
+Sleep 200ms
+Show
 Sleep 1s
 
 # Submit
@@ -58,7 +61,10 @@ Tab
 Sleep 300ms
 
 # Type from filter
-Type "bob"
+Hide
+Type@0ms "bob"
+Sleep 200ms
+Show
 Sleep 1s
 
 # Submit

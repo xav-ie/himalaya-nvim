@@ -43,8 +43,11 @@ Sleep 2s
 
 # Write the reply body (cursor is at body area after headers)
 Type "jjo"
-Type@50ms "Thanks for the update, looks good to me!"
+Hide
+Type@0ms "Thanks for the update, looks good to me!"
+Sleep 200ms
 Escape
+Show
 Sleep 1s
 
 # Send the reply
@@ -59,7 +62,4 @@ Type ":w"
 Enter
 Sleep 2s
 
-# Close — back to listing
-Type ":q"
-Enter
-Sleep 2s
+Sleep 1s

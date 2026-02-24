@@ -27,19 +27,30 @@ Type "gw"
 Sleep 2s
 
 # Type the recipient (already in insert mode at To:)
-Type@50ms "recipient@example.com"
+Hide
+Type@0ms "recipient@example.com"
 Escape
-Sleep 500ms
+Sleep 100ms
+Type@0ms "jA"
+Sleep 200ms
+Show
+Sleep 1s
 
-# Fill in Subject (next header line)
-Type "jA"
-Type@50ms "Hello from himalaya"
+# Fill in Subject
+Hide
+Type@0ms "Hello from himalaya"
 Escape
-Sleep 500ms
+Sleep 100ms
+Type@0ms "jjo"
+Sleep 200ms
+Show
+Sleep 1s
 
-# Go to body and type
-Type "jjo"
-Type@50ms "This is a demo email composed in himalaya."
+# Type body
+Hide
+Type@0ms "This is a demo email composed in himalaya."
+Sleep 200ms
+Show
 Escape
 Sleep 1s
 
@@ -55,7 +66,4 @@ Type ":w"
 Enter
 Sleep 2s
 
-# Close the sent buffer — back to listing
-Type ":q"
-Enter
-Sleep 2s
+Sleep 1s
