@@ -1,0 +1,4 @@
+return {
+  include = { "lua/himalaya/" },
+  exclude = { "tests/", "minimal_init" },
+}

@@ -1,0 +1,810 @@
+[
+  {
+    "id": "542",
+    "flags": [],
+    "subject": "⏰ Webinar: Provenance and SBOMs with Nix is starting in 1 hour",
+    "from": {
+      "name": "Alice Johnson",
+      "addr": "user-2f5b5810@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-19 16:00+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "538",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Fresh Fits Start With The Right T-Shirt Bra",
+    "from": {
+      "name": "Bob Smith",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-19 10:10-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "539",
+    "flags": [],
+    "subject": "The Monthly Build - Google Developer Program - February 2026",
+    "from": {
+      "name": "Carol Davis",
+      "addr": "user-7da71d62@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-19 05:40-08:00",
+    "has_attachment": false
+  },
+  {
+    "id": "540",
+    "flags": [],
+    "subject": "Shop Again & Save 20% On Your Next Purchase!",
+    "from": {
+      "name": "Dave Wilson",
+      "addr": "user-cdb69abe@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-19 08:12-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "536",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Intro to Google Cloud Account Team: Outsmartly",
+    "from": {
+      "name": "Eve Martinez",
+      "addr": "user-f2567922@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-33bb143f@example.com"
+    },
+    "date": "2026-02-18 18:46-08:00",
+    "has_attachment": false
+  },
+  {
+    "id": "528",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Our 5 Brands—Created With YOU In Mind",
+    "from": {
+      "name": "Frank Brown",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 18:15-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "529",
+    "flags": [],
+    "subject": "50% of budget reached",
+    "from": {
+      "name": "Grace Lee",
+      "addr": "user-5fad1aa5@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 14:34-08:00",
+    "has_attachment": false
+  },
+  {
+    "id": "530",
+    "flags": [],
+    "subject": "👉 You have unread notifications",
+    "from": {
+      "name": "Hank Taylor",
+      "addr": "user-afb48d44@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 22:21+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "531",
+    "flags": [],
+    "subject": "RE: Gorgias x Outsmartly x BN CS TB Meeting",
+    "from": {
+      "name": "Iris Anderson",
+      "addr": "user-516ce899@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-1a9ed60d@example.com"
+    },
+    "date": "2026-02-18 20:45+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "532",
+    "flags": [],
+    "subject": "Re: Gorgias x Outsmartly x BN CS TB Meeting",
+    "from": {
+      "name": "Jack Thomas",
+      "addr": "user-1a9ed60d@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-516ce899@example.com"
+    },
+    "date": "2026-02-18 12:40-08:00",
+    "has_attachment": true
+  },
+  {
+    "id": "533",
+    "flags": [],
+    "subject": "Order #2510213906 is Confirmed!",
+    "from": {
+      "name": "Kate White",
+      "addr": "user-9e557dcd@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 19:44+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "534",
+    "flags": [],
+    "subject": "Order #2510213820 is Confirmed!",
+    "from": {
+      "name": "Leo Harris",
+      "addr": "user-9e557dcd@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 19:37+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "525",
+    "flags": [],
+    "subject": "Recap of your meeting with partner.outsmartly.com",
+    "from": {
+      "name": "Mia Clark",
+      "addr": "user-44cf6ef1@example.video"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 19:02+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "526",
+    "flags": [],
+    "subject": "Gorgias x Outsmartly x BN CS TB Meeting",
+    "from": {
+      "name": "Noah Lewis",
+      "addr": "user-516ce899@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-1a9ed60d@example.com"
+    },
+    "date": "2026-02-18 18:55+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "523",
+    "flags": [],
+    "subject": "Channel Accuracy Alert",
+    "from": {
+      "name": "Olivia Walker",
+      "addr": "user-96307f8f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 18:01+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "517",
+    "flags": [],
+    "subject": "Recap of your meeting with partner.outsmartly.com",
+    "from": {
+      "name": "Pete Hall",
+      "addr": "user-44cf6ef1@example.video"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 17:30+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "518",
+    "flags": [],
+    "subject": "Wearing too many hats? Let AI agents wear a few.",
+    "from": {
+      "name": "Alice Johnson",
+      "addr": "user-6e616da9@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 11:14-06:00",
+    "has_attachment": false
+  },
+  {
+    "id": "519",
+    "flags": [],
+    "subject": "⏰ Webinar: Provenance and SBOMs with Nix is starting tomorrow",
+    "from": {
+      "name": "Bob Smith",
+      "addr": "user-2f5b5810@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 17:06+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "520",
+    "flags": [],
+    "subject": "FW: Insider <> BareNecessities: Check-in Call",
+    "from": {
+      "name": "Carol Davis",
+      "addr": "user-b6b9f18d@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 17:05+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "521",
+    "flags": [],
+    "subject": "Invitation:  BN Pricing/Promotional Planning @ Wed Feb 18, 2026 12pm - 1pm (EST) (Xavier Ruiz)",
+    "from": {
+      "name": "Dave Wilson",
+      "addr": "user-33bb143f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 16:25+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "515",
+    "flags": [],
+    "subject": "Re: May we have product.variant.url in dl_purchase event?",
+    "from": {
+      "name": "Eve Martinez",
+      "addr": "user-6bc53685@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 15:49+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "513",
+    "flags": [],
+    "subject": "Wacoal: Trusted For Fit For Over 40 Years",
+    "from": {
+      "name": "Frank Brown",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 10:15-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "511",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Your weekly digest (3 transactions with missing items)",
+    "from": {
+      "name": "Grace Lee",
+      "addr": "user-8029be2f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-18 11:07+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "509",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "The Push-Up Test: The Perfect Boost For Your Body",
+    "from": {
+      "name": "Hank Taylor",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 18:14-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "504",
+    "flags": [],
+    "subject": "Re: May we have product.variant.url in dl_purchase event?",
+    "from": {
+      "name": "Iris Anderson",
+      "addr": "user-6bc53685@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 18:19+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "505",
+    "flags": [],
+    "subject": "Thanks For Shopping Bare Necessities! Did You Know…?",
+    "from": {
+      "name": "Jack Thomas",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 12:44-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "506",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Insider One [Update on Ticket #336240: [Barenecessities] - Review Integration] Waiting for Reply",
+    "from": {
+      "name": "Kate White",
+      "addr": "user-62cfdc62@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-e2259dab@example.com"
+    },
+    "date": "2026-02-17 17:31+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "507",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Channel Accuracy Alert",
+    "from": {
+      "name": "Leo Harris",
+      "addr": "user-96307f8f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 17:31+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "501",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Oooh! Must-Have T-Shirt Bras Perfect For Spring",
+    "from": {
+      "name": "Mia Clark",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 10:08-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "274",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Updated invitation: Bare Necessities <> Site Functionality Weekly @ Thu Feb 19, 2026 12:30pm - 1pm (EST) (xavier@outsmartly.com)",
+    "from": {
+      "name": "Noah Lewis",
+      "addr": "user-d9f34bc4@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 15:01+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "270",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Automatic reply: Integration Assistance [ thread::N4xLwYQyf6KwwkigvN4oDR8:: ]",
+    "from": {
+      "name": "Olivia Walker",
+      "addr": "user-002da3e4@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 13:18+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "271",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Automatic reply: Integration Assistance [ thread::N4xLwYQyf6KwwkigvN4oDR8:: ]",
+    "from": {
+      "name": "Pete Hall",
+      "addr": "user-707f82c5@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 13:17+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "272",
+    "flags": [],
+    "subject": "Bare Necessities Order 3252103 Order Confirmation",
+    "from": {
+      "name": "Alice Johnson",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-17 08:12-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "268",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "You have newly vested Outsmartly, Inc. options",
+    "from": {
+      "name": "Bob Smith",
+      "addr": "user-068694b2@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-411cc467@example.com"
+    },
+    "date": "2026-02-17 09:57+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "188",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Insider One [Update on Ticket #336240: [Barenecessities] - Review Integration] Waiting for Approval",
+    "from": {
+      "name": "Carol Davis",
+      "addr": "user-62cfdc62@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-e2259dab@example.com"
+    },
+    "date": "2026-02-16 21:27+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "218",
+    "flags": [
+      "Answered",
+      "Seen"
+    ],
+    "subject": "Insider One [Update on Ticket #336240: [Barenecessities] - Review Integration] Waiting for Reply",
+    "from": {
+      "name": "Dave Wilson",
+      "addr": "user-62cfdc62@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-e2259dab@example.com"
+    },
+    "date": "2026-02-13 20:32+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "222",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Insider One [Update on Ticket #336240: [Barenecessities] - Review Integration] Waiting for Reply",
+    "from": {
+      "name": "Eve Martinez",
+      "addr": "user-62cfdc62@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-e2259dab@example.com"
+    },
+    "date": "2026-02-13 16:26+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "223",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Channel Accuracy Alert",
+    "from": {
+      "name": "Frank Brown",
+      "addr": "user-96307f8f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-13 15:31+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "224",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Try Our Exclusive Brands Designed Using YOUR Feedback",
+    "from": {
+      "name": "Grace Lee",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-13 10:15-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "225",
+    "flags": [
+      "Seen",
+      "Answered"
+    ],
+    "subject": "Re: Integration Assistance [ thread::N4xLwYQyf6KwwkigvN4oDR8:: ]",
+    "from": {
+      "name": "Hank Taylor",
+      "addr": "user-dc0ba219@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-13 11:42+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "226",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Xavier Ruiz, you have work due in Jira",
+    "from": {
+      "name": "Iris Anderson",
+      "addr": "user-5423d185@example.net"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-13 03:30+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "228",
+    "flags": [],
+    "subject": "👉 You have unread notifications",
+    "from": {
+      "name": "Jack Thomas",
+      "addr": "user-afb48d44@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-12 19:35+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "229",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Invitation: Release 27 @ Thu Feb 12, 2026 4pm - 5pm (EST) (Xavier Ruiz)",
+    "from": {
+      "name": "Kate White",
+      "addr": "user-88128386@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-12 19:11+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "230",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Sitewide Savings: Up To 40% Off",
+    "from": {
+      "name": "Leo Harris",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-12 10:13-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "232",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Channel Accuracy Alert",
+    "from": {
+      "name": "Mia Clark",
+      "addr": "user-96307f8f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-12 15:01+00:00",
+    "has_attachment": false
+  },
+  {
+    "id": "234",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Re: Check-in Call Notes: Integration guidance and next steps",
+    "from": {
+      "name": "Noah Lewis",
+      "addr": "user-e2aa3797@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-12 17:45+03:00",
+    "has_attachment": false
+  },
+  {
+    "id": "237",
+    "flags": [
+      "Answered",
+      "Seen"
+    ],
+    "subject": "Re: Check-in Call Notes: Integration guidance and next steps",
+    "from": {
+      "name": "Olivia Walker",
+      "addr": "user-e2aa3797@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-e2259dab@example.com"
+    },
+    "date": "2026-02-11 21:06+03:00",
+    "has_attachment": false
+  },
+  {
+    "id": "238",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Bare Necessities Order 3244329 Shipment Confirmation",
+    "from": {
+      "name": "Pete Hall",
+      "addr": "user-e0964a0a@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-11 08:53-05:00",
+    "has_attachment": false
+  },
+  {
+    "id": "239",
+    "flags": [
+      "Seen",
+      "Answered"
+    ],
+    "subject": "Re: Integration Assistance [ thread::N4xLwYQyf6KwwkigvN4oDR8:: ]",
+    "from": {
+      "name": "Alice Johnson",
+      "addr": "user-dc0ba219@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-41898983@example.com"
+    },
+    "date": "2026-02-10 15:44+00:00",
+    "has_attachment": true
+  },
+  {
+    "id": "240",
+    "flags": [
+      "Seen"
+    ],
+    "subject": "Re: Bare Necessities - Chat Handoff Issue",
+    "from": {
+      "name": "Bob Smith",
+      "addr": "user-33bb143f@example.com"
+    },
+    "to": {
+      "name": null,
+      "addr": "user-516ce899@example.com"
+    },
+    "date": "2026-02-10 04:18-08:00",
+    "has_attachment": true
+  }
+]

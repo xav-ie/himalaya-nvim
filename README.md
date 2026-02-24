@@ -1,246 +1,327 @@
 <div align="center">
   <img src="./logo.svg" alt="Logo" width="128" height="128" />
-  <h1>📫 Himalaya Vim</h1>
-  <p>Vim front-end for the email client <a href="https://github.com/pimalaya/himalaya">Himalaya CLI</a></p>
+  <h1>Himalaya Vim</h1>
+  <p>Neovim front-end for the email client <a href="https://github.com/xav-ie/himalaya">Himalaya CLI</a></p>
+  <p><em>🌱 A heavily modified fork of <a href="https://github.com/pimalaya/himalaya-vim">pimalaya/himalaya-vim</a></em></p>
   <p>
-    <a href="https://github.com/pimalaya/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/pimalaya/himalaya?color=success"/></a>
-    <a href="https://repology.org/project/himalaya/versions"><img alt="Repology" src="https://img.shields.io/repology/repositories/himalaya?color=success"></a>
-    <a href="https://matrix.to/#/#pimalaya:matrix.org"><img alt="Matrix" src="https://img.shields.io/badge/chat-%23pimalaya-blue?style=flat&logo=matrix&logoColor=white"/></a>
-    <a href="https://fosstodon.org/@pimalaya"><img alt="Mastodon" src="https://img.shields.io/badge/news-%40pimalaya-blue?style=flat&logo=mastodon&logoColor=white"/></a>
+    <a href="https://github.com/xav-ie/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/xav-ie/himalaya?color=success"/></a>
+    <a href="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml/badge.svg"/></a>
   </p>
-  <p><em>We are looking for new maintainer(s), feel free to contact us! (https://github.com/pimalaya/himalaya-vim/issues/28)</em></p>
 </div>
 
-## Table of contents
+<picture>
+  <img src="https://himalaya-nvim.xav.ie/himalaya.svg" width="100%" alt="Himalaya demo">
+</picture>
+<p align="center"><a href="https://himalaya-nvim.xav.ie/himalaya.mp4">▶ Watch as video</a></p>
 
-- [Installation](#installation)
-- [Configuration](#configuration)
-  - [`g:himalaya_always_confirm`](#ghimalaya_always_confirm)
-  - [`g:himalaya_complete_contact_cmd`](#ghimalaya_complete_contact_cmd)
-  - [`g:himalaya_config_path`](#ghimalaya_config_path)
-  - [`g:himalaya_custom_email_flags`](#ghimalaya_custom_email_flags)
-  - [`g:himalaya_executable`](#ghimalaya_executable)
-  - [`g:himalaya_folder_picker_telescope_preview`](#ghimalaya_folder_picker_telescope_preview)
-  - [`g:himalaya_folder_picker`](#ghimalaya_folder_picker)
-- [Usage](#usage)
-  - [List folders](#list-folders)
-  - [List, filter and sort envelopes](#list-filter-and-sort-envelopes)
-  - [Read message](#read-message)
-  - [Write message](#write-message)
-- [Sponsoring](#sponsoring)
+## Features
+
+- **Flat envelope listing** — adaptive column layout, pagination, flag indicators, unread highlighting
+- **Threaded view** — Unicode tree connectors, reverse toggle, per-thread grouping
+- **Structured search** — popup with per-field input, field negation, date presets, live query preview
+- **Sort toggle** — sort by date, from, subject, or to in ascending/descending order
+- **Email reading** — split view with quoted-text folding and `]]`/`[[` navigation between emails
+- **Composing** — write, reply, reply-all, forward with auto-save drafts and contact completion
+- **Flag management** — mark seen/unseen, add/remove arbitrary flags, visual-mode bulk operations
+- **Folder operations** — switch folders, copy/move emails between folders
+- **Per-account signatures** — global or per-account email signatures
+- **Background sync** — periodic re-fetch while idle
+- **Events system** — hook into `EmailsListed`, `EmailRead`, `ComposeOpened`, and more
+- **Picker integration** — native, fzf, fzf-lua, or Telescope for account/folder selection
+- **Mock mode** — try the plugin without a real email account or CLI binary
+
+## Requirements
+
+- Neovim >= 0.10
+- [Himalaya CLI](https://pimalaya.org/himalaya/cli/latest/installation/) (not needed in mock mode)
+
+**Optional picker integrations** (auto-detected if installed):
+- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- [fzf.vim](https://github.com/junegunn/fzf.vim)
+
+Falls back to a built-in native picker if none are present.
 
 ## Installation
 
-First you need to install and configure the [Himalaya CLI](https://github.com/pimalaya/himalaya). Then you can install this plugin with your favorite plugin manager:
-
-### [packer.nvim](https://github.com/wbthomason/packer.nvim)
+Install and configure the [Himalaya CLI](https://github.com/xav-ie/himalaya), then add
+the plugin with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
-use "https://github.com/pimalaya/himalaya-vim"
+{
+  'xav-ie/himalaya-vim',
+  cmd = 'Himalaya',
+  config = function()
+    require('himalaya').setup({})
+  end,
+}
 ```
 
-```vim
-:PackerSync
-```
+> **Note:** `require('himalaya').setup()` is required. It validates the CLI binary and applies configuration.
 
-### [vim-plug](https://github.com/junegunn/vim-plug)
-
-```vim
-Plug 'https://github.com/pimalaya/himalaya-vim'
-```
-
-```vim
-:PlugInstall
-```
+> **Try it without an account:** pass `mock = true` to explore the full UI with built-in sample data — no CLI binary or email account needed. See [mock mode](#mock-mode) in CONTRIBUTING.md.
 
 ## Configuration
 
-It is highly recommanded to have those Vim options on:
+All options with their defaults:
 
-```vim
-syntax on
-filetype plugin on
-set hidden
+<!-- GEN:config -->
+```lua
+require('himalaya').setup({
+  -- Path to the himalaya CLI binary
+  executable = 'himalaya',
+
+  -- Path to a custom himalaya config file (nil = CLI default)
+  config_path = nil,
+
+  -- Folder/account picker: 'native', 'fzf', 'fzf-lua', or 'telescope'
+  -- nil = auto-detect (telescope > fzf-lua > fzf > native)
+  folder_picker = nil,
+
+  -- Show preview in Telescope picker
+  telescope_preview = false,
+
+  -- Shell command for contact completion (omnifunc); %s = query
+  complete_contact_cmd = nil,
+
+  -- Additional flags for flag completion
+  custom_flags = {},
+
+  -- Prompt before destructive actions (delete, move)
+  always_confirm = true,
+
+  -- Flag display characters in the listing
+  flags = {
+    header = 'FLGS',
+    flagged = '!',
+    unseen = '*',
+    answered = 'R',
+    attachment = '@',
+  },
+
+  -- Show vertical separators between columns
+  gutters = true,
+
+  -- Date format (strftime)
+  date_format = '%Y-%m-%d %H:%M',
+
+  -- Start in thread view instead of flat listing
+  thread_view = false,
+
+  -- Show newest messages at top in thread view
+  thread_reverse = false,
+
+  -- Named search presets for quick access via g?
+  search_presets = {},
+
+  -- Override default keybinds (key = plug-name, value = key or false)
+  keymaps = {},
+
+  -- Periodically re-fetch envelopes in the background
+  background_sync = false,
+
+  -- Background sync interval in seconds
+  sync_interval = 60,
+
+  -- Per-account email signatures: string or { account_name = string }
+  signature = nil,
+
+  -- Enable mock mode (no CLI binary or email account needed)
+  mock = false,
+})
 ```
-
-### `g:himalaya_always_confirm`
-
-Defines whenever Himalaya Vim should always ask before moving or deleting a message. Defaults to `1`.
-
-### `g:himalaya_complete_contact_cmd`
-
-Defines the command to use for contact completion. When this is set, `completefunc` will be set when composing emails so that contacts can be completed with `<C-x><C-u>`.
-
-The command must print each possible result on its own line. Each line must contain tab-separated fields; the first must be the email address, and the second, if present, must be the name. `%s` in the command will be replaced with the search query.
-
-```vim
-let g:himalaya_complete_contact_cmd = '<your completion command>'
-```
-
-### `g:himalaya_config_path`
-
-Override the default TOML configuration file.
-
-### `g:himalaya_custom_email_flags`
-
-Defines the list of additional custom flags that himalaya-vim should be aware
-of. They should be specified as a list of strings:
-
-```vim
-let g:himalaya_custom_email_flags = ['custom1', 'custom2']
-```
-
-### `g:himalaya_executable`
-
-Defines a custom path for the himalaya binary. Defaults to `himalaya`.
-
-### `g:himalaya_folder_picker_telescope_preview`
-
-Enables folder preview when picking a folder with the `telescope.nvim` provider.
-
-```vim
-let g:himalaya_folder_picker_telescope_preview = 1
-```
-
-### `g:himalaya_folder_picker`
-
-Defines the provider used for selecting folders (default keybind: `gm`):
-
-- `native` (default): a vim native input
-- `fzf`: <https://github.com/junegunn/fzf.vim>
-- `fzflua`: <https://github.com/ibhagwan/fzf-lua>
-- `telescope`: <https://github.com/nvim-telescope/telescope.nvim>
-
-If no value given, the first loaded (and available) provider will be used (telescope > fzf > native).
-
-```vim
-let g:himalaya_folder_picker = 'native' | 'fzf' | 'fzflua' | 'telescope'
-```
+<!-- /GEN:config -->
 
 ## Usage
 
-### List folders
-
-With the native picker (default):
-
-![screenshot](https://user-images.githubusercontent.com/10437171/113631817-51eb3180-966a-11eb-8b13-cd1f1f2539ab.jpeg)
-
-With the [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) picker:
-
-![screenshot](https://user-images.githubusercontent.com/10437171/113631294-86122280-9669-11eb-8074-1c43c36b65a9.jpeg)
-
-With the [fzf.vim](https://github.com/junegunn/fzf.vim) picker:
-
-![screenshot](https://user-images.githubusercontent.com/10437171/113631382-acd05900-9669-11eb-817d-c28fd5d9574c.jpeg)
-
-### List, filter and sort envelopes
+Open the email listing:
 
 ```vim
 :Himalaya
 ```
 
-| Function                                               | Keybind   |
-|--------------------------------------------------------|-----------|
-| Change the current folder                              | `gm`      |
-| Show previous page                                     | `gp`      |
-| Show next page                                         | `gn`      |
-| Read email under cursor                                | `<Enter>` |
-| Write a new email                                      | `gw`      |
-| Reply to the email under cursor                        | `gr`      |
-| Reply all to the email under cursor                    | `gR`      |
-| Forward the email under cursor                         | `gf`      |
-| Download all attachments of email under cursor         | `ga`      |
-| Copy the email under cursor                            | `gC`      |
-| Move the email under cursor                            | `gM`      |
-| Delete email(s) under cursor or visual selection       | `gD`      |
-| Add the specified flag to the selected email(s)        | `gFa`     |
-| Remove the specified flag from the selected email(s)   | `gFr`     |
-| Filter and sort envelopes according to the given query | `g/`      |
+<picture>
+  <img src="https://himalaya-nvim.xav.ie/listing.svg" width="100%" alt="Listing demo">
+</picture>
+<p align="center"><a href="https://himalaya-nvim.xav.ie/listing.mp4">▶ Watch as video</a></p>
 
-Keybinds can be customized:
+### Flat listing
 
-```vim
-nmap gm   <plug>(himalaya-folder-select)
-nmap gp   <plug>(himalaya-folder-select-previous-page)
-nmap gn   <plug>(himalaya-folder-select-next-page)
-nmap <cr> <plug>(himalaya-email-read)
-nmap gw   <plug>(himalaya-email-write)
-nmap gr   <plug>(himalaya-email-reply)
-nmap gR   <plug>(himalaya-email-reply-all)
-nmap gf   <plug>(himalaya-email-forward)
-nmap ga   <plug>(himalaya-email-download-attachments)
-nmap gC   <plug>(himalaya-email-copy)
-nmap gM   <plug>(himalaya-email-move)
-nmap gD   <plug>(himalaya-email-delete)
-nmap gFa  <plug>(himalaya-email-flag-add)
-nmap gFr  <plug>(himalaya-email-flag-remove)
-nmap g/   <plug>(himalaya-set-list-envelopes-query)
+| Key         | Action                       |
+| ----------- | ---------------------------- |
+| `Enter`     | Read email under cursor      |
+| `]]`        | Next page                    |
+| `[[`        | Previous page                |
+| `gt`        | Switch to thread view        |
+| `g/`        | Open search popup            |
+| `g?`        | Apply search preset          |
+| `go`        | Toggle sort field/direction  |
+| `]u` / `[u` | Jump to next/previous unread |
+| `]r` / `[r` | Jump to next/previous read   |
+| `?`         | Show keybind help            |
+
+### Thread view
+
+| Key         | Action                               |
+| ----------- | ------------------------------------ |
+| `Enter`     | Read email under cursor              |
+| `]]`        | Next page                            |
+| `[[`        | Previous page                        |
+| `gt`        | Switch to flat listing               |
+| `gT`        | Toggle reverse order (newest on top) |
+| `g/`        | Open search popup                    |
+| `g?`        | Apply search preset                  |
+| `go`        | Toggle sort field/direction          |
+| `]u` / `[u` | Jump to next/previous unread         |
+| `?`         | Show keybind help                    |
+
+<picture>
+  <img src="https://himalaya-nvim.xav.ie/reply.svg" width="100%" alt="Reply demo">
+</picture>
+<p align="center"><a href="https://himalaya-nvim.xav.ie/reply.mp4">▶ Watch as video</a></p>
+
+### Reading
+
+| Key  | Action               |
+| ---- | -------------------- |
+| `]]` | Next email           |
+| `[[` | Previous email       |
+| `gr` | Reply                |
+| `gR` | Reply all            |
+| `gf` | Forward              |
+| `gA` | Download attachments |
+| `gC` | Copy to folder       |
+| `gM` | Move to folder       |
+| `gD` | Delete               |
+| `gb` | Open in browser      |
+| `?`  | Show keybind help    |
+
+<picture>
+  <img src="https://himalaya-nvim.xav.ie/search.svg" width="100%" alt="Search demo">
+</picture>
+<p align="center"><a href="https://himalaya-nvim.xav.ie/search.mp4">▶ Watch as video</a></p>
+
+### Search
+
+The search popup (`g/`) provides structured per-field input:
+
+| Field   | Description                                           |
+| ------- | ----------------------------------------------------- |
+| folder  | Target folder (Tab to complete)                       |
+| subject | Subject text pattern                                  |
+| body    | Body text pattern (linked to subject by default)      |
+| from    | Sender pattern                                        |
+| to      | Recipient pattern                                     |
+| when    | Date filter (Tab for presets: today, past week, etc.) |
+| flag    | Flag filter (Tab to complete: Seen, Flagged, etc.)    |
+| query   | Live-updated composite query                          |
+
+- **Tab** / **Shift-Tab** — navigate between fields (or complete on completable fields)
+- **Ctrl-x** — toggle field negation
+- **Enter** — submit search
+- **Esc** — cancel
+
+<picture>
+  <img src="https://himalaya-nvim.xav.ie/compose.svg" width="100%" alt="Compose demo">
+</picture>
+<p align="center"><a href="https://himalaya-nvim.xav.ie/compose.mp4">▶ Watch as video</a></p>
+
+### Composing
+
+| Key  | Action                      |
+| ---- | --------------------------- |
+| `gw` | Write new email             |
+| `gr` | Reply to email under cursor |
+| `gR` | Reply all                   |
+| `gf` | Forward email               |
+
+In the compose buffer:
+
+- `:w` sends the email
+- Leaving the buffer auto-saves as draft
+- Contact completion: `Ctrl-x Ctrl-u` (requires `complete_contact_cmd`)
+
+### Common bindings (listing and thread view)
+
+| Key   | Action               |
+| ----- | -------------------- |
+| `ga`  | Switch account       |
+| `gm`  | Switch folder        |
+| `gw`  | Write new email      |
+| `dd`  | Delete email         |
+| `gs`  | Mark as seen         |
+| `gS`  | Mark as unseen       |
+| `gFa` | Add flag             |
+| `gFr` | Remove flag          |
+| `gC`  | Copy to folder       |
+| `gM`  | Move to folder       |
+| `gA`  | Download attachments |
+| `gb`  | Open in browser      |
+
+Visual mode: `d`, `gs`, `gS`, `gFa`, `gFr`, `gC`, `gM` work on selected range.
+
+## Customization
+
+### Keymap overrides
+
+Remap any binding by its plug name, or set to `false` to disable:
+
+```lua
+require('himalaya').setup({
+  keymaps = {
+    ['email-read'] = 'o',           -- open email with 'o' instead of Enter
+    ['email-delete'] = false,       -- disable dd delete
+    ['email-toggle-sort'] = 'gO',   -- remap sort toggle
+  },
+})
 ```
 
-*See `himalaya envelopes list --help` for more detailed information about the query API.*
+### Events
 
-### Read message
+Subscribe to plugin events for custom behavior:
 
-| Function                       | Keybind |
-|--------------------------------|---------|
-| Write a new email              | `gw`    |
-| Reply to the email             | `gr`    |
-| Reply all to the email         | `gR`    |
-| Forward the email              | `gf`    |
-| Download all email attachments | `ga`    |
-| Copy the email                 | `gC`    |
-| Move the email                 | `gM`    |
-| Delete the email               | `gD`    |
-| Open the mail in the browser   | `go`    |
+```lua
+local events = require('himalaya.events')
 
-Keybinds can be customized:
-
-```vim
-nmap gw <plug>(himalaya-email-write)
-nmap gr <plug>(himalaya-email-reply)
-nmap gR <plug>(himalaya-email-reply-all)
-nmap gf <plug>(himalaya-email-forward)
-nmap ga <plug>(himalaya-email-download-attachments)
-nmap gC <plug>(himalaya-email-copy)
-nmap gM <plug>(himalaya-email-move)
-nmap gD <plug>(himalaya-email-delete)
-nmap go <plug>(himalaya-email-open-browser)
+events.on('EmailsListed', function(data) ... end)
+events.on('EmailRead', function(data) ... end)
+events.on('ComposeOpened', function(data) ... end)
 ```
 
-### Write message
+See [CONTRIBUTING.md](./CONTRIBUTING.md#all-events) for the full list of events and their payloads.
 
-| Function       | Keybind |
-|----------------|---------|
-| Add attachment | `ga`    |
+### Signatures
 
-Keybinds can be customized:
+Set a global signature or per-account signatures:
 
-```vim
-nmap ga <plug>(himalaya-email-add-attachment)
+```lua
+require('himalaya').setup({
+  -- Global signature
+  signature = '\n--\nSent with himalaya',
+
+  -- Or per-account
+  signature = {
+    personal = '\n--\nJohn Doe',
+    work = '\n--\nJohn Doe\nSoftware Engineer\nAcme Corp',
+  },
+})
 ```
 
-When you exit this special buffer, you will be prompted 4 choices:
+### Search presets
 
-- `send`: sends the email
-- `draft`: saves the email locally
-- `quit`: quits the buffer without saving
-- `cancel`: goes back to the email edition
+Define named search presets for quick access via `g?`:
 
-## Sponsoring
+```lua
+require('himalaya').setup({
+  search_presets = {
+    { name = 'Unread', query = 'not flag Seen' },
+    { name = 'Flagged', query = 'flag Flagged' },
+    { name = 'This week', query = 'after ' .. os.date('%Y-%m-%d', os.time() - 7 * 86400) },
+  },
+})
+```
 
-[![nlnet](https://nlnet.nl/logo/banner-160x60.png)](https://nlnet.nl/)
+## Contributing
 
-Special thanks to the [NLnet foundation](https://nlnet.nl/) and the [European Commission](https://www.ngi.eu/) that have been financially supporting the project for years:
-
-- 2022: [NGI Assure](https://nlnet.nl/project/Himalaya/)
-- 2023: [NGI Zero Entrust](https://nlnet.nl/project/Pimalaya/)
-- 2024: [NGI Zero Core](https://nlnet.nl/project/Pimalaya-PIM/) *(still ongoing in 2026)*
-
-If you appreciate the project, feel free to donate using one of the following providers:
-
-[![GitHub](https://img.shields.io/badge/-GitHub%20Sponsors-fafbfc?logo=GitHub%20Sponsors)](https://github.com/sponsors/soywod)
-[![Ko-fi](https://img.shields.io/badge/-Ko--fi-ff5e5a?logo=Ko-fi&logoColor=ffffff)](https://ko-fi.com/soywod)
-[![Buy Me a Coffee](https://img.shields.io/badge/-Buy%20Me%20a%20Coffee-ffdd00?logo=Buy%20Me%20A%20Coffee&logoColor=000000)](https://www.buymeacoffee.com/soywod)
-[![Liberapay](https://img.shields.io/badge/-Liberapay-f6c915?logo=Liberapay&logoColor=222222)](https://liberapay.com/soywod)
-[![thanks.dev](https://img.shields.io/badge/-thanks.dev-000000?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQuMDk3IiBoZWlnaHQ9IjE3LjU5NyIgY2xhc3M9InctMzYgbWwtMiBsZzpteC0wIHByaW50Om14LTAgcHJpbnQ6aW52ZXJ0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik05Ljc4MyAxNy41OTdINy4zOThjLTEuMTY4IDAtMi4wOTItLjI5Ny0yLjc3My0uODktLjY4LS41OTMtMS4wMi0xLjQ2Mi0xLjAyLTIuNjA2di0xLjM0NmMwLTEuMDE4LS4yMjctMS43NS0uNjc4LTIuMTk1LS40NTItLjQ0Ni0xLjIzMi0uNjY5LTIuMzQtLjY2OUgwVjcuNzA1aC41ODdjMS4xMDggMCAxLjg4OC0uMjIyIDIuMzQtLjY2OC40NTEtLjQ0Ni42NzctMS4xNzcuNjc3LTIuMTk1VjMuNDk2YzAtMS4xNDQuMzQtMi4wMTMgMS4wMjEtMi42MDZDNS4zMDUuMjk3IDYuMjMgMCA3LjM5OCAwaDIuMzg1djEuOTg3aC0uOTg1Yy0uMzYxIDAtLjY4OC4wMjctLjk4LjA4MmExLjcxOSAxLjcxOSAwIDAgMC0uNzM2LjMwN2MtLjIwNS4xNTYtLjM1OC4zODQtLjQ2LjY4Mi0uMTAzLjI5OC0uMTU0LjY4Mi0uMTU0IDEuMTUxVjUuMjNjMCAuODY3LS4yNDkgMS41ODYtLjc0NSAyLjE1NS0uNDk3LjU2OS0xLjE1OCAxLjAwNC0xLjk4MyAxLjMwNXYuMjE3Yy44MjUuMyAxLjQ4Ni43MzYgMS45ODMgMS4zMDUuNDk2LjU3Ljc0NSAxLjI4Ny43NDUgMi4xNTR2MS4wMjFjMCAuNDcuMDUxLjg1NC4xNTMgMS4xNTIuMTAzLjI5OC4yNTYuNTI1LjQ2MS42ODIuMTkzLjE1Ny40MzcuMjYuNzMyLjMxMi4yOTUuMDUuNjIzLjA3Ni45ODQuMDc2aC45ODVabTE0LjMxNC03LjcwNmgtLjU4OGMtMS4xMDggMC0xLjg4OC4yMjMtMi4zNC42NjktLjQ1LjQ0NS0uNjc3IDEuMTc3LS42NzcgMi4xOTVWMTQuMWMwIDEuMTQ0LS4zNCAyLjAxMy0xLjAyIDIuNjA2LS42OC41OTMtMS42MDUuODktMi43NzQuODloLTIuMzg0di0xLjk4OGguOTg0Yy4zNjIgMCAuNjg4LS4wMjcuOTgtLjA4LjI5Mi0uMDU1LjUzOC0uMTU3LjczNy0uMzA4LjIwNC0uMTU3LjM1OC0uMzg0LjQ2LS42ODIuMTAzLS4yOTguMTU0LS42ODIuMTU0LTEuMTUydi0xLjAyYzAtLjg2OC4yNDgtMS41ODYuNzQ1LTIuMTU1LjQ5Ny0uNTcgMS4xNTgtMS4wMDQgMS45ODMtMS4zMDV2LS4yMTdjLS44MjUtLjMwMS0xLjQ4Ni0uNzM2LTEuOTgzLTEuMzA1LS40OTctLjU3LS43NDUtMS4yODgtLjc0NS0yLjE1NXYtMS4wMmMwLS40Ny0uMDUxLS44NTQtLjE1NC0xLjE1Mi0uMTAyLS4yOTgtLjI1Ni0uNTI2LS40Ni0uNjgyYTEuNzE5IDEuNzE5IDAgMCAwLS43MzctLjMwNyA1LjM5NSA1LjM5NSAwIDAgMC0uOTgtLjA4MmgtLjk4NFYwaDIuMzg0YzEuMTY5IDAgMi4wOTMuMjk3IDIuNzc0Ljg5LjY4LjU5MyAxLjAyIDEuNDYyIDEuMDIgMi42MDZ2MS4zNDZjMCAxLjAxOC4yMjYgMS43NS42NzggMi4xOTUuNDUxLjQ0NiAxLjIzMS42NjggMi4zNC42NjhoLjU4N3oiIGZpbGw9IiNmZmYiLz48L3N2Zz4=)](https://thanks.dev/soywod)
-[![PayPal](https://img.shields.io/badge/-PayPal-0079c1?logo=PayPal&logoColor=ffffff)](https://www.paypal.com/paypalme/soywod)
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, testing, the
+full events reference, and a guide to writing plugins that extend himalaya-vim.
