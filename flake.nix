@@ -26,6 +26,35 @@
           ...
         }:
         let
+          svgoConfig = pkgs.writeText "svgo.config.mjs" ''
+            export default {
+              plugins: [
+                "removeComments",
+                "removeMetadata",
+                "removeEditorsNSData",
+                "removeXMLProcInst",
+                "removeDoctype",
+                "removeEmptyAttrs",
+              ],
+            };
+          '';
+          vhs-svg = pkgs.buildGoModule {
+            pname = "vhs";
+            version = "0.11.1-svg-fix";
+            src = pkgs.fetchFromGitHub {
+              owner = "xav-ie";
+              repo = "vhs";
+              rev = "f1fa67df7f25f5330fd3b66e731c455f00d0a619";
+              hash = "sha256-0NdtjvEodGkOZ7tqcpQatvhs6/pvXyN5hyVQHBNqTno=";
+            };
+            vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/vhs \
+                --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.ttyd pkgs.ffmpeg ]}
+            '';
+            meta.mainProgram = "vhs";
+          };
           busted-nlua = pkgs.luajitPackages.busted.overrideAttrs (oa: {
             propagatedBuildInputs = oa.propagatedBuildInputs ++ [
               pkgs.luajitPackages.nlua
@@ -67,6 +96,9 @@
             bucket="''${R2_BUCKET:-himalaya-nvim}"
             endpoint="https://946b8d18ae9ef27fc85597e7716a1641.r2.cloudflarestorage.com"
             ${pkgs.lib.getExe pkgs.awscli2} s3 sync demo/ "s3://$bucket/" \
+              --endpoint-url "$endpoint" --exclude "*" --include "*.svg" \
+              --content-type "image/svg+xml"
+            ${pkgs.lib.getExe pkgs.awscli2} s3 sync demo/ "s3://$bucket/" \
               --endpoint-url "$endpoint" --exclude "*" --include "*.mp4" \
               --content-type "video/mp4"
             echo "Done. Files available at https://himalaya-nvim.xav.ie/"
@@ -84,11 +116,14 @@
             process_tape() {
               tape="$1"
               name="$(basename "$tape" .tape)"
-              ${pkgs.lib.getExe pkgs.vhs} "$tape" -o "demo/$name.mp4"
+              ${pkgs.lib.getExe vhs-svg} "$tape"
               ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
                 -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
                 -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
               mv "demo/$name-out.mp4" "demo/$name.mp4"
+              ${pkgs.lib.getExe pkgs.svgo} \
+                --config ${svgoConfig} \
+                --input "demo/$name.svg" --output "demo/$name.svg"
             }
             export -f process_tape
             ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
@@ -132,8 +167,9 @@
               luajitPackages.luacov
 
               # Demo recording + upload
-              vhs
+              vhs-svg
               ffmpeg
+              svgo
               awscli2
 
               # FZF
