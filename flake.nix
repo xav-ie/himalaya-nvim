@@ -49,8 +49,8 @@
             src = pkgs.fetchFromGitHub {
               owner = "xav-ie";
               repo = "vhs";
-              rev = "93bcbc4a4184a69de19b13edfb7637a26bb78016";
-              hash = "sha256-T/gHyyw+vyGwtuHGwGp1eCQPncmnbdwxzmHxP94/0jA=";
+              rev = "f2cac8b473cb9aa81c112deb47a6fc014c9220b0";
+              hash = "sha256-+/vuK83dY9Jq4w91a19kBBhBVGnB8cw6aUT99A5Y3L4=";
             };
             vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
             nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -60,6 +60,7 @@
                   pkgs.lib.makeBinPath [
                     pkgs.ttyd
                     pkgs.ffmpeg
+                    pkgs.fontconfig
                   ]
                 }
             '';
@@ -130,15 +131,13 @@
               pyftsubset = pkgs.python3Packages.fonttools.overridePythonAttrs (old: {
                 dependencies = (old.dependencies or [ ]) ++ [ pkgs.python3Packages.brotli ];
               });
+              fontSubsetPath = pkgs.lib.makeBinPath [
+                pyftsubset
+                pkgs.fontconfig
+              ];
             in
             pkgs.writeShellScriptBin "build-demo" ''
               set -euo pipefail
-              export PATH="${
-                pkgs.lib.makeBinPath [
-                  pyftsubset
-                  pkgs.fontconfig
-                ]
-              }:$PATH"
               process_tape() {
                 tape="$1"
                 name="$(basename "$tape" .tape)"
