@@ -1,10 +1,10 @@
+Output demo/compose.svg
 Output demo/compose.mp4
 
 Set FontFamily "Maple Mono NF"
-Set FontSize 24
-Set Width 1920
-Set Height 1080
-Set PlaybackSpeed 0.5
+Set FontSize 20
+Set Width 1280
+Set Height 720
 Set Theme "Builtin Dark"
 Set Padding 0
 
