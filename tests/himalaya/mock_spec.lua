@@ -206,7 +206,7 @@ describe('himalaya.mock', function()
       end)
       assert.is_not_nil(received)
       -- Should return all envelopes (order by is not a filter)
-      assert.are.equal(25, #received)
+      assert.are.equal(26, #received)
     end)
 
     it('reverses envelope order for order by asc', function()
@@ -497,7 +497,7 @@ describe('himalaya.mock.data', function()
       assert.are.equal(10, #page2)
 
       local page3 = data.envelopes('INBOX', 10, 3)
-      assert.are.equal(5, #page3)
+      assert.are.equal(6, #page3)
     end)
 
     it('returns envelopes with required fields', function()
@@ -553,8 +553,8 @@ describe('himalaya.mock.data', function()
           ghost_count = ghost_count + 1
         end
       end
-      -- 4 thread roots + 12 standalone = 16 ghost edges
-      assert.are.equal(16, ghost_count)
+      -- 4 thread roots + 13 standalone = 17 ghost edges
+      assert.are.equal(17, ghost_count)
     end)
   end)
 

@@ -7,7 +7,7 @@ Set Width 1024
 Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
-Set PlaybackSpeed 0.5
+Set CursorBlink false
 
 Hide
 Type "nvim -u demo/init.lua"
@@ -42,8 +42,11 @@ Sleep 2s
 
 # Write the reply body (cursor is at body area after headers)
 Type "jjo"
-Type@50ms "Thanks for the update, looks good to me!"
+Hide
+Type@0ms "Thanks for the update, looks good to me!"
+Sleep 200ms
 Escape
+Show
 Sleep 1s
 
 # Send the reply
@@ -55,10 +58,10 @@ Show
 Sleep 2s
 
 Type ":w"
+Hide
 Enter
+Sleep 200ms
+Show
 Sleep 2s
 
-# Close — back to listing
-Type ":q"
-Enter
-Sleep 2s
+Sleep 1s

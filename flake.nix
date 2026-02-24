@@ -43,14 +43,17 @@
                   ],
                 };
               '';
+          pyftsubset = pkgs.python3Packages.fonttools.overridePythonAttrs (old: {
+            dependencies = (old.dependencies or [ ]) ++ [ pkgs.python3Packages.brotli ];
+          });
           vhs-svg = pkgs.buildGoModule {
             pname = "vhs";
             version = "0.11.1-svg-fix";
             src = pkgs.fetchFromGitHub {
               owner = "xav-ie";
               repo = "vhs";
-              rev = "93bcbc4a4184a69de19b13edfb7637a26bb78016";
-              hash = "sha256-T/gHyyw+vyGwtuHGwGp1eCQPncmnbdwxzmHxP94/0jA=";
+              rev = "24d37579657787317889013ea5e5054f0b686c3e";
+              hash = "sha256-3vXgrqkNu9oeiGNBGN0B2XF+IIEEDrCM7sSujbDqXh0=";
             };
             vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
             nativeBuildInputs = [ pkgs.makeWrapper ];
@@ -60,6 +63,8 @@
                   pkgs.lib.makeBinPath [
                     pkgs.ttyd
                     pkgs.ffmpeg
+                    pkgs.fontconfig
+                    pyftsubset
                   ]
                 }
             '';
@@ -122,36 +127,24 @@
           '';
 
           # nix run .#build-demo
-          packages.build-demo =
-            let
-              pyftsubset = pkgs.python3Packages.fonttools.overridePythonAttrs (old: {
-                dependencies = (old.dependencies or [ ]) ++ [ pkgs.python3Packages.brotli ];
-              });
-            in
-            pkgs.writeShellScriptBin "build-demo" ''
-              set -euo pipefail
-              export PATH="${
-                pkgs.lib.makeBinPath [
-                  pyftsubset
-                  pkgs.fontconfig
-                ]
-              }:$PATH"
-              process_tape() {
-                tape="$1"
-                name="$(basename "$tape" .tape)"
-                ${pkgs.lib.getExe vhs-svg} "$tape"
-                ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
-                  -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
-                  -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
-                mv "demo/$name-out.mp4" "demo/$name.mp4"
-                # ${pkgs.lib.getExe pkgs.svgo} \
-                #   --config ${svgoConfig} \
-                #   --input "demo/$name.svg" --output "demo/$name.svg"
-              }
-              export -f process_tape
-              ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
-                process_tape ::: demo/*.tape
-            '';
+          packages.build-demo = pkgs.writeShellScriptBin "build-demo" ''
+            set -euo pipefail
+            process_tape() {
+              tape="$1"
+              name="$(basename "$tape" .tape)"
+              ${pkgs.lib.getExe vhs-svg} "$tape"
+              ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
+                -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
+                -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
+              mv "demo/$name-out.mp4" "demo/$name.mp4"
+              ${pkgs.lib.getExe pkgs.svgo} \
+                --config ${svgoConfig} \
+                --input "demo/$name.svg" --output "demo/$name.svg"
+            }
+            export -f process_tape
+            ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
+              process_tape ::: demo/*.tape
+          '';
 
           # nix build
           packages.default = pkgs.vimUtils.buildVimPlugin {

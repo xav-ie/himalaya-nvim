@@ -1342,7 +1342,8 @@ local function jump_in_listing(predicate, direction, no_match_msg)
     return
   end
   local display = display_slice(envelopes)
-  local total = #display
+  local buf_lines = vim.api.nvim_buf_line_count(0)
+  local total = math.min(#display, buf_lines)
   if total == 0 then
     return
   end
