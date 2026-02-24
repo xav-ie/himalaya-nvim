@@ -44,8 +44,8 @@
             src = pkgs.fetchFromGitHub {
               owner = "xav-ie";
               repo = "vhs";
-              rev = "1a7e1c9cc18ead79c1fb1fafa3d59f26a80701cb";
-              hash = "sha256-u1uPvyyJFilm/K3jTC30g1CIcjX7iRtsu+WUIT7fHs8=";
+              rev = "e5752722447112e622de90c5c39bde30f5a7b44c";
+              hash = "sha256-M6whE7zYTYFJpCHQsPbD++XcQUx8W6P5jbn07wTImLA=";
             };
             vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
             nativeBuildInputs = [ pkgs.makeWrapper ];
