@@ -112,6 +112,9 @@
             ${pkgs.lib.getExe pkgs.awscli2} s3 sync demo/ "s3://$bucket/" \
               --endpoint-url "$endpoint" --exclude "*" --include "*.mp4" \
               --content-type "video/mp4"
+            ${pkgs.lib.getExe pkgs.awscli2} s3 sync demo/ "s3://$bucket/" \
+              --endpoint-url "$endpoint" --exclude "*" --include "*.png" \
+              --content-type "image/png"
             echo "Done. Files available at https://himalaya-nvim.xav.ie/"
           '';
 
@@ -144,6 +147,11 @@
                   -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
                   -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
                 mv "demo/$name-out.mp4" "demo/$name.mp4"
+                # Extract a screenshot from the middle of the video
+                duration=$(${pkgs.lib.getExe pkgs.ffmpeg} -i "demo/$name.mp4" 2>&1 | grep -oP 'Duration: \K[0-9:.]+' || echo "0")
+                mid=$(echo "$duration" | ${pkgs.lib.getExe pkgs.gawk} -F: '{print ($1*3600 + $2*60 + $3) / 2}')
+                ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -ss "$mid" -i "demo/$name.mp4" \
+                  -frames:v 1 -y "demo/$name.png"
                 # ${pkgs.lib.getExe pkgs.svgo} \
                 #   --config ${svgoConfig} \
                 #   --input "demo/$name.svg" --output "demo/$name.svg"

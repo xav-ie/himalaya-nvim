@@ -9,10 +9,8 @@
   </p>
 </div>
 
-<picture>
-  <img src="https://himalaya-nvim.xav.ie/himalaya.svg" width="100%" alt="Himalaya demo">
-</picture>
-<p align="center"><a href="https://himalaya-nvim.xav.ie/himalaya.mp4">▶ Watch as video</a></p>
+<img src="https://himalaya-nvim.xav.ie/himalaya.png" width="100%" alt="Himalaya demo">
+<p align="center"><a href="https://himalaya-nvim.xav.ie/himalaya.svg">▶ Animated SVG</a> · <a href="https://himalaya-nvim.xav.ie/himalaya.mp4">▶ Video</a></p>
 
 ## Features
 
@@ -140,10 +138,8 @@ Open the email listing:
 :Himalaya
 ```
 
-<picture>
-  <img src="https://himalaya-nvim.xav.ie/listing.svg" width="100%" alt="Listing demo">
-</picture>
-<p align="center"><a href="https://himalaya-nvim.xav.ie/listing.mp4">▶ Watch as video</a></p>
+<img src="https://himalaya-nvim.xav.ie/listing.png" width="100%" alt="Listing demo">
+<p align="center"><a href="https://himalaya-nvim.xav.ie/listing.svg">▶ Animated SVG</a> · <a href="https://himalaya-nvim.xav.ie/listing.mp4">▶ Video</a></p>
 
 ### Flat listing
 
@@ -175,10 +171,8 @@ Open the email listing:
 | `]u` / `[u` | Jump to next/previous unread         |
 | `?`         | Show keybind help                    |
 
-<picture>
-  <img src="https://himalaya-nvim.xav.ie/reply.svg" width="100%" alt="Reply demo">
-</picture>
-<p align="center"><a href="https://himalaya-nvim.xav.ie/reply.mp4">▶ Watch as video</a></p>
+<img src="https://himalaya-nvim.xav.ie/reply.png" width="100%" alt="Reply demo">
+<p align="center"><a href="https://himalaya-nvim.xav.ie/reply.svg">▶ Animated SVG</a> · <a href="https://himalaya-nvim.xav.ie/reply.mp4">▶ Video</a></p>
 
 ### Reading
 
@@ -197,6 +191,7 @@ Open the email listing:
 | `?`  | Show keybind help    |
 
 <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://himalaya-nvim.xav.ie/search.svg">
   <img src="https://himalaya-nvim.xav.ie/search.svg" width="100%" alt="Search demo">
 </picture>
 <p align="center"><a href="https://himalaya-nvim.xav.ie/search.mp4">▶ Watch as video</a></p>
@@ -221,10 +216,8 @@ The search popup (`g/`) provides structured per-field input:
 - **Enter** — submit search
 - **Esc** — cancel
 
-<picture>
-  <img src="https://himalaya-nvim.xav.ie/compose.svg" width="100%" alt="Compose demo">
-</picture>
-<p align="center"><a href="https://himalaya-nvim.xav.ie/compose.mp4">▶ Watch as video</a></p>
+<img src="https://himalaya-nvim.xav.ie/compose.png" width="100%" alt="Compose demo">
+<p align="center"><a href="https://himalaya-nvim.xav.ie/compose.svg">▶ Animated SVG</a> · <a href="https://himalaya-nvim.xav.ie/compose.mp4">▶ Video</a></p>
 
 ### Composing
 
