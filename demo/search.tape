@@ -23,7 +23,10 @@ Show
 Sleep 2s
 
 # First search: subject only
+Hide
 Type "g/"
+Sleep 200ms
+Show
 Sleep 1.5s
 
 # Type subject search
@@ -51,7 +54,10 @@ Sleep 100ms
 Show
 Sleep 2.5s
 
+Hide
 Type "g/"
+Sleep 200ms
+Show
 Sleep 1s
 
 # Tab past body to from field (subject → body → from)
