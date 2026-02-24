@@ -7,7 +7,6 @@ Set Width 1024
 Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
-Set PlaybackSpeed 0.5
 Set CursorBlink false
 
 Hide
@@ -16,11 +15,18 @@ Enter
 Type ":Himalaya"
 Enter
 Sleep 1s
+Type@0ms ":echo ''"
+Enter
+Sleep 100ms
+Show
+Sleep 500ms
+
+Hide
 Type@0ms ":Msg Search by subject with <g/>"
 Enter
 Sleep 100ms
 Show
-Sleep 2s
+Sleep 2.5s
 
 # First search: subject only
 Hide
@@ -48,7 +54,7 @@ Sleep 1s
 
 # Explain that g/ resumes previous query
 Hide
-Type@0ms ":Msg <g/> again resumes previous query for further refinement"
+Type@0ms ":Msg <g/> resumes previous query for further refinement"
 Enter
 Sleep 100ms
 Show

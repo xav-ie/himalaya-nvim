@@ -7,7 +7,6 @@ Set Width 1024
 Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
-Set PlaybackSpeed 0.5
 Set CursorBlink false
 
 Hide
@@ -49,9 +48,9 @@ Sleep 1s
 # Type body
 Hide
 Type@0ms "This is a demo email composed in himalaya."
+Escape
 Sleep 200ms
 Show
-Escape
 Sleep 1s
 
 # Send the email
