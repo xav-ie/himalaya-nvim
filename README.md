@@ -138,10 +138,7 @@ Open the email listing:
 :Himalaya
 ```
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://himalaya-nvim.xav.ie/listing.svg">
-  <img src="https://himalaya-nvim.xav.ie/listing.svg" width="100%" alt="Listing demo">
-</picture>
+<img src="https://himalaya-nvim.xav.ie/listing.svg" width="100%" alt="Listing demo">
 <p align="center"><a href="https://himalaya-nvim.xav.ie/listing.mp4">▶ Watch as video</a></p>
 
 ### Flat listing
@@ -174,10 +171,7 @@ Open the email listing:
 | `]u` / `[u` | Jump to next/previous unread         |
 | `?`         | Show keybind help                    |
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://himalaya-nvim.xav.ie/reply.svg">
-  <img src="https://himalaya-nvim.xav.ie/reply.svg" width="100%" alt="Reply demo">
-</picture>
+<img src="https://himalaya-nvim.xav.ie/reply.svg" width="100%" alt="Reply demo">
 <p align="center"><a href="https://himalaya-nvim.xav.ie/reply.mp4">▶ Watch as video</a></p>
 
 ### Reading
@@ -196,10 +190,7 @@ Open the email listing:
 | `gb` | Open in browser      |
 | `?`  | Show keybind help    |
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://himalaya-nvim.xav.ie/search.svg">
-  <img src="https://himalaya-nvim.xav.ie/search.svg" width="100%" alt="Search demo">
-</picture>
+<img src="https://himalaya-nvim.xav.ie/search.svg" width="100%" alt="Search demo">
 <p align="center"><a href="https://himalaya-nvim.xav.ie/search.mp4">▶ Watch as video</a></p>
 
 ### Search
@@ -222,10 +213,7 @@ The search popup (`g/`) provides structured per-field input:
 - **Enter** — submit search
 - **Esc** — cancel
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://himalaya-nvim.xav.ie/compose.svg">
-  <img src="https://himalaya-nvim.xav.ie/compose.svg" width="100%" alt="Compose demo">
-</picture>
+<img src="https://himalaya-nvim.xav.ie/compose.svg" width="100%" alt="Compose demo">
 <p align="center"><a href="https://himalaya-nvim.xav.ie/compose.mp4">▶ Watch as video</a></p>
 
 ### Composing
