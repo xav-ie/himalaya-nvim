@@ -51,7 +51,7 @@ Sleep 500ms
 
 # Read email
 Hide
-Type@0ms ":Msg Read email in split view"
+Type@0ms ":Msg Read email in split view with <Enter>"
 Enter
 Sleep 100ms
 Show
@@ -116,14 +116,5 @@ Sleep 2s
 # Toggle back
 Type "gT"
 Sleep 2s
-
-# Read a threaded email
-Enter
-Sleep 2s
-
-# Back to listing
-Type ":q"
-Enter
-Sleep 1s
 
 Sleep 1s

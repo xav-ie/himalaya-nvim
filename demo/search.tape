@@ -31,7 +31,10 @@ Type "alpha"
 Sleep 1s
 
 # Submit
+Hide
 Enter
+Sleep 200ms
+Show
 Sleep 2s
 
 # Show filtered results (only Alpha thread emails)
@@ -59,7 +62,10 @@ Type "bob"
 Sleep 1s
 
 # Submit
+Hide
 Enter
+Sleep 200ms
+Show
 Sleep 2s
 
 # Show narrowed results (only Bob's Alpha emails)
