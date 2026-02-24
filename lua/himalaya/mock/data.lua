@@ -35,6 +35,7 @@ local function all_envelopes()
   return {
     -- Thread 1: Project Alpha release timeline (5 msgs)
     env(1005, 'Re: Project Alpha release timeline', people.bob, -3600, {}),
+    env(1026, 'Have you tried the himalaya nvim plugin?', people.alice, -5000, {}),
     env(1004, 'Re: Project Alpha release timeline', people.david, -7200, { 'Seen' }),
     env(1003, 'Re: Project Alpha release timeline', people.carol, -10800, { 'Seen' }),
     env(1002, 'Re: Project Alpha release timeline', people.alice, -18000, { 'Seen' }),
@@ -228,7 +229,7 @@ function M.thread_edges(folder)
   edge(1012, 1013, 2)
 
   -- Standalone messages (each is a single-node thread)
-  for _, id in ipairs({ 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025 }) do
+  for _, id in ipairs({ 1026, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025 }) do
     edge(0, id, 0)
   end
 
@@ -314,6 +315,15 @@ new auth module that Eve's been working on. Thursday at
 3pm it is!
 
 Bob]],
+    [1026] = [[
+From: Alice Chen <alice@example.com>
+To: user@example.com
+Subject: Have you tried the himalaya nvim plugin?
+Date: ]] .. date(-5000) .. [[
+
+Hey, have you tried himalaya-vim? Wondering if it's worth setting up.
+
+Alice]],
     [1006] = [[
 From: Eve Martin <eve@example.com>
 To: frank@example.com

@@ -17,4 +17,3 @@ luacov.report.out
 
 demo/*.mp4
 demo/*.svg
-demo/*.png

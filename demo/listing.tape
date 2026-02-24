@@ -8,6 +8,7 @@ Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
 Set PlaybackSpeed 0.5
+Set CursorBlink false
 
 Hide
 Type "nvim -u demo/init.lua"

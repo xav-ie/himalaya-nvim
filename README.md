@@ -9,8 +9,8 @@
   </p>
 </div>
 
-<img src="https://himalaya-nvim.xav.ie/himalaya.png" width="100%" alt="Himalaya demo">
-<p align="center"><a href="https://himalaya-nvim.xav.ie/himalaya.svg">▶ Animated SVG</a> · <a href="https://himalaya-nvim.xav.ie/himalaya.mp4">▶ Video</a></p>
+<img src="https://himalaya-nvim.xav.ie/himalaya.svg" width="100%" alt="Himalaya demo">
+<p align="center"><a href="https://himalaya-nvim.xav.ie/himalaya.mp4">▶ Watch as video</a></p>
 
 ## Features
 
