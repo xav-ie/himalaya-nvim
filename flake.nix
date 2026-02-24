@@ -43,6 +43,9 @@
                   ],
                 };
               '';
+          pyftsubset = pkgs.python3Packages.fonttools.overridePythonAttrs (old: {
+            dependencies = (old.dependencies or [ ]) ++ [ pkgs.python3Packages.brotli ];
+          });
           vhs-svg = pkgs.buildGoModule {
             pname = "vhs";
             version = "0.11.1-svg-fix";
@@ -61,6 +64,7 @@
                     pkgs.ttyd
                     pkgs.ffmpeg
                     pkgs.fontconfig
+                    pyftsubset
                   ]
                 }
             '';
@@ -126,39 +130,29 @@
           '';
 
           # nix run .#build-demo
-          packages.build-demo =
-            let
-              pyftsubset = pkgs.python3Packages.fonttools.overridePythonAttrs (old: {
-                dependencies = (old.dependencies or [ ]) ++ [ pkgs.python3Packages.brotli ];
-              });
-              fontSubsetPath = pkgs.lib.makeBinPath [
-                pyftsubset
-                pkgs.fontconfig
-              ];
-            in
-            pkgs.writeShellScriptBin "build-demo" ''
-              set -euo pipefail
-              process_tape() {
-                tape="$1"
-                name="$(basename "$tape" .tape)"
-                ${pkgs.lib.getExe vhs-svg} "$tape"
-                ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
-                  -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
-                  -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
-                mv "demo/$name-out.mp4" "demo/$name.mp4"
-                # Extract a screenshot from the middle of the video
-                duration=$(${pkgs.lib.getExe pkgs.ffmpeg} -i "demo/$name.mp4" 2>&1 | grep -oP 'Duration: \K[0-9:.]+' || echo "0")
-                mid=$(echo "$duration" | ${pkgs.lib.getExe pkgs.gawk} -F: '{print ($1*3600 + $2*60 + $3) / 2}')
-                ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -ss "$mid" -i "demo/$name.mp4" \
-                  -frames:v 1 -y "demo/$name.png"
-                # ${pkgs.lib.getExe pkgs.svgo} \
-                #   --config ${svgoConfig} \
-                #   --input "demo/$name.svg" --output "demo/$name.svg"
-              }
-              export -f process_tape
-              ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
-                process_tape ::: demo/*.tape
-            '';
+          packages.build-demo = pkgs.writeShellScriptBin "build-demo" ''
+            set -euo pipefail
+            process_tape() {
+              tape="$1"
+              name="$(basename "$tape" .tape)"
+              ${pkgs.lib.getExe vhs-svg} "$tape"
+              ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
+                -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
+                -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
+              mv "demo/$name-out.mp4" "demo/$name.mp4"
+              # Extract a screenshot from the middle of the video
+              duration=$(${pkgs.lib.getExe pkgs.ffmpeg} -i "demo/$name.mp4" 2>&1 | grep -oP 'Duration: \K[0-9:.]+' || echo "0")
+              mid=$(echo "$duration" | ${pkgs.lib.getExe pkgs.gawk} -F: '{print ($1*3600 + $2*60 + $3) / 2}')
+              ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -ss "$mid" -i "demo/$name.mp4" \
+                -frames:v 1 -y "demo/$name.png"
+              ${pkgs.lib.getExe pkgs.svgo} \
+                --config ${svgoConfig} \
+                --input "demo/$name.svg" --output "demo/$name.svg"
+            }
+            export -f process_tape
+            ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
+              process_tape ::: demo/*.tape
+          '';
 
           # nix build
           packages.default = pkgs.vimUtils.buildVimPlugin {
