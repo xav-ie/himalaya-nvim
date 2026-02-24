@@ -26,32 +26,42 @@
           ...
         }:
         let
-          svgoConfig = pkgs.writeText "svgo.config.mjs" ''
-            export default {
-              plugins: [
-                "removeComments",
-                "removeMetadata",
-                "removeEditorsNSData",
-                "removeXMLProcInst",
-                "removeDoctype",
-                "removeEmptyAttrs",
-              ],
-            };
-          '';
+          svgoConfig =
+            pkgs.writeText "svgo.config.mjs" # js
+              ''
+                export default {
+                  plugins: [
+                    {
+                      name: "preset-default",
+                      params: {
+                        overrides: {
+                          // Don't remove "hidden" elements — animation states are off-screen
+                          removeHiddenElems: false,
+                        },
+                      },
+                    },
+                  ],
+                };
+              '';
           vhs-svg = pkgs.buildGoModule {
             pname = "vhs";
             version = "0.11.1-svg-fix";
             src = pkgs.fetchFromGitHub {
               owner = "xav-ie";
               repo = "vhs";
-              rev = "e5752722447112e622de90c5c39bde30f5a7b44c";
-              hash = "sha256-M6whE7zYTYFJpCHQsPbD++XcQUx8W6P5jbn07wTImLA=";
+              rev = "0741d7fb253118bd77ff7794a911a44cba2bdef2";
+              hash = "sha256-wm9CZ6Z2+/u6JLMKFGXA6tSsx5j4zJGDGsc/taK3ayI=";
             };
             vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
             nativeBuildInputs = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/vhs \
-                --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.ttyd pkgs.ffmpeg ]}
+                --prefix PATH : ${
+                  pkgs.lib.makeBinPath [
+                    pkgs.ttyd
+                    pkgs.ffmpeg
+                  ]
+                }
             '';
             meta.mainProgram = "vhs";
           };
@@ -69,17 +79,18 @@
           plugin =
             name: builtins.trace "${name} rev: ${pkgs.vimPlugins.${name}.src.rev}" pkgs.vimPlugins.${name};
           plugins = map plugin;
-          customRC = ''
-            syntax on
-            filetype plugin on
+          customRC = # vim
+            ''
+              syntax on
+              filetype plugin on
 
-            packadd! himalaya
+              packadd! himalaya
 
-            " native, fzf or telescope
-            let g:himalaya_folder_picker = 'telescope'
-            let g:himalaya_folder_picker_telescope_preview = v:false
-            let g:himalaya_complete_contact_cmd = 'echo test@localhost'
-          '';
+              " native, fzf or telescope
+              let g:himalaya_folder_picker = 'telescope'
+              let g:himalaya_folder_picker_telescope_preview = v:false
+              let g:himalaya_complete_contact_cmd = 'echo test@localhost'
+            '';
         in
         {
           treefmt = {
@@ -121,9 +132,9 @@
                 -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
                 -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
               mv "demo/$name-out.mp4" "demo/$name.mp4"
-              ${pkgs.lib.getExe pkgs.svgo} \
-                --config ${svgoConfig} \
-                --input "demo/$name.svg" --output "demo/$name.svg"
+              # ${pkgs.lib.getExe pkgs.svgo} \
+              #   --config ${svgoConfig} \
+              #   --input "demo/$name.svg" --output "demo/$name.svg"
             }
             export -f process_tape
             ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
@@ -137,10 +148,12 @@
             src = inputs.self;
             nvimRequireCheck = "himalaya";
             # buildInputs = with pkgs; [ himalaya ];
-            # postPatch = with pkgs; ''
-            #   substituteInPlace plugin/himalaya.vim \
-            #     --replace "default_executable = 'himalaya'" "default_executable = '${himalaya}/bin/himalaya'"
-            # '';
+            # postPatch =
+            #  with pkgs; # sh
+            #  ''
+            #    substituteInPlace plugin/himalaya.vim \
+            #      --replace "default_executable = 'himalaya'" "default_executable = '${himalaya}/bin/himalaya'"
+            #  '';
           };
 
           # nix develop

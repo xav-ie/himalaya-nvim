@@ -3,10 +3,11 @@ Output demo/reply.mp4
 
 Set FontFamily "Maple Mono NF"
 Set FontSize 20
-Set Width 1280
-Set Height 720
+Set Width 1024
+Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
+Set PlaybackSpeed 0.5
 
 Hide
 Type "nvim -u demo/init.lua"
