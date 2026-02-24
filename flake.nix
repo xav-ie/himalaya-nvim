@@ -129,24 +129,29 @@
               });
             in
             pkgs.writeShellScriptBin "build-demo" ''
-            set -euo pipefail
-            export PATH="${pkgs.lib.makeBinPath [ pyftsubset pkgs.fontconfig ]}:$PATH"
-            process_tape() {
-              tape="$1"
-              name="$(basename "$tape" .tape)"
-              ${pkgs.lib.getExe vhs-svg} "$tape"
-              ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
-                -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
-                -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
-              mv "demo/$name-out.mp4" "demo/$name.mp4"
-              # ${pkgs.lib.getExe pkgs.svgo} \
-              #   --config ${svgoConfig} \
-              #   --input "demo/$name.svg" --output "demo/$name.svg"
-            }
-            export -f process_tape
-            ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
-              process_tape ::: demo/*.tape
-          '';
+              set -euo pipefail
+              export PATH="${
+                pkgs.lib.makeBinPath [
+                  pyftsubset
+                  pkgs.fontconfig
+                ]
+              }:$PATH"
+              process_tape() {
+                tape="$1"
+                name="$(basename "$tape" .tape)"
+                ${pkgs.lib.getExe vhs-svg} "$tape"
+                ${pkgs.lib.getExe pkgs.ffmpeg} -loglevel error -i "demo/$name.mp4" \
+                  -vf "unsharp=5:5:0.8:5:5:0.8, eq=saturation=1.2" \
+                  -vcodec libx264 -crf 28 -an -preset veryslow -y "demo/$name-out.mp4"
+                mv "demo/$name-out.mp4" "demo/$name.mp4"
+                # ${pkgs.lib.getExe pkgs.svgo} \
+                #   --config ${svgoConfig} \
+                #   --input "demo/$name.svg" --output "demo/$name.svg"
+              }
+              export -f process_tape
+              ${pkgs.lib.getExe pkgs.parallel} --tagstring '[{/.}]' --line-buffer \
+                process_tape ::: demo/*.tape
+            '';
 
           # nix build
           packages.default = pkgs.vimUtils.buildVimPlugin {
