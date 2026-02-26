@@ -265,16 +265,19 @@ function M.list(account, opts)
   list_generation = list_generation + 1
   local my_gen = list_generation
 
-  -- Capture the listing window now so async callbacks render here even
-  -- if a picker or other floating window has focus when they fire.
-  local listing_win = vim.api.nvim_get_current_win()
+  -- Prefer the existing listing window over the current window.
+  -- When called from a reading buffer (e.g. gD), the current window
+  -- is the reading window, not the listing window.
+  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' })
+    or vim.api.nvim_get_current_win()
 
   -- Show loading indicator while fetching
-  if vim.b.himalaya_buffer_type == 'listing' or vim.b.himalaya_buffer_type == 'thread-listing' then
-    vim.wo.winbar = '%#Comment# loading...%*'
+  local lbt = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_buffer_type
+  if lbt == 'listing' or lbt == 'thread-listing' then
+    vim.wo[listing_win].winbar = '%#Comment# loading...%*'
   end
 
-  local sort = vim.b.himalaya_sort or 'date desc'
+  local sort = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_sort or 'date desc'
   local cli_qry = require('himalaya.domain.email')._build_cli_query(thread_query, sort)
   list_job = request.json({
     cmd = 'envelope thread --folder %s %s %s',
@@ -317,8 +320,11 @@ function M.list(account, opts)
           row.env.has_attachment = cached.has_attachment
         end
       end
-      local ok, cached_envs =
-        pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+      local ok, cached_envs = false, nil
+      if vim.api.nvim_win_is_valid(listing_win) then
+        ok, cached_envs =
+          pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+      end
       if ok and cached_envs then
         local id_map = {}
         for _, env in ipairs(cached_envs) do

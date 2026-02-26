@@ -208,20 +208,34 @@ end
 --- @param opts? table  Optional: { restore_cursor_line = number }
 local function refresh_listing(account, folder, opts)
   opts = opts or {}
-  if vim.b.himalaya_buffer_type == 'thread-listing' then
+  -- Always read state from the listing buffer, not the current buffer.
+  -- When called from the reading buffer (e.g. gD), vim.b.* refers to
+  -- the reading buffer which lacks himalaya_buffer_type/page/query/sort.
+  local listing_win, listing_bufnr, listing_bt =
+    win.find_by_buftype({ 'listing', 'thread-listing' })
+  local bt = (listing_bufnr and vim.b[listing_bufnr].himalaya_buffer_type)
+    or vim.b.himalaya_buffer_type
+  if bt == 'thread-listing' then
     if opts.restore_cursor_line then
       require('himalaya.domain.email.thread_listing').list(nil, { restore_cursor_line = opts.restore_cursor_line })
     else
-      local cursor_id = get_email_id_under_cursor()
+      -- Get cursor email ID from the listing buffer, not the current buffer.
+      local cursor_id = ''
+      if listing_win then
+        local lnum = vim.api.nvim_win_get_cursor(listing_win)[1]
+        local line = vim.api.nvim_buf_get_lines(listing_bufnr, lnum - 1, lnum, false)[1] or ''
+        cursor_id = require('himalaya.ui.listing').get_email_id_from_line(line)
+      end
       require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
     end
   else
+    local b = listing_bufnr and vim.b[listing_bufnr] or vim.b
     M.list_with(
       account,
       folder,
-      vim.b.himalaya_page or 1,
-      vim.b.himalaya_query or '',
-      vim.b.himalaya_sort or 'date desc'
+      b.himalaya_page or 1,
+      b.himalaya_query or '',
+      b.himalaya_sort or 'date desc'
     )
   end
 end
@@ -272,6 +286,9 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
   local renderer = require('himalaya.ui.renderer')
   local listing = require('himalaya.ui.listing')
   local bufnr = vim.api.nvim_get_current_buf()
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
   local new_offset = fetch_offset or ((page - 1) * pg_size)
   local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
@@ -411,7 +428,11 @@ function M.list_with(account, folder, page, qry, sort)
     vim.wo.winbar = '%#Comment# loading...%*'
   end
 
-  local listing_win = vim.api.nvim_get_current_win()
+  -- Prefer the existing listing window over the current window.
+  -- When called from a reading buffer (e.g. gD), the current window
+  -- is the reading window, not the listing window.
+  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' })
+    or vim.api.nvim_get_current_win()
 
   local ps = page_size()
   -- On first load the winbar hasn't been set yet, so winheight still
@@ -630,7 +651,14 @@ function M.delete(first_line, last_line)
     end
   end
 
-  local cursor_line = vim.fn.line('.')
+  -- Capture reading window before the async request so we can close it on success.
+  local reading_win = (not in_listing_buffer()) and vim.api.nvim_get_current_win() or nil
+  -- Get the cursor line from the listing window (not the reading buffer, which
+  -- would give the wrong line when gD is pressed from the reading buffer).
+  local listing_win_cur = win.find_by_buftype({ 'listing', 'thread-listing' })
+  local cursor_line = listing_win_cur
+    and vim.api.nvim_win_get_cursor(listing_win_cur)[1]
+    or vim.fn.line('.')
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   probe.cancel(function()
@@ -646,6 +674,9 @@ function M.delete(first_line, last_line)
         })
         saved_view = vim.fn.winsaveview()
         refresh_listing(account, folder, { restore_cursor_line = cursor_line })
+        if reading_win and vim.api.nvim_win_is_valid(reading_win) then
+          pcall(vim.api.nvim_win_close, reading_win, true)
+        end
       end,
     })
   end)
@@ -704,7 +735,11 @@ function M.move(target_folder, first_line, last_line)
     end
   end
 
-  local cursor_line = vim.fn.line('.')
+  local reading_win = (not in_listing_buffer()) and vim.api.nvim_get_current_win() or nil
+  local listing_win_cur = win.find_by_buftype({ 'listing', 'thread-listing' })
+  local cursor_line = listing_win_cur
+    and vim.api.nvim_win_get_cursor(listing_win_cur)[1]
+    or vim.fn.line('.')
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   probe.cancel(function()
@@ -725,6 +760,9 @@ function M.move(target_folder, first_line, last_line)
           target_folder = target_folder,
         })
         refresh_listing(account, folder, { restore_cursor_line = cursor_line })
+        if reading_win and vim.api.nvim_win_is_valid(reading_win) then
+          pcall(vim.api.nvim_win_close, reading_win, true)
+        end
       end,
     })
   end)
