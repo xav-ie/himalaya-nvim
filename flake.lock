@@ -69,7 +69,8 @@
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix"
+        "treefmt-nix": "treefmt-nix",
+        "vhs": "vhs"
       }
     },
     "treefmt-nix": {
@@ -87,6 +88,22 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "vhs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1764787240,
+        "narHash": "sha256-VqNTRRFk/kZPGn/mpejXFR7ui+878Z3gx+TUlRtn8/0=",
+        "owner": "agentstation",
+        "repo": "vhs",
+        "rev": "36343ddb468785b82ea92f17db841eae7cfe3e2f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "agentstation",
+        "repo": "vhs",
         "type": "github"
       }
     }

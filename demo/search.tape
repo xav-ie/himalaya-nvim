@@ -8,6 +8,7 @@ Set Height 576
 Set Theme "Builtin Dark"
 Set Padding 0
 Set CursorBlink false
+Set ProgressBar "#9B79FF"
 
 Hide
 Type "nvim -u demo/init.lua"

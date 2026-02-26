@@ -5,6 +5,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
     treefmt-nix.url = "github:numtide/treefmt-nix";
+    vhs.url = "github:agentstation/vhs";
+    vhs.flake = false;
   };
 
   outputs =
@@ -49,12 +51,29 @@
           vhs-svg = pkgs.buildGoModule {
             pname = "vhs";
             version = "0.11.1-svg-fix";
-            src = pkgs.fetchFromGitHub {
-              owner = "xav-ie";
-              repo = "vhs";
-              rev = "24d37579657787317889013ea5e5054f0b686c3e";
-              hash = "sha256-3vXgrqkNu9oeiGNBGN0B2XF+IIEEDrCM7sSujbDqXh0=";
-            };
+            src = inputs.vhs;
+            patches = [
+              # PR #6: wall-clock timestamps for SVG frame capture
+              (builtins.fetchurl {
+                url = "https://github.com/agentstation/vhs/pull/6.patch";
+                sha256 = "0y364q2rkvh3ny6ng0gp61r934k26h287mxwxdrk6l8hfr3nmarx";
+              })
+              # PR #7: snap SVG dimensions to terminal character grid
+              (builtins.fetchurl {
+                url = "https://github.com/agentstation/vhs/pull/7.patch";
+                sha256 = "00zj6bcs2gn1dblgbakh9gdiaccwic7d94d7zgqb771ydj6bzgnp";
+              })
+              # PR #8: embed font via @font-face with pyftsubset subsetting
+              (builtins.fetchurl {
+                url = "https://github.com/agentstation/vhs/pull/8.patch";
+                sha256 = "0la8p3pvwb171ayxjnw97ipr99lk5iy5v13nrag08mvrwcpmch9a";
+              })
+              # PR #9: add progress bar overlay to SVG output
+              (builtins.fetchurl {
+                url = "https://github.com/agentstation/vhs/pull/9.patch";
+                sha256 = "05z2ilrvg6bjn7f1mfq0dm907mx8lpj2y6xd49b4zxy2i5m4xmzb";
+              })
+            ];
             vendorHash = "sha256-WiCSn84cr42yQFgg36H/NrVsfiBA/ZDAGd0WmC6LAa4=";
             nativeBuildInputs = [ pkgs.makeWrapper ];
             postInstall = ''
