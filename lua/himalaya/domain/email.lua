@@ -211,10 +211,8 @@ local function refresh_listing(account, folder, opts)
   -- Always read state from the listing buffer, not the current buffer.
   -- When called from the reading buffer (e.g. gD), vim.b.* refers to
   -- the reading buffer which lacks himalaya_buffer_type/page/query/sort.
-  local listing_win, listing_bufnr, listing_bt =
-    win.find_by_buftype({ 'listing', 'thread-listing' })
-  local bt = (listing_bufnr and vim.b[listing_bufnr].himalaya_buffer_type)
-    or vim.b.himalaya_buffer_type
+  local listing_win, listing_bufnr, listing_bt = win.find_by_buftype({ 'listing', 'thread-listing' })
+  local bt = (listing_bufnr and vim.b[listing_bufnr].himalaya_buffer_type) or vim.b.himalaya_buffer_type
   if bt == 'thread-listing' then
     if opts.restore_cursor_line then
       require('himalaya.domain.email.thread_listing').list(nil, { restore_cursor_line = opts.restore_cursor_line })
@@ -230,13 +228,7 @@ local function refresh_listing(account, folder, opts)
     end
   else
     local b = listing_bufnr and vim.b[listing_bufnr] or vim.b
-    M.list_with(
-      account,
-      folder,
-      b.himalaya_page or 1,
-      b.himalaya_query or '',
-      b.himalaya_sort or 'date desc'
-    )
+    M.list_with(account, folder, b.himalaya_page or 1, b.himalaya_query or '', b.himalaya_sort or 'date desc')
   end
 end
 
@@ -431,8 +423,7 @@ function M.list_with(account, folder, page, qry, sort)
   -- Prefer the existing listing window over the current window.
   -- When called from a reading buffer (e.g. gD), the current window
   -- is the reading window, not the listing window.
-  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' })
-    or vim.api.nvim_get_current_win()
+  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' }) or vim.api.nvim_get_current_win()
 
   local ps = page_size()
   -- On first load the winbar hasn't been set yet, so winheight still
@@ -450,7 +441,7 @@ function M.list_with(account, folder, page, qry, sort)
   local fetch_offset = (cli_page - 1) * fetch_ps
   local cli_qry = build_cli_query(qry, sort)
   fetch_job = request.json({
-    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+    cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
     args = {
       folder,
       account_flag(account),
@@ -555,7 +546,7 @@ function M.read()
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'message read %s --folder %s %s',
+      cmd = 'message read %s --folder %q %s',
       args = { account_flag(account), folder, current_id },
       msg = string.format('Fetching email %s', current_id),
       on_error = function()
@@ -656,14 +647,12 @@ function M.delete(first_line, last_line)
   -- Get the cursor line from the listing window (not the reading buffer, which
   -- would give the wrong line when gD is pressed from the reading buffer).
   local listing_win_cur = win.find_by_buftype({ 'listing', 'thread-listing' })
-  local cursor_line = listing_win_cur
-    and vim.api.nvim_win_get_cursor(listing_win_cur)[1]
-    or vim.fn.line('.')
+  local cursor_line = listing_win_cur and vim.api.nvim_win_get_cursor(listing_win_cur)[1] or vim.fn.line('.')
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'message delete %s --folder %s %s',
+      cmd = 'message delete %s --folder %q %s',
       args = { account_flag(account), folder, ids },
       msg = 'Deleting email',
       on_data = function()
@@ -693,7 +682,7 @@ function M.copy(target_folder, first_line, last_line)
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'message copy %s --folder %s %s %s',
+      cmd = 'message copy %s --folder %q %q %s',
       args = {
         account_flag(account),
         folder,
@@ -737,14 +726,12 @@ function M.move(target_folder, first_line, last_line)
 
   local reading_win = (not in_listing_buffer()) and vim.api.nvim_get_current_win() or nil
   local listing_win_cur = win.find_by_buftype({ 'listing', 'thread-listing' })
-  local cursor_line = listing_win_cur
-    and vim.api.nvim_win_get_cursor(listing_win_cur)[1]
-    or vim.fn.line('.')
+  local cursor_line = listing_win_cur and vim.api.nvim_win_get_cursor(listing_win_cur)[1] or vim.fn.line('.')
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'message move %s --folder %s %s %s',
+      cmd = 'message move %s --folder %q %q %s',
       args = {
         account_flag(account),
         folder,
@@ -823,7 +810,7 @@ function M.flag_add(first_line, last_line)
     local account, folder = context.resolve()
     probe.cancel(function()
       request.plain({
-        cmd = 'flag add %s --folder %s %s %s',
+        cmd = 'flag add %s --folder %q %s %s',
         args = { account_flag(account), folder, flag, ids },
         msg = 'Adding flag: ' .. flag,
         on_data = function()
@@ -857,7 +844,7 @@ function M.flag_remove(first_line, last_line)
     local account, folder = context.resolve()
     probe.cancel(function()
       request.plain({
-        cmd = 'flag remove %s --folder %s %s %s',
+        cmd = 'flag remove %s --folder %q %s %s',
         args = { account_flag(account), folder, flag, ids },
         msg = 'Removing flag: ' .. flag,
         on_data = function()
@@ -884,7 +871,7 @@ function M.mark_seen(first_line, last_line)
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'flag add %s --folder %s Seen %s',
+      cmd = 'flag add %s --folder %q Seen %s',
       args = { account_flag(account), folder, ids },
       msg = 'Marking as seen',
       on_data = function()
@@ -910,7 +897,7 @@ function M.mark_unseen(first_line, last_line)
   local account, folder = context.resolve()
   probe.cancel(function()
     request.plain({
-      cmd = 'flag remove %s --folder %s Seen %s',
+      cmd = 'flag remove %s --folder %q Seen %s',
       args = { account_flag(account), folder, ids },
       msg = 'Marking as unseen',
       on_data = function()
@@ -932,7 +919,7 @@ function M.download_attachments()
   local account, folder = context.resolve()
   local id = M.context_email_id()
   request.plain({
-    cmd = 'attachment download %s --folder %s %s',
+    cmd = 'attachment download %s --folder %q %s',
     args = { account_flag(account), folder, id },
     msg = 'Downloading attachments',
     on_data = function(data)
@@ -951,7 +938,7 @@ function M.open_browser()
   local context = require('himalaya.state.context')
   local account, folder = context.resolve()
   request.plain({
-    cmd = 'message export %s --folder %s --open %s',
+    cmd = 'message export %s --folder %q --open %s',
     args = { account_flag(account), folder, M.context_email_id() },
     msg = 'Opening message in the browser',
     on_data = function(data)
@@ -1070,7 +1057,7 @@ local function schedule_phase2_refetch(bufnr)
       resize_generation = resize_generation + 1
       local my_gen = resize_generation
       resize_job = request.json({
-        cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+        cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
         args = { folder_cur, account_flag(account), ps, cur_page, resize_cli_qry },
         msg = 'Refetching page after resize',
         silent = true,

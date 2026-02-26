@@ -74,7 +74,7 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
   local my_gen = generation
   saved_args = { acct_flag, folder, page_size, probe_page, qry, bufnr }
   job = request.json({
-    cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+    cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
     args = {
       folder,
       acct_flag,

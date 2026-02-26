@@ -110,7 +110,7 @@ function M.reply()
   local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
-    cmd = 'template reply %s --folder %s %s',
+    cmd = 'template reply %s --folder %q %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply template',
     on_data = function(data)
@@ -125,7 +125,7 @@ function M.reply_all()
   local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
-    cmd = 'template reply %s --folder %s --all %s',
+    cmd = 'template reply %s --folder %q --all %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching reply all template',
     on_data = function(data)
@@ -140,7 +140,7 @@ function M.forward()
   local account, folder = context.resolve()
   local id = context_email_id()
   request.plain({
-    cmd = 'template forward %s --folder %s %s',
+    cmd = 'template forward %s --folder %q %s',
     args = { account_flag(account), folder, id },
     msg = 'Fetching forward template',
     on_data = function(data)
@@ -194,7 +194,7 @@ function M.send(bufnr)
       -- Add "answered" flag only for replies
       if reply_id and reply_id ~= '' then
         request.plain({
-          cmd = 'flag add %s --folder %s answered %s',
+          cmd = 'flag add %s --folder %q answered %s',
           args = { account_flag(account), folder, reply_id },
           msg = 'Adding answered flag',
         })

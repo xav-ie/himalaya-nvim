@@ -208,7 +208,7 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
   -- pages to them — same as the initial render before enrich completes.
   local fetch_size = math.min(#all_display_rows, 200)
   enrich_job = request.json({
-    cmd = 'envelope list --folder %s %s --page-size %d --page 1',
+    cmd = 'envelope list --folder %q %s --page-size %d --page 1',
     args = { folder, account_flag(acct), fetch_size },
     msg = 'Fetching flags',
     silent = true,
@@ -268,8 +268,7 @@ function M.list(account, opts)
   -- Prefer the existing listing window over the current window.
   -- When called from a reading buffer (e.g. gD), the current window
   -- is the reading window, not the listing window.
-  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' })
-    or vim.api.nvim_get_current_win()
+  local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' }) or vim.api.nvim_get_current_win()
 
   -- Show loading indicator while fetching
   local lbt = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_buffer_type
@@ -280,7 +279,7 @@ function M.list(account, opts)
   local sort = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_sort or 'date desc'
   local cli_qry = require('himalaya.domain.email')._build_cli_query(thread_query, sort)
   list_job = request.json({
-    cmd = 'envelope thread --folder %s %s %s',
+    cmd = 'envelope thread --folder %q %s %s',
     args = { folder, account_flag(acct), cli_qry },
     msg = string.format('Fetching %s threads', folder),
     is_stale = function()
@@ -322,8 +321,7 @@ function M.list(account, opts)
       end
       local ok, cached_envs = false, nil
       if vim.api.nvim_win_is_valid(listing_win) then
-        ok, cached_envs =
-          pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+        ok, cached_envs = pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
       end
       if ok and cached_envs then
         local id_map = {}

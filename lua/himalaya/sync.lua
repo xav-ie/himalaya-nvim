@@ -129,7 +129,7 @@ function M.poll()
     -- Thread mode: re-fetch thread edges
     local query = vim.b[bufnr].himalaya_query or ''
     sync_job = request.json({
-      cmd = 'envelope thread --folder %s %s %s',
+      cmd = 'envelope thread --folder %q %s %s',
       args = { folder, account_flag(account), query },
       msg = 'Background sync (threads)',
       silent = true,
@@ -207,7 +207,7 @@ function M.poll()
     local query = vim.b[bufnr].himalaya_query or ''
 
     sync_job = request.json({
-      cmd = 'envelope list --folder %s %s --page-size %d --page %d %s',
+      cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
       args = { folder, account_flag(account), page_size, page, query },
       msg = 'Background sync',
       silent = true,

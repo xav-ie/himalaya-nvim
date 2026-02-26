@@ -6,8 +6,6 @@ local M = {}
 
 function M._build_cmd(cmd_fmt, args, output_mode)
   local cfg = config.get()
-  local subcmd = #args > 0 and string.format(cmd_fmt, unpack(args)) or cmd_fmt
-
   local parts = { cfg.executable, '--output', output_mode }
 
   if cfg.config_path then
@@ -15,8 +13,45 @@ function M._build_cmd(cmd_fmt, args, output_mode)
     table.insert(parts, cfg.config_path)
   end
 
-  for word in subcmd:gmatch('%S+') do
-    table.insert(parts, word)
+  -- Parse the format string token by token instead of using string.format
+  -- then splitting by whitespace (which breaks folder names with spaces).
+  -- Format specifiers:
+  --   %s = split by whitespace (for multi-token fragments like account flags, queries)
+  --   %q = single token, kept as-is (for values like folder names that may contain spaces)
+  --   %d = numeric, converted to string
+  local arg_idx = 0
+  local pos = 1
+  while pos <= #cmd_fmt do
+    local spec_start, spec_end, spec = cmd_fmt:find('(%%[qsd])', pos)
+    if spec_start then
+      local static = cmd_fmt:sub(pos, spec_start - 1)
+      for word in static:gmatch('%S+') do
+        table.insert(parts, word)
+      end
+      arg_idx = arg_idx + 1
+      local val = args[arg_idx]
+      if spec == '%q' then
+        if val ~= nil and tostring(val) ~= '' then
+          table.insert(parts, tostring(val))
+        end
+      elseif spec == '%d' then
+        table.insert(parts, tostring(val))
+      else -- %s: split by whitespace (preserves current behavior)
+        local s = tostring(val)
+        if s ~= '' then
+          for word in s:gmatch('%S+') do
+            table.insert(parts, word)
+          end
+        end
+      end
+      pos = spec_end + 1
+    else
+      local static = cmd_fmt:sub(pos)
+      for word in static:gmatch('%S+') do
+        table.insert(parts, word)
+      end
+      break
+    end
   end
 
   return parts

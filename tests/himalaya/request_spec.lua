@@ -133,13 +133,41 @@ describe('himalaya.request', function()
 
   describe('build_cmd', function()
     it('builds a basic command with json output', function()
-      local cmd = request._build_cmd('envelope list --folder %s', { 'INBOX' }, 'json')
+      local cmd = request._build_cmd('envelope list --folder %q', { 'INBOX' }, 'json')
       assert.are.equal(cmd[1], 'himalaya')
       assert.is_truthy(vim.tbl_contains(cmd, '--output'))
       assert.is_truthy(vim.tbl_contains(cmd, 'json'))
       local joined = table.concat(cmd, ' ')
       assert.is_truthy(joined:match('envelope'))
       assert.is_truthy(joined:match('INBOX'))
+    end)
+
+    it('keeps %%q args as single tokens (folder names with spaces)', function()
+      local cmd = request._build_cmd('envelope list --folder %q %s', { '[Gmail]/All Mail', '--account work' }, 'json')
+      -- folder should be a single token, not split by space
+      assert.is_truthy(vim.tbl_contains(cmd, '[Gmail]/All Mail'))
+      -- account flag should be split into separate tokens
+      assert.is_truthy(vim.tbl_contains(cmd, '--account'))
+      assert.is_truthy(vim.tbl_contains(cmd, 'work'))
+    end)
+
+    it('handles %%d format specifier', function()
+      local cmd = request._build_cmd('envelope list --page-size %d --page %d', { 50, 2 }, 'json')
+      assert.is_truthy(vim.tbl_contains(cmd, '50'))
+      assert.is_truthy(vim.tbl_contains(cmd, '2'))
+    end)
+
+    it('skips empty %%s and %%q args', function()
+      local cmd = request._build_cmd('envelope list --folder %q %s', { 'INBOX', '' }, 'json')
+      assert.is_truthy(vim.tbl_contains(cmd, 'INBOX'))
+      -- empty string should not appear as a token
+      local count = 0
+      for _, v in ipairs(cmd) do
+        if v == '' then
+          count = count + 1
+        end
+      end
+      assert.are.equal(0, count)
     end)
 
     it('prepends --config when config_path is set', function()
