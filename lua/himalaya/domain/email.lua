@@ -33,14 +33,10 @@ function M._get_email_id_from_line(line)
 end
 
 --- Get email ID from line under cursor.
---- @return string
+--- @return string  empty string when current line has no email ID
 local function get_email_id_under_cursor()
   local line = vim.api.nvim_get_current_line()
-  local id = M._get_email_id_from_line(line)
-  if id == '' then
-    error('email not found')
-  end
-  return id
+  return M._get_email_id_from_line(line)
 end
 
 --- Get email IDs from a range of lines.
@@ -55,9 +51,6 @@ local function get_email_id_under_cursors(first_line, last_line)
     if id ~= '' then
       table.insert(ids, id)
     end
-  end
-  if #ids == 0 then
-    error('no emails selected')
   end
   return table.concat(ids, ' ')
 end

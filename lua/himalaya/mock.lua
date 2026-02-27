@@ -8,6 +8,14 @@ local noop_handle = {
   wait = function() end,
 }
 
+--- Extract a --folder value from a command string.
+--- Handles both quoted (%q) values like "All Mail" and unquoted like INBOX.
+--- @param cmd string
+--- @return string
+local function parse_folder(cmd)
+  return cmd:match('--folder%s+"([^"]*)"') or cmd:match('--folder%s+(%S+)') or 'INBOX'
+end
+
 --- Build the full subcmd string from opts (same logic as request._build_cmd).
 --- @param opts table
 --- @return string
@@ -152,10 +160,10 @@ function M.json(opts)
   if cmd:match('^folder list') then
     result = data.folders()
   elseif cmd:match('^envelope thread') then
-    local folder = cmd:match('--folder%s+(%S+)') or 'INBOX'
+    local folder = parse_folder(cmd)
     result = data.thread_edges(folder)
   elseif cmd:match('^envelope list') then
-    local folder = cmd:match('--folder%s+(%S+)') or 'INBOX'
+    local folder = parse_folder(cmd)
     local page_size = tonumber(cmd:match('--page%-size%s+(%d+)')) or 25
     local page = tonumber(cmd:match('--page%s+(%d+)')) or 1
     -- Extract query: everything after "--page N "
