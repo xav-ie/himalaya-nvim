@@ -280,10 +280,16 @@ describe('himalaya.domain.email (extended)', function()
         return vim.b.himalaya_account or '', vim.b.himalaya_folder or 'INBOX'
       end,
     }
+    package.loaded['himalaya.domain.email.flags'] = nil
+    local real_flags = require('himalaya.domain.email.flags')
     package.loaded['himalaya.domain.email.flags'] = {
       complete_list = function()
         return { 'Seen', 'Flagged', 'Answered', 'Draft' }
       end,
+      is_unseen = real_flags.is_unseen,
+      is_seen = real_flags.is_seen,
+      count_unseen = real_flags.count_unseen,
+      count_unseen_rows = real_flags.count_unseen_rows,
     }
     package.loaded['himalaya.domain.folder'] = {
       open_picker = function(cb)

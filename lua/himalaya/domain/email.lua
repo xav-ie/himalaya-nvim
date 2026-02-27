@@ -5,6 +5,7 @@ local account_state = require('himalaya.state.account')
 local probe = require('himalaya.domain.email.probe')
 local cache = require('himalaya.domain.email.cache')
 local paging = require('himalaya.domain.email.paging')
+local flags_util = require('himalaya.domain.email.flags')
 local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
@@ -96,34 +97,8 @@ local function render_listing_buffer(bufnr, envelopes)
   return result
 end
 
---- Check whether an envelope lacks the Seen flag.
---- @param env table
---- @return boolean
-local function is_unseen(env)
-  local flags = env.flags
-  if not flags then
-    return true
-  end
-  for _, f in ipairs(flags) do
-    if f == 'Seen' then
-      return false
-    end
-  end
-  return true
-end
-
---- Count unseen envelopes in a list.
---- @param envelopes table[]
---- @return number
-local function count_unseen(envelopes)
-  local n = 0
-  for _, env in ipairs(envelopes) do
-    if is_unseen(env) then
-      n = n + 1
-    end
-  end
-  return n
-end
+local is_unseen = flags_util.is_unseen
+local count_unseen = flags_util.count_unseen
 
 --- Update the buffer title with folder, query, page, and total info.
 --- @param folder string
@@ -1344,12 +1319,7 @@ function M.toggle_sort()
   end, map_opts)
 end
 
---- Check whether an envelope has the Seen flag.
---- @param env table
---- @return boolean
-local function is_seen(env)
-  return not is_unseen(env)
-end
+local is_seen = flags_util.is_seen
 
 --- Generic: search visible page for matching envelope in given direction.
 --- @param predicate function(env): boolean

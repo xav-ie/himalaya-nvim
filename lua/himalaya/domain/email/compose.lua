@@ -225,6 +225,12 @@ function M.process_draft(bufnr)
 
       if choice == 'd' then
         local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n') .. '\n'
+        -- "drafts" is a well-known folder alias resolved by the himalaya CLI
+        -- (case-insensitive, "draft" also works).  The core library maps it to
+        -- FolderKind::Drafts which each backend resolves to the real folder name
+        -- (e.g. "Drafts", "INBOX.Drafts", "[Gmail]/Drafts") using IMAP
+        -- special-use attributes or user-configured folder.aliases in the
+        -- himalaya TOML config.  No need to make this configurable in the plugin.
         request.plain({
           cmd = 'template save %s --folder drafts',
           args = { account_flag(account) },

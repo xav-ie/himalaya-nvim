@@ -3,6 +3,7 @@ local config = require('himalaya.config')
 local account_state = require('himalaya.state.account')
 local tree = require('himalaya.domain.email.tree')
 local probe = require('himalaya.domain.email.probe')
+local flags_util = require('himalaya.domain.email.flags')
 local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
@@ -34,34 +35,8 @@ local function rebuild_id_index()
   end
 end
 
---- Check whether an envelope lacks the Seen flag.
---- @param env table
---- @return boolean
-local function is_unseen(env)
-  local flags = env.flags
-  if not flags then
-    return true
-  end
-  for _, f in ipairs(flags) do
-    if f == 'Seen' then
-      return false
-    end
-  end
-  return true
-end
-
---- Count unseen envelopes in a list of display rows.
---- @param rows table[]
---- @return number
-local function count_unseen_rows(rows)
-  local n = 0
-  for _, row in ipairs(rows) do
-    if is_unseen(row.env) then
-      n = n + 1
-    end
-  end
-  return n
-end
+local is_unseen = flags_util.is_unseen
+local count_unseen_rows = flags_util.count_unseen_rows
 
 --- Kill all in-flight thread listing jobs synchronously.
 --- Called before any new CLI command to avoid database lock contention.
@@ -570,12 +545,7 @@ function M._set_state(rows, page)
   current_page = page
 end
 
---- Check whether an envelope has the Seen flag.
---- @param env table
---- @return boolean
-local function is_seen(env)
-  return not is_unseen(env)
-end
+local is_seen = flags_util.is_seen
 
 --- Generic: search visible page for matching envelope in given direction.
 --- @param predicate function(env): boolean
