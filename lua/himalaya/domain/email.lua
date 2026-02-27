@@ -408,43 +408,78 @@ function M.list_with(account, folder, page, qry, sort)
   --   cli_page = ceil(page/2), fetch_ps = ps*2
   -- Odd display pages → first half of CLI data, even → second half.
   local fetch_ps = ps * 2
-  local cli_page = math.ceil(page / 2)
-  local fetch_offset = (cli_page - 1) * fetch_ps
   local cli_qry = build_cli_query(qry, sort)
-  fetch_job = request.json({
-    cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
-    args = {
-      folder,
-      account_flag(account),
-      fetch_ps,
-      cli_page,
-      cli_qry,
-    },
-    msg = string.format('Fetching %s envelopes', folder),
-    is_stale = function()
-      return my_gen ~= fetch_generation
-    end,
-    on_error = function()
-      fetch_job = nil
-      -- Clear loading indicator on failure
-      if vim.api.nvim_win_is_valid(listing_win) then
-        vim.api.nvim_win_call(listing_win, function()
-          if in_listing_buffer() and vim.wo.winbar:find('loading') then
-            vim.wo.winbar = ''
-          end
-        end)
-      end
-    end,
-    on_data = function(data)
-      fetch_job = nil
-      if not vim.api.nvim_win_is_valid(listing_win) then
-        return
-      end
+  local search_target = saved_cursor_id
+  local acct_flag = account_flag(account)
+
+  local function on_error()
+    fetch_job = nil
+    -- Clear loading indicator on failure
+    if vim.api.nvim_win_is_valid(listing_win) then
       vim.api.nvim_win_call(listing_win, function()
-        on_list_with(account, folder, page, ps, qry, sort, data, fetch_offset)
+        if in_listing_buffer() and vim.wo.winbar:find('loading') then
+          vim.wo.winbar = ''
+        end
       end)
-    end,
-  })
+    end
+  end
+
+  -- Fetch a batch and render, or search for a specific email first.
+  local function do_fetch(cli_page, batch_offset)
+    fetch_job = request.json({
+      cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
+      args = { folder, acct_flag, fetch_ps, cli_page, cli_qry },
+      msg = string.format('Fetching %s envelopes', folder),
+      is_stale = function()
+        return my_gen ~= fetch_generation
+      end,
+      on_error = on_error,
+      on_data = function(data)
+        fetch_job = nil
+        if not vim.api.nvim_win_is_valid(listing_win) then
+          return
+        end
+
+        -- When searching for a specific email, scan the batch.
+        if search_target then
+          for i, env in ipairs(data) do
+            if tostring(env.id) == search_target then
+              -- Found: compute actual display page and render.
+              local actual_page = math.floor((batch_offset + i - 1) / ps) + 1
+              saved_cursor_id = search_target
+              search_target = nil
+              vim.api.nvim_win_call(listing_win, function()
+                on_list_with(account, folder, actual_page, ps, qry, sort, data, batch_offset)
+              end)
+              return
+            end
+          end
+          if #data >= fetch_ps then
+            -- Full batch returned, more pages available.
+            do_fetch(cli_page + 1, cli_page * fetch_ps)
+            return
+          end
+          -- Reached end without finding: render page 1.
+          search_target = nil
+          saved_cursor_id = nil
+          do_fetch(1, 0)
+          return
+        end
+
+        -- Normal render.
+        vim.api.nvim_win_call(listing_win, function()
+          on_list_with(account, folder, page, ps, qry, sort, data, batch_offset)
+        end)
+      end,
+    })
+  end
+
+  if search_target then
+    do_fetch(1, 0)
+  else
+    local cli_page = math.ceil(page / 2)
+    do_fetch(cli_page, (cli_page - 1) * fetch_ps)
+  end
 end
 
 --- Slice cached envelopes to fit the current window height.
