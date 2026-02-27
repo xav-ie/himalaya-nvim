@@ -5,8 +5,6 @@ local win = require('himalaya.ui.win')
 
 local M = {}
 
-local sent = false
-
 local account_flag = account_state.flag
 
 local function context_email_id()
@@ -151,8 +149,10 @@ end
 
 --- Save current buffer content as draft.
 --- Skipped if the email was already sent via :w.
-function M.save_draft()
-  if sent then
+--- @param bufnr? number  buffer handle (defaults to current buffer)
+function M.save_draft(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if vim.b[bufnr].himalaya_sent then
     return
   end
   vim.cmd('redraw')
@@ -164,7 +164,7 @@ end
 --- @param bufnr? number  buffer handle (defaults to current buffer)
 function M.send(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if sent then
+  if vim.b[bufnr].himalaya_sent then
     log.info('Email already sent from this buffer')
     return
   end
@@ -180,8 +180,8 @@ function M.send(bufnr)
     stdin = content,
     msg = 'Sending email',
     on_data = function()
-      sent = true
       if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.b[bufnr].himalaya_sent = true
         vim.bo[bufnr].modified = false
       end
       log.info('Send [OK]')
@@ -209,8 +209,10 @@ end
 --- @param bufnr? number  buffer handle (defaults to current buffer)
 function M.process_draft(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if sent then
-    sent = false
+  if vim.b[bufnr].himalaya_sent then
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.b[bufnr].himalaya_sent = false
+    end
     return
   end
   local ok, err = pcall(function()

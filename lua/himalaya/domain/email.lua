@@ -261,10 +261,11 @@ end
 --- @param fetch_offset? number actual CLI data offset (defaults to (page-1)*pg_size)
 local function on_list_with(account, folder, page, pg_size, qry, sort, data, fetch_offset)
   local acct_flag = account_flag(account)
+  local acct_flag_str = table.concat(acct_flag, ' ')
   local cli_qry = build_cli_query(qry, sort)
-  probe.reset_if_changed(acct_flag, folder, cli_qry)
+  probe.reset_if_changed(acct_flag_str, folder, cli_qry)
 
-  local cache_key = acct_flag .. '\0' .. folder .. '\0' .. cli_qry
+  local cache_key = acct_flag_str .. '\0' .. folder .. '\0' .. cli_qry
   probe.set_total_from_data(cache_key, page, pg_size, #data)
   local total_str = probe.total_pages_str(cache_key, pg_size)
 
@@ -987,7 +988,7 @@ function M.complete_contact(findstart, base)
     end
 
     local cfg = config.get()
-    local cmd = cfg.complete_contact_cmd:gsub('%%s', base)
+    local cmd = cfg.complete_contact_cmd:gsub('%%s', vim.fn.shellescape(base))
     local output = vim.fn.system(cmd)
     local lines = vim.split(output, '\n', { trimempty = true })
     local items = {}
@@ -1094,7 +1095,7 @@ function M.resize_listing()
   -- the new data arrives.
   local buf_cache_key = vim.b.himalaya_cache_key
   if buf_cache_key then
-    local current_key = account_flag(vim.b.himalaya_account or '')
+    local current_key = table.concat(account_flag(vim.b.himalaya_account or ''), ' ')
       .. '\0'
       .. (vim.b.himalaya_folder or 'INBOX')
       .. '\0'
@@ -1143,8 +1144,8 @@ function M.resize_listing()
     local folder_name = vim.b.himalaya_folder or 'INBOX'
     local buf_query = vim.b.himalaya_query or ''
     local buf_sort = vim.b.himalaya_sort or 'date desc'
-    local acct_flag = account_flag(vim.b.himalaya_account or '')
-    local cache_key = acct_flag .. '\0' .. folder_name .. '\0' .. build_cli_query(buf_query, buf_sort)
+    local acct_flag_str = table.concat(account_flag(vim.b.himalaya_account or ''), ' ')
+    local cache_key = acct_flag_str .. '\0' .. folder_name .. '\0' .. build_cli_query(buf_query, buf_sort)
     local total_str = probe.total_pages_str(cache_key, new_page_size)
     update_listing_title(folder_name, buf_query, new_page, total_str, nil, count_unseen(display_envelopes), buf_sort)
 

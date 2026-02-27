@@ -27,12 +27,16 @@ describe('himalaya.state.account', function()
   end)
 
   describe('flag', function()
-    it('returns empty string for empty account', function()
-      assert.are.equal('', account.flag(''))
+    it('returns empty table for empty account', function()
+      assert.are.same({}, account.flag(''))
     end)
 
-    it('returns --account flag for non-empty account', function()
-      assert.are.equal('--account work', account.flag('work'))
+    it('returns --account flag table for non-empty account', function()
+      assert.are.same({ '--account', 'work' }, account.flag('work'))
+    end)
+
+    it('preserves spaces in account name', function()
+      assert.are.same({ '--account', 'My Work Email' }, account.flag('My Work Email'))
     end)
   end)
 

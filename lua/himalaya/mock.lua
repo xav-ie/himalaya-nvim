@@ -17,12 +17,21 @@ local function parse_folder(cmd)
 end
 
 --- Build the full subcmd string from opts (same logic as request._build_cmd).
+--- Table arguments (e.g. from account.flag()) are joined with spaces.
 --- @param opts table
 --- @return string
 local function subcmd(opts)
   local args = opts.args or {}
   if #args > 0 then
-    return string.format(opts.cmd, unpack(args))
+    local flat = {}
+    for _, a in ipairs(args) do
+      if type(a) == 'table' then
+        flat[#flat + 1] = table.concat(a, ' ')
+      else
+        flat[#flat + 1] = a
+      end
+    end
+    return string.format(opts.cmd, unpack(flat))
   end
   return opts.cmd
 end

@@ -36,11 +36,20 @@ function M._build_cmd(cmd_fmt, args, output_mode)
         end
       elseif spec == '%d' then
         table.insert(parts, tostring(val))
-      else -- %s: split by whitespace (preserves current behavior)
-        local s = tostring(val)
-        if s ~= '' then
-          for word in s:gmatch('%S+') do
-            table.insert(parts, word)
+      else -- %s: split by whitespace, or iterate table elements as individual tokens
+        if type(val) == 'table' then
+          for _, item in ipairs(val) do
+            local s = tostring(item)
+            if s ~= '' then
+              table.insert(parts, s)
+            end
+          end
+        else
+          local s = tostring(val)
+          if s ~= '' then
+            for word in s:gmatch('%S+') do
+              table.insert(parts, word)
+            end
           end
         end
       end

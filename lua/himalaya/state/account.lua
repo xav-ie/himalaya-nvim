@@ -116,14 +116,16 @@ function M.warmup()
   end
 end
 
---- Return '--account <name>' when account is set, or '' to let CLI use its default.
+--- Return {'--account', name} when account is set, or {} to let CLI use its default.
+--- The table form keeps the account name as a single token inside _build_cmd,
+--- which is important for account names that contain spaces.
 --- @param account string
---- @return string
+--- @return table
 function M.flag(account)
   if account == '' then
-    return ''
+    return {}
   end
-  return '--account ' .. account
+  return { '--account', account }
 end
 
 return M

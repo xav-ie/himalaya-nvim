@@ -88,7 +88,7 @@ function M.setup(bufnr)
     group = group,
     buffer = bufnr,
     callback = function()
-      compose.save_draft()
+      compose.save_draft(bufnr)
     end,
   })
 

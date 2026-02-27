@@ -85,7 +85,7 @@ describe('himalaya.domain.email resize_listing', function()
         return 'test'
       end,
       flag = function(account)
-        return account == '' and '' or ('--account ' .. account)
+        return account == '' and {} or { '--account', account }
       end,
     }
     package.loaded['himalaya.state.context'] = {

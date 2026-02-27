@@ -47,6 +47,7 @@ describe('himalaya.domain.email.compose', function()
 
     vim.b.himalaya_account = 'test-acct'
     vim.b.himalaya_folder = 'INBOX'
+    vim.b.himalaya_sent = nil
 
     compose = require('himalaya.domain.email.compose')
 

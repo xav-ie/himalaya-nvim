@@ -143,12 +143,37 @@ describe('himalaya.request', function()
     end)
 
     it('keeps %%q args as single tokens (folder names with spaces)', function()
-      local cmd = request._build_cmd('envelope list --folder %q %s', { '[Gmail]/All Mail', '--account work' }, 'json')
+      local cmd =
+        request._build_cmd('envelope list --folder %q %s', { '[Gmail]/All Mail', { '--account', 'work' } }, 'json')
       -- folder should be a single token, not split by space
       assert.is_truthy(vim.tbl_contains(cmd, '[Gmail]/All Mail'))
-      -- account flag should be split into separate tokens
+      -- account flag table should produce separate tokens
       assert.is_truthy(vim.tbl_contains(cmd, '--account'))
       assert.is_truthy(vim.tbl_contains(cmd, 'work'))
+    end)
+
+    it('keeps account names with spaces as single tokens via %%s table arg', function()
+      local cmd =
+        request._build_cmd('envelope list --folder %q %s', { 'INBOX', { '--account', 'My Work Email' } }, 'json')
+      assert.is_truthy(vim.tbl_contains(cmd, '--account'))
+      assert.is_truthy(vim.tbl_contains(cmd, 'My Work Email'))
+      -- Must NOT contain split fragments
+      assert.is_falsy(vim.tbl_contains(cmd, 'My'))
+      assert.is_falsy(vim.tbl_contains(cmd, 'Work'))
+      assert.is_falsy(vim.tbl_contains(cmd, 'Email'))
+    end)
+
+    it('handles empty table arg for %%s (no account flag)', function()
+      local cmd = request._build_cmd('folder list %s', { {} }, 'json')
+      assert.is_falsy(vim.tbl_contains(cmd, '--account'))
+      -- No empty strings should appear
+      local count = 0
+      for _, v in ipairs(cmd) do
+        if v == '' then
+          count = count + 1
+        end
+      end
+      assert.are.equal(0, count)
     end)
 
     it('handles %%d format specifier', function()
