@@ -289,7 +289,7 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
       page = page,
       count = 0,
     })
-    probe.start(acct_flag, folder, pg_size, page, cli_qry, bufnr)
+    probe.start(acct_flag_str, folder, pg_size, page, cli_qry, bufnr)
     return
   end
   -- Set winbar first so page_size() reflects actual visible area
@@ -324,7 +324,7 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
     count = #data,
   })
 
-  probe.start(acct_flag, folder, pg_size, page, cli_qry, bufnr)
+  probe.start(acct_flag_str, folder, pg_size, page, cli_qry, bufnr)
 end
 
 --- List envelopes, optionally switching account first.
