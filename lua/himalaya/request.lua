@@ -93,6 +93,7 @@ local function on_exit(cmd, opts, parse_fn)
           local first_line = stderr:match('^[^\n]+') or stderr
           msg = msg .. ': ' .. first_line
         end
+        msg = msg .. '\ncmd: ' .. cmd_str
         log.err(msg)
       end
       if opts.on_error then
