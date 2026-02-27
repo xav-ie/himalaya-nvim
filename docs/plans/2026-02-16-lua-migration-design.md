@@ -1,8 +1,8 @@
-# Himalaya-Vim: VimScript to Lua Migration Design
+# Himalaya-Nvim: VimScript to Lua Migration Design
 
 ## Summary
 
-Migrate the entire himalaya-vim plugin from VimScript to Lua, targeting Neovim 0.10+ only. Drop Vim 8 support. Add tests with plenary.nvim alongside each module migration. Add vimdoc help file.
+Migrate the entire himalaya-nvim plugin from VimScript to Lua, targeting Neovim 0.10+ only. Drop Vim 8 support. Add tests with plenary.nvim alongside each module migration. Add vimdoc help file.
 
 ## Constraints
 

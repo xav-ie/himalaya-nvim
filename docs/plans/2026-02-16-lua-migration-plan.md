@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Migrate the entire himalaya-vim plugin from VimScript to Lua, targeting Neovim 0.10+ only, with plenary.nvim tests alongside each module.
+**Goal:** Migrate the entire himalaya-nvim plugin from VimScript to Lua, targeting Neovim 0.10+ only, with plenary.nvim tests alongside each module.
 
 **Architecture:** Bottom-up migration of leaf modules first (log, config, job, request), then state/domain utilities, pickers, core email domain, UI layers, and finally the entry point. Old VimScript and new Lua coexist during migration via `vim.fn` / `luaeval` bridging. Each module gets tests before its VimScript counterpart is deleted.
 

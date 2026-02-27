@@ -1,6 +1,6 @@
 # Future Improvements
 
-Improvement ideas for himalaya-vim, organized by category.
+Improvement ideas for himalaya-nvim, organized by category.
 
 *9 bugs fixed (process_draft, answered flag, lock contention,
 double-send, compose window, flags, bufnr safety, visual-mode IDs).*

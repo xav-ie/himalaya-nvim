@@ -226,7 +226,7 @@ a warning.
 ## Writing a plugin
 
 If your idea is useful to you but probably not to everyone, the right place for
-it is a standalone Neovim plugin that depends on himalaya-vim. The events system
+it is a standalone Neovim plugin that depends on himalaya-nvim. The events system
 is designed for exactly this.
 
 ### Minimal plugin example

@@ -321,7 +321,7 @@ To: user@example.com
 Subject: Have you tried the himalaya nvim plugin?
 Date: ]] .. date(-5000) .. [[
 
-Hey, have you tried himalaya-vim? Wondering if it's worth setting up.
+Hey, have you tried himalaya-nvim? Wondering if it's worth setting up.
 
 Alice]],
     [1006] = [[

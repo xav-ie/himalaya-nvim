@@ -1,11 +1,11 @@
 <div align="center">
   <img src="./logo.svg" alt="Logo" width="128" height="128" />
-  <h1>Himalaya Vim</h1>
+  <h1>Himalaya Nvim</h1>
   <p>Neovim front-end for the email client <a href="https://github.com/xav-ie/himalaya">Himalaya CLI</a></p>
   <p><em>🌱 A heavily modified fork of <a href="https://github.com/pimalaya/himalaya-vim">pimalaya/himalaya-vim</a></em></p>
   <p>
     <a href="https://github.com/xav-ie/himalaya/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/xav-ie/himalaya?color=success"/></a>
-    <a href="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xav-ie/himalaya-vim/actions/workflows/ci.yml/badge.svg"/></a>
+    <a href="https://github.com/xav-ie/himalaya-nvim/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xav-ie/himalaya-nvim/actions/workflows/ci.yml/badge.svg"/></a>
   </p>
 </div>
 
@@ -47,7 +47,7 @@ the plugin with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-  'xav-ie/himalaya-vim',
+  'xav-ie/himalaya-nvim',
   cmd = 'Himalaya',
   config = function()
     require('himalaya').setup({})
@@ -314,4 +314,4 @@ require('himalaya').setup({
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, testing, the
-full events reference, and a guide to writing plugins that extend himalaya-vim.
+full events reference, and a guide to writing plugins that extend himalaya-nvim.

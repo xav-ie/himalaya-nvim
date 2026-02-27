@@ -2,7 +2,7 @@
 
 Authors:  soywod <https://github.com/soywod> & xavier <https://github.com/xav-ie>
 License: MIT
-URL:     https://github.com/xav-ie/himalaya-vim
+URL:     https://github.com/xav-ie/himalaya-nvim
 
 ==============================================================================
 CONTENTS                                                  *himalaya-contents*
@@ -19,7 +19,7 @@ CONTENTS                                                  *himalaya-contents*
 ==============================================================================
 1. INTRODUCTION                                       *himalaya-introduction*
 
-Himalaya-vim is a Neovim plugin that provides a front-end for the Himalaya
+Himalaya-nvim is a Neovim plugin that provides a front-end for the Himalaya
 CLI email client. It allows you to list, read, write, reply, forward, and
 manage email messages directly within Neovim.
 
@@ -123,7 +123,7 @@ custom_flags ~
   Type: `table` (list of strings)
   Default: `{}`
 
-  Additional custom email flags that himalaya-vim should recognise for
+  Additional custom email flags that himalaya-nvim should recognise for
   flag completion. Standard flags (answered, draft, flagged, seen) are
   always included.
 
@@ -137,7 +137,7 @@ always_confirm ~
   Type: `boolean`
   Default: `true`
 
-  When true, himalaya-vim prompts for confirmation before moving or
+  When true, himalaya-nvim prompts for confirmation before moving or
   deleting messages.
 
                                               *himalaya-config-signature*
@@ -291,7 +291,7 @@ Writing buffer (filetype: himalaya-email-writing) ~
 ==============================================================================
 7. FOLDER PICKERS                                         *himalaya-pickers*
 
-Himalaya-vim supports multiple folder picker providers. When
+Himalaya-nvim supports multiple folder picker providers. When
 |himalaya-config-folder_picker| is nil (the default), auto-detection is
 used in the following order:
 
@@ -306,7 +306,7 @@ To force a specific picker, set |himalaya-config-folder_picker| to one of:
 ==============================================================================
 8. EVENTS                                                   *himalaya-events*
 
-Himalaya-vim emits events via `require('himalaya.events')`. You can
+Himalaya-nvim emits events via `require('himalaya.events')`. You can
 register listeners with `on(event, fn)` for persistent handlers and
 `once(event, fn)` for one-shot handlers. Unsubscribe with `off(id)`.
 
