@@ -34,14 +34,18 @@ function M.format_flags(envelope, cfg)
     attachment = envelope.has_attachment and true or false,
   }
 
-  local s = ''
+  local parts = {}
   for _, key in ipairs(FLAG_ORDER) do
     local sym = cfg_flags[key]
     if type(sym) == 'string' then
-      s = s .. (active[key] and sym or ' ') .. ' '
+      if active[key] then
+        parts[#parts + 1] = sym
+      else
+        parts[#parts + 1] = string.rep(' ', vim.fn.strdisplaywidth(sym))
+      end
     end
   end
-  return s
+  return table.concat(parts)
 end
 
 --- Prefer `.name`, fall back to `.addr`.
@@ -190,12 +194,14 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     end
   end
   local num_slots = 0
+  local flags_w = 0
   for _, key in ipairs(FLAG_ORDER) do
-    if type(cfg_flags[key]) == 'string' then
+    local sym = cfg_flags[key]
+    if type(sym) == 'string' then
+      flags_w = flags_w + vim.fn.strdisplaywidth(sym)
       num_slots = num_slots + 1
     end
   end
-  local flags_w = num_slots * 2
   local date_w = 4 -- minimum: fits "DATE" header
   -- format_date with a fixed strftime format produces constant-width output,
   -- so formatting one sample is sufficient instead of formatting all N dates.
