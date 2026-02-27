@@ -5,16 +5,19 @@ function M.open_picker(callback)
   local context = require('himalaya.state.context')
   local pickers = require('himalaya.pickers')
 
+  -- Capture account now, while we are on the listing buffer.
+  -- list_async may fire its callback via vim.schedule, at which point
+  -- the current-buffer context is no longer guaranteed.
+  local current = context.resolve()
+
+  -- When the initial listing was opened before warmup completed,
+  -- himalaya_account may be empty.  Fall back to the CLI default
+  -- so the rotation still works on the first picker invocation.
+  if current == '' then
+    current = account_state.default()
+  end
+
   account_state.list_async(function(names)
-    local current = context.resolve()
-
-    -- When the initial listing was opened before warmup completed,
-    -- himalaya_account may be empty.  Fall back to the CLI default
-    -- so the rotation still works on the first picker invocation.
-    if current == '' then
-      current = account_state.default()
-    end
-
     -- Rotate so the account after the current one is first.
     -- ga<Enter> cycles to the next account.
     local start = 1

@@ -345,9 +345,6 @@ function M.list(account, opts)
       if not vim.api.nvim_win_is_valid(listing_win) then
         return
       end
-      local listing_bufnr = vim.api.nvim_win_get_buf(listing_win)
-      vim.b[listing_bufnr].himalaya_account = acct
-      vim.b[listing_bufnr].himalaya_folder = folder
       vim.api.nvim_win_call(listing_win, function()
         local listing_ui = require('himalaya.ui.listing')
         if opts.restore_cursor_line then
@@ -375,6 +372,12 @@ function M.list(account, opts)
         else
           M.render_page(1)
         end
+
+        -- Stamp after render_page: the edit command inside render_page may
+        -- have created a new buffer, so read the actual buffer now.
+        local listing_bufnr = vim.api.nvim_get_current_buf()
+        vim.b[listing_bufnr].himalaya_account = acct
+        vim.b[listing_bufnr].himalaya_folder = folder
 
         -- Skip the enrich round-trip if all rows already have flag data
         local all_have_flags = true
