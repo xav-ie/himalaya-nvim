@@ -211,7 +211,7 @@ local function refresh_listing(account, folder, opts)
   -- Always read state from the listing buffer, not the current buffer.
   -- When called from the reading buffer (e.g. gD), vim.b.* refers to
   -- the reading buffer which lacks himalaya_buffer_type/page/query/sort.
-  local listing_win, listing_bufnr, listing_bt = win.find_by_buftype({ 'listing', 'thread-listing' })
+  local listing_win, listing_bufnr, _ = win.find_by_buftype({ 'listing', 'thread-listing' })
   local bt = (listing_bufnr and vim.b[listing_bufnr].himalaya_buffer_type) or vim.b.himalaya_buffer_type
   if bt == 'thread-listing' then
     if opts.restore_cursor_line then
