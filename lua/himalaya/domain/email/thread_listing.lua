@@ -83,6 +83,8 @@ function M.render_page(page, opts)
     local empty_bufname = string.format('Himalaya/threads [%s] [all] [page 1⁄1]', folder)
     vim.cmd(string.format('silent! %s %s', buftype, vim.fn.fnameescape(empty_bufname)))
     local bufnr = vim.api.nvim_get_current_buf()
+    local result = thread_renderer.render({}, email._bufwidth())
+    listing.apply_header(bufnr, result.header)
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { '  (no emails)' })
     vim.b[bufnr].himalaya_buffer_type = 'thread-listing'
