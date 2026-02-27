@@ -285,6 +285,10 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
   local new_offset = fetch_offset or ((page - 1) * pg_size)
   local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
   update_listing_title(folder, qry, page, total_str, bufcmd, count_unseen(page_data), sort)
+  -- Re-read bufnr: when bufcmd was 'edit', the command above created a new
+  -- buffer in the window.  All subsequent buffer-variable writes must target
+  -- the buffer that is actually displayed, not the one that existed before.
+  bufnr = vim.api.nvim_get_current_buf()
   vim.bo[bufnr].modifiable = true
   vim.b[bufnr].himalaya_account = account
   vim.b[bufnr].himalaya_folder = folder
