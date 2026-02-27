@@ -160,6 +160,8 @@ function M.shared_listing_keybinds(bufnr)
     { 'n', 'go', email.toggle_sort, 'email-toggle-sort' },
     { 'n', 'gb', email.open_browser, 'email-open-browser' },
     { 'n', '?', M.show_help, 'help' },
+    { 'n', '<ScrollWheelUp>', 'k', 'scroll-up' },
+    { 'n', '<ScrollWheelDown>', 'j', 'scroll-down' },
   })
 end
 
