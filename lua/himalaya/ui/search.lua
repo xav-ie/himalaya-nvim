@@ -575,6 +575,7 @@ function M.open(callback, prev_query, current_folder, account)
     if vim.api.nvim_buf_is_valid(buf) then
       vim.api.nvim_buf_delete(buf, { force = true })
     end
+    _G._himalaya_search_completefunc = nil
   end
 
   --- Submit the query.

@@ -45,14 +45,14 @@ end
 local function open_write_buffer(msg, content, account, folder, reply_id, mode)
   local bufname = string.format('Himalaya/%s', msg)
   if vim.fn.winnr('$') == 1 then
-    vim.cmd(string.format('silent! botright split %s', bufname))
+    vim.cmd(string.format('silent! botright split %s', vim.fn.fnameescape(bufname)))
   else
     -- Prefer the reading window so the listing stays visible
     local reading_win = win.find_by_name('Himalaya/read email')
     if reading_win then
       vim.api.nvim_set_current_win(reading_win)
     end
-    vim.cmd(string.format('silent! edit %s', bufname))
+    vim.cmd(string.format('silent! edit %s', vim.fn.fnameescape(bufname)))
   end
   if account then
     vim.b.himalaya_account = account

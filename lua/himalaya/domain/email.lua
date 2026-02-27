@@ -146,18 +146,16 @@ local function update_listing_title(folder, qry, pg, total_str, bufcmd, unread, 
     local arrow = dir == 'desc' and '↓' or '↑'
     sort_indicator = string.format(' [%s %s]', field or sort, arrow)
   end
-  vim.cmd(
-    string.format(
-      'silent! %s Himalaya/envelopes [%s] [%s] [page %d⁄%s]%s%s',
-      bufcmd,
-      folder,
-      display_query,
-      pg,
-      total_str,
-      unread_str,
-      sort_indicator
-    )
+  local bufname = string.format(
+    'Himalaya/envelopes [%s] [%s] [page %d⁄%s]%s%s',
+    folder,
+    display_query,
+    pg,
+    total_str,
+    unread_str,
+    sort_indicator
   )
+  vim.cmd(string.format('silent! %s %s', bufcmd, vim.fn.fnameescape(bufname)))
 end
 
 --- Combine a filter query and sort clause into a full CLI query string.
@@ -590,7 +588,8 @@ function M.read()
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
         end
 
-        vim.cmd(string.format('silent! file Himalaya/read email [%s]', current_id))
+        local read_bufname = string.format('Himalaya/read email [%s]', current_id)
+        vim.cmd(string.format('silent! file %s', vim.fn.fnameescape(read_bufname)))
         vim.b.himalaya_account = account
         vim.b.himalaya_folder = folder
         vim.b.himalaya_current_email_id = current_id

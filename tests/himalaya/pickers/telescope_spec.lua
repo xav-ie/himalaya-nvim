@@ -121,7 +121,7 @@ describe('himalaya.pickers.telescope', function()
 
     local list_with_args = nil
     package.loaded['himalaya.state.account'] = {
-      current = function()
+      default = function()
         return 'test-account'
       end,
     }
@@ -142,7 +142,7 @@ describe('himalaya.pickers.telescope', function()
     assert.is_not_nil(list_with_args)
     assert.are.equal('test-account', list_with_args.account)
     assert.are.equal('Drafts', list_with_args.folder)
-    assert.are.equal(0, list_with_args.page)
+    assert.are.equal(1, list_with_args.page)
     assert.are.equal('', list_with_args.query)
   end)
 
@@ -151,7 +151,7 @@ describe('himalaya.pickers.telescope', function()
     config.setup({ telescope_preview = true })
 
     package.loaded['himalaya.state.account'] = {
-      current = function()
+      default = function()
         return 'test-account'
       end,
     }

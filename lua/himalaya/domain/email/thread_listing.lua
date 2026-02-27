@@ -105,7 +105,8 @@ function M.render_page(page, opts)
   if #all_display_rows == 0 then
     local folder = vim.b.himalaya_folder or 'INBOX'
     local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
-    vim.cmd(string.format('silent! %s Himalaya/threads [%s] [all] [page 1⁄1]', buftype, folder))
+    local empty_bufname = string.format('Himalaya/threads [%s] [all] [page 1⁄1]', folder)
+    vim.cmd(string.format('silent! %s %s', buftype, vim.fn.fnameescape(empty_bufname)))
     local bufnr = vim.api.nvim_get_current_buf()
     vim.bo[bufnr].modifiable = true
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { '  (no emails)' })
@@ -137,18 +138,16 @@ function M.render_page(page, opts)
   local field, dir = sort:match('^(%S+)%s+(%S+)$')
   local arrow = dir == 'desc' and '↓' or '↑'
   local sort_indicator = string.format(' [%s %s]', field or sort, arrow)
-  vim.cmd(
-    string.format(
-      'silent! %s Himalaya/threads [%s] [%s] [page %d⁄%d]%s%s',
-      buftype,
-      folder,
-      display_query,
-      page,
-      total_pages,
-      unread_str,
-      sort_indicator
-    )
+  local thread_bufname = string.format(
+    'Himalaya/threads [%s] [%s] [page %d⁄%d]%s%s',
+    folder,
+    display_query,
+    page,
+    total_pages,
+    unread_str,
+    sort_indicator
   )
+  vim.cmd(string.format('silent! %s %s', buftype, vim.fn.fnameescape(thread_bufname)))
   vim.bo.modifiable = true
 
   local bufnr = vim.api.nvim_get_current_buf()

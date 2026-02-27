@@ -35,8 +35,8 @@ function M.select(callback, folders)
           vim.api.nvim_buf_call(bufnr, function()
             local account_mod = require('himalaya.state.account')
             local email_mod = require('himalaya.domain.email')
-            local account = account_mod.current()
-            local ok, output = pcall(email_mod.list_with, account, e.value, 0, '')
+            local account = account_mod.default()
+            local ok, output = pcall(email_mod.list_with, account, e.value, 1, '')
             if not ok then
               vim.cmd('redraw')
               vim.bo.modifiable = true
