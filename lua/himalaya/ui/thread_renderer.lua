@@ -23,8 +23,11 @@ function M.render(display_rows, total_width, cfg)
 
   local format_from_fn = layout.narrow and renderer.format_from_initials or renderer.format_from
   local lines = {}
+  local ids = {}
   for _, row in ipairs(display_rows) do
     local env = row.env
+    local id = tostring(env.id or '')
+    ids[#ids + 1] = id
 
     -- Subject: prefix + truncated subject text within subject_w columns
     local prefix = row.prefix or ''
@@ -41,7 +44,10 @@ function M.render(display_rows, total_width, cfg)
 
     local date = renderer.format_date(env.date or '', cfg, layout.date_fmt)
 
-    local line
+    local args = {}
+    if not layout.ids_compacted then
+      args[#args + 1] = renderer.fit(id, layout.id_w)
+    end
     if layout.flags_compacted then
       local flags_str = env.flags and renderer.format_flags_compact(env, cfg) or ''
       local flags_dw = not flags_str:find('[\128-\255]') and #flags_str or vim.fn.strdisplaywidth(flags_str)
@@ -52,13 +58,7 @@ function M.render(display_rows, total_width, cfg)
       else
         full_subject = prefix .. flags_str .. renderer.fit(env.subject or '', subject_space)
       end
-      line = string.format(
-        layout.row_fmt,
-        renderer.fit(tostring(env.id or ''), layout.id_w),
-        full_subject,
-        renderer.fit(from, layout.from_w),
-        renderer.fit(date, layout.date_w)
-      )
+      args[#args + 1] = full_subject
     else
       local subject_space = layout.subject_w - prefix_dw
       local full_subject
@@ -67,20 +67,24 @@ function M.render(display_rows, total_width, cfg)
       else
         full_subject = prefix .. renderer.fit(env.subject or '', subject_space)
       end
-      line = string.format(
-        layout.row_fmt,
-        renderer.fit(tostring(env.id or ''), layout.id_w),
-        env.flags and renderer.format_flags(env, cfg) or empty_flags,
-        full_subject,
-        renderer.fit(from, layout.from_w),
-        renderer.fit(date, layout.date_w)
-      )
+      args[#args + 1] = env.flags and renderer.format_flags(env, cfg) or empty_flags
+      args[#args + 1] = full_subject
     end
-    lines[#lines + 1] = line
+    args[#args + 1] = renderer.fit(from, layout.from_w)
+    args[#args + 1] = renderer.fit(date, layout.date_w)
+
+    lines[#lines + 1] = string.format(layout.row_fmt, unpack(args))
   end
 
   perf.stop('thread_renderer.render')
-  return { header = layout.header, separator = layout.separator, lines = lines, flags_compacted = layout.flags_compacted }
+  return {
+    header = layout.header,
+    separator = layout.separator,
+    lines = lines,
+    flags_compacted = layout.flags_compacted,
+    ids_compacted = layout.ids_compacted,
+    ids = ids,
+  }
 end
 
 return M

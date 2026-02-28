@@ -311,5 +311,65 @@ describe('himalaya.ui.thread_renderer', function()
         assert.is_false(result.flags_compacted)
       end)
     end)
+
+    describe('compact_ids', function()
+      it('no ID column when compacted', function()
+        config.setup({ compact_ids = 'always' })
+        local rows = {
+          {
+            env = {
+              id = '42',
+              subject = 'Test',
+              from = { name = 'Alice' },
+              date = '2024-01-01 10:00:00+00:00',
+              flags = { 'Seen' },
+            },
+            depth = 0,
+            is_last_child = true,
+            prefix = '',
+            thread_idx = 1,
+          },
+        }
+        local result = thread_renderer.render(rows, 80)
+        assert.is_true(result.ids_compacted)
+        -- Header should not contain ID
+        assert.is_falsy(result.header:find('ID'))
+        -- One fewer separator than default
+        local default_result = (function()
+          config._reset()
+          return thread_renderer.render(rows, 80)
+        end)()
+        local default_seps = 0
+        for _ in default_result.lines[1]:gmatch('\xe2\x94\x82') do
+          default_seps = default_seps + 1
+        end
+        local compact_seps = 0
+        for _ in result.lines[1]:gmatch('\xe2\x94\x82') do
+          compact_seps = compact_seps + 1
+        end
+        assert.are.equal(default_seps - 1, compact_seps)
+      end)
+
+      it('populates result.ids', function()
+        local rows = {
+          {
+            env = { id = '7', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+            depth = 0,
+            is_last_child = true,
+            prefix = '',
+            thread_idx = 1,
+          },
+          {
+            env = { id = '8', subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00+00:00' },
+            depth = 1,
+            is_last_child = true,
+            prefix = '\xe2\x94\x94\xe2\x94\x80',
+            thread_idx = 1,
+          },
+        }
+        local result = thread_renderer.render(rows, 80)
+        assert.are.same({ '7', '8' }, result.ids)
+      end)
+    end)
   end)
 end)

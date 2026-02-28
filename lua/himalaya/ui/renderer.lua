@@ -311,6 +311,15 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     flags_compacted = narrow
   end
 
+  -- Determine whether to compact IDs (remove ID column).
+  local compact_ids_cfg = cfg.compact_ids
+  local ids_compacted = false
+  if compact_ids_cfg == 'always' then
+    ids_compacted = true
+  elseif compact_ids_cfg == true then
+    ids_compacted = narrow
+  end
+
   local col_sep = gutters and (' ' .. BOX_V .. ' ') or BOX_V
   local leading = gutters and ' ' or ''
   local sep_width = gutters and 3 or 1
@@ -318,57 +327,70 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
   if flags_compacted then
     subject_w = subject_w + flags_w + sep_width
   end
+  if ids_compacted then
+    subject_w = subject_w + id_w + sep_width
+  end
+
+  -- Build column list dynamically.
+  local from_label = narrow and 'FR' or 'FROM'
+  local cols = {}
+  if not ids_compacted then
+    cols[#cols + 1] = { label = 'ID', w = id_w }
+  end
+  if not flags_compacted then
+    cols[#cols + 1] = { label = cfg_flags.header or 'FLGS', w = flags_w }
+  end
+  cols[#cols + 1] = { label = 'SUBJECT', w = subject_w }
+  cols[#cols + 1] = { label = from_label, w = from_w }
+  cols[#cols + 1] = { label = 'DATE', w = date_w }
 
   -- Safety: the remaining-clamp can inflate the layout beyond total_width
   -- at very narrow widths.  Shrink subject_w to absorb any overflow.
-  local actual_overhead = flags_compacted and (gutters and 10 or 3) or (gutters and 13 or 4)
-  local actual_fixed = flags_compacted and (id_w + date_w + from_w) or (id_w + flags_w + date_w + from_w)
+  local num_seps = #cols - 1
+  local actual_overhead = (gutters and 1 or 0) + num_seps * sep_width
+  local actual_fixed = 0
+  for _, col in ipairs(cols) do
+    if col.label ~= 'SUBJECT' then
+      actual_fixed = actual_fixed + col.w
+    end
+  end
   local max_subject = total_width - actual_overhead - actual_fixed
   if subject_w > max_subject then
     subject_w = math.max(1, max_subject)
+    -- Update the cols entry for SUBJECT
+    for _, col in ipairs(cols) do
+      if col.label == 'SUBJECT' then
+        col.w = subject_w
+        break
+      end
+    end
   end
 
-  local row_fmt, header, separator
-  local from_label = narrow and 'FR' or 'FROM'
+  -- Build row_fmt, header, and separator from cols array.
+  local fmt_parts = { leading }
+  local header_args = {}
   local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
-  local leading_h = gutters and string.rep(BOX_H, 1 + id_w) or string.rep(BOX_H, id_w)
+  local sep_parts = {}
 
-  if flags_compacted then
-    row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
-    header = string.format(
-      row_fmt,
-      M.fit('ID', id_w),
-      M.fit('SUBJECT', subject_w),
-      M.fit(from_label, from_w),
-      M.fit('DATE', date_w)
-    )
-    separator = leading_h
-      .. cross_sep
-      .. string.rep(BOX_H, subject_w)
-      .. cross_sep
-      .. string.rep(BOX_H, from_w)
-      .. cross_sep
-      .. string.rep(BOX_H, date_w)
-  else
-    row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
-    header = string.format(
-      row_fmt,
-      M.fit('ID', id_w),
-      M.fit(cfg_flags.header or 'FLGS', flags_w),
-      M.fit('SUBJECT', subject_w),
-      M.fit(from_label, from_w),
-      M.fit('DATE', date_w)
-    )
-    separator = leading_h
-      .. cross_sep
-      .. string.rep(BOX_H, flags_w)
-      .. cross_sep
-      .. string.rep(BOX_H, subject_w)
-      .. cross_sep
-      .. string.rep(BOX_H, from_w)
-      .. cross_sep
-      .. string.rep(BOX_H, date_w)
+  for i, col in ipairs(cols) do
+    if i > 1 then
+      fmt_parts[#fmt_parts + 1] = col_sep
+    end
+    fmt_parts[#fmt_parts + 1] = '%s'
+    header_args[#header_args + 1] = M.fit(col.label, col.w)
+
+    if i == 1 then
+      local first_h = gutters and string.rep(BOX_H, 1 + col.w) or string.rep(BOX_H, col.w)
+      sep_parts[#sep_parts + 1] = first_h
+    else
+      sep_parts[#sep_parts + 1] = cross_sep
+      sep_parts[#sep_parts + 1] = string.rep(BOX_H, col.w)
+    end
   end
+
+  local row_fmt = table.concat(fmt_parts)
+  local header = string.format(row_fmt, unpack(header_args))
+  local separator = table.concat(sep_parts)
 
   return {
     id_w = id_w,
@@ -378,6 +400,7 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     from_w = from_w,
     narrow = narrow,
     flags_compacted = flags_compacted,
+    ids_compacted = ids_compacted,
     date_fmt = date_fmt,
     row_fmt = row_fmt,
     header = header,
@@ -405,9 +428,10 @@ function M.render(envelopes, total_width, cfg)
 
   local format_from_fn = layout.narrow and M.format_from_initials or M.format_from
   local lines = {}
+  local ids = {}
   for _, env in ipairs(envelopes) do
     local id = tostring(env.id or '')
-    local flags = M.format_flags(env, cfg)
+    ids[#ids + 1] = id
     local subject = env.subject or ''
     local from = ''
     if env.from and env.from ~= vim.NIL then
@@ -419,31 +443,32 @@ function M.render(envelopes, total_width, cfg)
     end
     local date = M.format_date(env.date or '', cfg, layout.date_fmt)
 
-    local line
+    local args = {}
+    if not layout.ids_compacted then
+      args[#args + 1] = M.fit(id, layout.id_w)
+    end
     if layout.flags_compacted then
       local compact_flags = M.format_flags_compact(env, cfg)
-      line = string.format(
-        layout.row_fmt,
-        M.fit(id, layout.id_w),
-        M.fit(compact_flags .. subject, layout.subject_w),
-        M.fit(from, layout.from_w),
-        M.fit(date, layout.date_w)
-      )
+      args[#args + 1] = M.fit(compact_flags .. subject, layout.subject_w)
     else
-      line = string.format(
-        layout.row_fmt,
-        M.fit(id, layout.id_w),
-        M.fit(flags, layout.flags_w),
-        M.fit(subject, layout.subject_w),
-        M.fit(from, layout.from_w),
-        M.fit(date, layout.date_w)
-      )
+      args[#args + 1] = M.fit(M.format_flags(env, cfg), layout.flags_w)
+      args[#args + 1] = M.fit(subject, layout.subject_w)
     end
-    table.insert(lines, line)
+    args[#args + 1] = M.fit(from, layout.from_w)
+    args[#args + 1] = M.fit(date, layout.date_w)
+
+    lines[#lines + 1] = string.format(layout.row_fmt, unpack(args))
   end
 
   perf.stop('renderer.render')
-  return { header = layout.header, separator = layout.separator, lines = lines, flags_compacted = layout.flags_compacted }
+  return {
+    header = layout.header,
+    separator = layout.separator,
+    lines = lines,
+    flags_compacted = layout.flags_compacted,
+    ids_compacted = layout.ids_compacted,
+    ids = ids,
+  }
 end
 
 return M

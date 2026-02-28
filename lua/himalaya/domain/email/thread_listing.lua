@@ -153,7 +153,8 @@ function M.render_page(page, opts)
   for _, row in ipairs(slice) do
     envs[#envs + 1] = row.env
   end
-  listing.apply_highlights(bufnr, envs, { flags_compacted = result.flags_compacted })
+  listing.apply_highlights(bufnr, envs, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  vim.b[bufnr].himalaya_line_ids = result.ids
 
   vim.b.himalaya_buffer_type = 'thread-listing'
   vim.bo.filetype = 'himalaya-thread-listing'
@@ -477,7 +478,9 @@ end
 --- can rebuild from cache instead of re-fetching (same as toggle_reverse).
 function M.toggle_to_flat()
   local listing = require('himalaya.ui.listing')
-  local id = listing.get_email_id_from_line(vim.api.nvim_get_current_line())
+  local current_buf = vim.api.nvim_get_current_buf()
+  local cursor_lnum = vim.api.nvim_win_get_cursor(0)[1]
+  local id = listing.get_email_id_from_line(vim.api.nvim_get_current_line(), current_buf, cursor_lnum)
   -- Save flag data from current display rows into flag_cache before
   -- discarding them, so the cache survives the round-trip.
   if all_display_rows then
@@ -559,7 +562,9 @@ function M.resize()
 
   -- Identify the email under cursor
   local listing = require('himalaya.ui.listing')
-  local cursor_email_id = listing.get_email_id_from_line(vim.api.nvim_get_current_line())
+  local current_buf = vim.api.nvim_get_current_buf()
+  local cursor_lnum = vim.api.nvim_win_get_cursor(0)[1]
+  local cursor_email_id = listing.get_email_id_from_line(vim.api.nvim_get_current_line(), current_buf, cursor_lnum)
 
   -- Find its global (1-based) index in all_display_rows
   local global_idx = (cursor_email_id ~= '' and id_to_index and id_to_index[cursor_email_id]) or 1
@@ -611,7 +616,7 @@ function M.mark_seen_optimistic(email_id)
   end
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
-    if listing_mod.get_email_id_from_line(line) == eid then
+    if listing_mod.get_email_id_from_line(line, buf, i) == eid then
       listing_mod.mark_line_as_seen(buf, i - 1)
       break
     end

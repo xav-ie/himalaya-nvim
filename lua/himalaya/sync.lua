@@ -37,8 +37,8 @@ local function ids_from_buffer(bufnr)
   local listing = require('himalaya.ui.listing')
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local set = {}
-  for _, line in ipairs(lines) do
-    local id = listing.get_email_id_from_line(line)
+  for i, line in ipairs(lines) do
+    local id = listing.get_email_id_from_line(line, bufnr, i)
     if id ~= '' then
       set[id] = true
     end
@@ -243,7 +243,8 @@ function M.poll()
           vim.bo[bufnr].modifiable = true
           vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
           listing.apply_header(bufnr, result.header)
-          listing.apply_highlights(bufnr, data, { flags_compacted = result.flags_compacted })
+          listing.apply_highlights(bufnr, data, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+          vim.b[bufnr].himalaya_line_ids = result.ids
           vim.bo[bufnr].modifiable = false
           vim.b[bufnr].himalaya_envelopes = data
           vim.fn.winrestview(view)

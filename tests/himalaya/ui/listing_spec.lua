@@ -26,6 +26,22 @@ describe('himalaya.ui.listing', function()
       assert.are.equal('', listing.get_email_id_from_line(''))
       assert.are.equal('', listing.get_email_id_from_line('no-numbers-here'))
     end)
+
+    it('looks up ID from himalaya_line_ids when bufnr and lnum provided', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.b[buf].himalaya_line_ids = { '42', '99', '7' }
+      -- Even though the line has no digits, the lookup should return the stored ID
+      assert.are.equal('42', listing.get_email_id_from_line('no-digits-here', buf, 1))
+      assert.are.equal('99', listing.get_email_id_from_line('no-digits-here', buf, 2))
+      assert.are.equal('7', listing.get_email_id_from_line('no-digits-here', buf, 3))
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('falls back to line match when line_ids not set', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      assert.are.equal('456', listing.get_email_id_from_line('456│subj│sender│date', buf, 1))
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
   end)
 
   describe('effective_page_size', function()
@@ -233,6 +249,48 @@ describe('himalaya.ui.listing', function()
       -- Line 2 (seen): 3 separators only
       local marks2 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 1, 0 }, { 1, -1 }, {})
       assert.are.equal(3, #marks2)
+      vim.api.nvim_buf_delete(buf_compact, { force = true })
+    end)
+
+    it('applies correct extmarks in compact_ids mode (4 columns)', function()
+      local buf_compact = vim.api.nvim_create_buf(false, true)
+      -- 3 separators = 4 columns (no ID column)
+      vim.api.nvim_buf_set_lines(buf_compact, 0, -1, false, {
+        '    │subj│sender│date',
+        '    │subj│sender│date',
+      })
+      listing.apply_highlights(buf_compact, {
+        { flags = {} },
+        { flags = { 'Seen' } },
+      }, { ids_compacted = true })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+      -- Line 1 (unseen): 4 columns + 3 separators = 7
+      local marks1 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(7, #marks1)
+      -- Line 2 (seen): 3 separators only
+      local marks2 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 1, 0 }, { 1, -1 }, {})
+      assert.are.equal(3, #marks2)
+      vim.api.nvim_buf_delete(buf_compact, { force = true })
+    end)
+
+    it('applies correct extmarks when both flags and ids compacted (3 columns)', function()
+      local buf_compact = vim.api.nvim_create_buf(false, true)
+      -- 2 separators = 3 columns (no ID, no flags)
+      vim.api.nvim_buf_set_lines(buf_compact, 0, -1, false, {
+        'subj│sender│date',
+        'subj│sender│date',
+      })
+      listing.apply_highlights(buf_compact, {
+        { flags = {} },
+        { flags = { 'Seen' } },
+      }, { flags_compacted = true, ids_compacted = true })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+      -- Line 1 (unseen): 3 columns + 2 separators = 5
+      local marks1 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(5, #marks1)
+      -- Line 2 (seen): 2 separators only
+      local marks2 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 1, 0 }, { 1, -1 }, {})
+      assert.are.equal(2, #marks2)
       vim.api.nvim_buf_delete(buf_compact, { force = true })
     end)
 

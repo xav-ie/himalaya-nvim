@@ -10,9 +10,20 @@ local M = {}
 local ns = vim.api.nvim_create_namespace('himalaya_seen')
 
 --- Extract numeric email ID from a listing line.
+--- When bufnr and lnum are provided, looks up the ID from the stored
+--- himalaya_line_ids array first (needed when IDs are compacted out
+--- of the visible columns).  Falls back to matching the first number.
 --- @param line string
+--- @param bufnr? number
+--- @param lnum? number  1-based line number
 --- @return string
-function M.get_email_id_from_line(line)
+function M.get_email_id_from_line(line, bufnr, lnum)
+  if bufnr and lnum then
+    local ids = vim.b[bufnr].himalaya_line_ids
+    if ids and ids[lnum] then
+      return tostring(ids[lnum])
+    end
+  end
   return line:match('%d+') or ''
 end
 
@@ -92,19 +103,33 @@ function M.apply_header(bufnr, header)
   vim.wo[winid].winbar = '%#HimalayaHead#' .. pad .. escaped
 end
 
-local col_groups = { 'HimalayaId', 'HimalayaFlags', 'HimalayaSubject', 'HimalayaSender', 'HimalayaDate' }
-local compact_col_groups = { 'HimalayaId', 'HimalayaSubject', 'HimalayaSender', 'HimalayaDate' }
+--- Build the column highlight groups dynamically based on compaction options.
+--- @param opts? table  Optional: { flags_compacted = boolean, ids_compacted = boolean }
+--- @return table groups, number expected_seps
+local function build_col_groups(opts)
+  local compacted_flags = opts and opts.flags_compacted or false
+  local compacted_ids = opts and opts.ids_compacted or false
+  local groups = {}
+  if not compacted_ids then
+    groups[#groups + 1] = 'HimalayaId'
+  end
+  if not compacted_flags then
+    groups[#groups + 1] = 'HimalayaFlags'
+  end
+  groups[#groups + 1] = 'HimalayaSubject'
+  groups[#groups + 1] = 'HimalayaSender'
+  groups[#groups + 1] = 'HimalayaDate'
+  return groups, #groups - 1
+end
 
 --- Apply per-column extmark highlights to unseen lines; seen/unknown lines
 --- receive separator extmarks only (default Normal text).
 --- @param bufnr number
 --- @param envelopes table[]
---- @param opts? table  Optional: { flags_compacted = boolean }
+--- @param opts? table  Optional: { flags_compacted = boolean, ids_compacted = boolean }
 function M.apply_highlights(bufnr, envelopes, opts)
   perf.start('apply_highlights')
-  local compacted = opts and opts.flags_compacted or false
-  local expected_seps = compacted and 3 or 4
-  local groups = compacted and compact_col_groups or col_groups
+  local groups, expected_seps = build_col_groups(opts)
 
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -208,7 +233,9 @@ function M.setup(bufnr)
       'n',
       'gt',
       function()
-        local id = M.get_email_id_from_line(vim.api.nvim_get_current_line())
+        local current_buf = vim.api.nvim_get_current_buf()
+        local cursor_lnum = vim.api.nvim_win_get_cursor(0)[1]
+        local id = M.get_email_id_from_line(vim.api.nvim_get_current_line(), current_buf, cursor_lnum)
         require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = id })
       end,
       'thread-listing-toggle',

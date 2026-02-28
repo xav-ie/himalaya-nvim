@@ -36,6 +36,10 @@ local defaults = {
   -- nil/false: never (5-column layout), true: when narrow, "always": always.
   compact_flags = true,
 
+  -- Compact IDs: remove the ID column and reclaim its width for the subject.
+  -- nil/false: never, true: when narrow, "always": always.
+  compact_ids = nil,
+
   -- Show vertical separators between columns
   gutters = true,
 

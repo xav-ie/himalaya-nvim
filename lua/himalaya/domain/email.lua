@@ -28,16 +28,20 @@ local account_flag = account_state.flag
 --- Extract numeric email ID from a listing line.
 --- Delegates to ui.listing; kept for backward compatibility.
 --- @param line string
+--- @param bufnr? number
+--- @param lnum? number
 --- @return string
-function M._get_email_id_from_line(line)
-  return require('himalaya.ui.listing').get_email_id_from_line(line)
+function M._get_email_id_from_line(line, bufnr, lnum)
+  return require('himalaya.ui.listing').get_email_id_from_line(line, bufnr, lnum)
 end
 
 --- Get email ID from line under cursor.
 --- @return string  empty string when current line has no email ID
 local function get_email_id_under_cursor()
+  local current_buf = vim.api.nvim_get_current_buf()
+  local cursor_lnum = vim.api.nvim_win_get_cursor(0)[1]
   local line = vim.api.nvim_get_current_line()
-  return M._get_email_id_from_line(line)
+  return M._get_email_id_from_line(line, current_buf, cursor_lnum)
 end
 
 --- Get email IDs from a range of lines.
@@ -45,10 +49,11 @@ end
 --- @param last_line number
 --- @return string space-separated IDs
 local function get_email_id_under_cursors(first_line, last_line)
+  local bufnr = vim.api.nvim_get_current_buf()
   local ids = {}
   for lnum = first_line, last_line do
     local line = vim.fn.getline(lnum)
-    local id = M._get_email_id_from_line(line)
+    local id = M._get_email_id_from_line(line, bufnr, lnum)
     if id ~= '' then
       table.insert(ids, id)
     end
@@ -92,7 +97,8 @@ local function render_listing_buffer(bufnr, envelopes)
   vim.bo[bufnr].modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_highlights(bufnr, envelopes, { flags_compacted = result.flags_compacted })
+  listing.apply_highlights(bufnr, envelopes, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  vim.b[bufnr].himalaya_line_ids = result.ids
   vim.bo[bufnr].modifiable = false
   return result
 end
@@ -188,7 +194,7 @@ local function refresh_listing(account, folder, opts)
       if listing_win then
         local lnum = vim.api.nvim_win_get_cursor(listing_win)[1]
         local line = vim.api.nvim_buf_get_lines(listing_bufnr, lnum - 1, lnum, false)[1] or ''
-        cursor_id = require('himalaya.ui.listing').get_email_id_from_line(line)
+        cursor_id = require('himalaya.ui.listing').get_email_id_from_line(line, listing_bufnr, lnum)
       end
       require('himalaya.domain.email.thread_listing').list(nil, { restore_email_id = cursor_id })
     end
@@ -310,7 +316,8 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
     vim.b[bufnr].himalaya_page_size = actual_ps
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_highlights(bufnr, display, { flags_compacted = result.flags_compacted })
+  listing.apply_highlights(bufnr, display, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  vim.b[bufnr].himalaya_line_ids = result.ids
   vim.b[bufnr].himalaya_buffer_type = 'listing'
   vim.bo[bufnr].filetype = 'himalaya-email-listing'
   vim.bo[bufnr].modified = false
@@ -549,7 +556,7 @@ local function mark_envelope_seen(email_id)
   local listing_mod = require('himalaya.ui.listing')
   local lines = vim.api.nvim_buf_get_lines(listing_bufnr, 0, -1, false)
   for i, line in ipairs(lines) do
-    if listing_mod.get_email_id_from_line(line) == eid then
+    if listing_mod.get_email_id_from_line(line, listing_bufnr, i) == eid then
       listing_mod.mark_line_as_seen(listing_bufnr, i - 1)
       break
     end
@@ -1160,9 +1167,10 @@ function M.resize_listing()
     local cache_start = vim.b.himalaya_cache_offset or ((old_page - 1) * old_page_size)
     -- Buffer rows may not match cache indices (e.g., after Phase 1
     -- truncation or Phase 2 re-fetch). Map cursor to cache position via email ID.
+    local bufnr = vim.api.nvim_get_current_buf()
     local cursor_row = math.max(1, math.min(vim.fn.line('.'), #envelopes))
     local cursor_line_text = vim.api.nvim_buf_get_lines(0, cursor_row - 1, cursor_row, false)[1] or ''
-    local cursor_email_id = M._get_email_id_from_line(cursor_line_text)
+    local cursor_email_id = M._get_email_id_from_line(cursor_line_text, bufnr, cursor_row)
     if cursor_email_id ~= '' then
       cursor_row = paging.find_envelope_index(envelopes, cursor_email_id) or cursor_row
     end

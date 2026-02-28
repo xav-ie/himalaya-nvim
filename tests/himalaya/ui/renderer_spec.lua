@@ -455,6 +455,91 @@ describe('himalaya.ui.renderer', function()
     end)
   end)
 
+  describe('compact_ids', function()
+    local envelopes = {
+      {
+        id = '1',
+        flags = {},
+        has_attachment = false,
+        subject = 'Test subject',
+        from = { name = 'Alice', addr = 'alice@example.com' },
+        date = '2024-01-15 09:30:00',
+      },
+    }
+
+    it('ids_compacted=false by default', function()
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout.ids_compacted)
+    end)
+
+    it('compact_ids="always" removes ID from header', function()
+      config.setup({ compact_ids = 'always' })
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_true(layout.ids_compacted)
+      assert.is_falsy(layout.header:find('ID'))
+      -- SUBJECT, FROM, DATE still present
+      assert.is_truthy(layout.header:find('SUBJECT'))
+      assert.is_truthy(layout.header:find('FROM'))
+      assert.is_truthy(layout.header:find('DATE'))
+    end)
+
+    it('compact_ids=true only when narrow', function()
+      config.setup({ compact_ids = true })
+      -- Wide: should NOT compact
+      local layout_wide = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout_wide.ids_compacted)
+      assert.is_truthy(layout_wide.header:find('ID'))
+
+      -- Narrow: should compact
+      local layout_narrow = renderer.compute_layout(envelopes, 40, function(item)
+        return item
+      end)
+      assert.is_true(layout_narrow.ids_compacted)
+      assert.is_falsy(layout_narrow.header:find('ID'))
+    end)
+
+    it('subject_w gains id_w + sep when compacted', function()
+      -- Compute without compact_ids
+      config._reset()
+      local layout_default = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      -- Now with compact_ids
+      config.setup({ compact_ids = 'always' })
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      -- subject_w should be wider by id_w + separator_width (3 with gutters)
+      assert.are.equal(layout_default.subject_w + layout_default.id_w + 3, layout.subject_w)
+    end)
+
+    it('render() populates result.ids', function()
+      local envs = {
+        { id = '42', flags = { 'Seen' }, subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00' },
+        { id = '99', flags = {}, subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00' },
+      }
+      local result = renderer.render(envs, 80)
+      assert.are.same({ '42', '99' }, result.ids)
+    end)
+
+    it('render() omits ID column when compacted', function()
+      config.setup({ compact_ids = 'always' })
+      local result = renderer.render(envelopes, 80)
+      assert.is_true(result.ids_compacted)
+      -- The data line should NOT start with the ID '1' before first separator
+      local before_first_sep = result.lines[1]:match('^(.-)' .. '\xe2\x94\x82')
+      -- In non-compacted mode the first column is ID; when compacted it's SUBJECT
+      -- The before_first_sep should not be just the numeric ID padded
+      assert.is_falsy(before_first_sep and before_first_sep:match('^%s*1%s*$'))
+    end)
+  end)
+
   describe('format_flags_compact', function()
     it('returns only active flag characters', function()
       assert.are.equal('*', renderer.format_flags_compact({ flags = {} }))
