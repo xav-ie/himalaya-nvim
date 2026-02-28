@@ -15,6 +15,7 @@ local M = {}
 local all_display_rows = nil -- full tree from last fetch
 local id_to_index = nil -- email id (string) → 1-based index in all_display_rows
 local last_edges = nil -- raw edges from last fetch (for local rebuild)
+local last_edges_key = nil -- folder + query + sort that produced last_edges
 local thread_query = '' -- search query for thread mode
 local current_page = 1
 local list_generation = 0 -- incremented on each list(); stale callbacks bail out
@@ -59,6 +60,7 @@ function M.cleanup()
   all_display_rows = nil
   id_to_index = nil
   last_edges = nil
+  last_edges_key = nil
   flag_cache = {}
   enrich_ids = nil
   thread_query = ''
@@ -232,6 +234,144 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
   })
 end
 
+--- Build display rows from edges, apply cached flags, render, and optionally
+--- enrich.  Shared by the network callback in M.list() and the cache-hit path.
+--- @param edges table       raw edge data from CLI or cache
+--- @param acct string
+--- @param folder string
+--- @param sort string
+--- @param cli_qry string
+--- @param listing_win number
+--- @param my_gen number
+--- @param render_opts table  { restore_email_id?, restore_cursor_line? }
+local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win, my_gen, render_opts)
+  last_edges = edges
+  last_edges_key = folder .. '\0' .. thread_query .. '\0' .. sort
+  local reverse = config.get().thread_reverse
+  local rows = tree.build(edges, { reverse = reverse, sort = sort })
+  tree.build_prefix(rows, { reverse = reverse })
+
+  -- Save flag data from current display rows before replacing
+  if all_display_rows then
+    for _, row in ipairs(all_display_rows) do
+      if row.env.flags then
+        flag_cache[tostring(row.env.id)] = {
+          flags = row.env.flags,
+          has_attachment = row.env.has_attachment,
+        }
+      end
+    end
+  end
+
+  -- Pre-populate flags: flag_cache first (covers most rows after
+  -- delete), then fall back to flat listing cache for any remaining.
+  for _, row in ipairs(rows) do
+    local cached = flag_cache[tostring(row.env.id)]
+    if cached then
+      row.env.flags = cached.flags
+      row.env.has_attachment = cached.has_attachment
+    end
+  end
+  local ok, cached_envs = false, nil
+  if vim.api.nvim_win_is_valid(listing_win) then
+    ok, cached_envs = pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
+  end
+  if ok and cached_envs then
+    local id_map = {}
+    for _, env in ipairs(cached_envs) do
+      id_map[tostring(env.id)] = env
+    end
+    for _, row in ipairs(rows) do
+      if not row.env.flags then
+        local flat = id_map[tostring(row.env.id)]
+        if flat and flat.flags then
+          row.env.flags = flat.flags
+          row.env.has_attachment = flat.has_attachment
+          -- Persist in flag_cache so flags survive if the flat
+          -- listing buffer is later replaced by render_page.
+          flag_cache[tostring(row.env.id)] = {
+            flags = flat.flags,
+            has_attachment = flat.has_attachment,
+          }
+        end
+      end
+    end
+  end
+
+  all_display_rows = rows
+  rebuild_id_index()
+
+  -- Seed the probe cache so flat view knows the total without probing.
+  local acct_flag_str = table.concat(account_flag(acct), ' ')
+  local cache_key = acct_flag_str .. '\0' .. folder .. '\0' .. cli_qry
+  probe.set_total(cache_key, #rows)
+
+  if not vim.api.nvim_win_is_valid(listing_win) then
+    return
+  end
+  vim.api.nvim_win_call(listing_win, function()
+    local listing_ui = require('himalaya.ui.listing')
+    if render_opts.restore_cursor_line then
+      -- Restore cursor to same line position (like dd in normal buffers).
+      -- Compute which page that line falls on after re-fetch.
+      local ps = listing_ui.effective_page_size()
+      local global_idx = math.min(render_opts.restore_cursor_line + (current_page - 1) * ps, #rows)
+      global_idx = math.max(1, global_idx)
+      local page = math.floor((global_idx - 1) / ps) + 1
+      local cursor_in_page = global_idx - (page - 1) * ps
+      M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+    elseif render_opts.restore_email_id and render_opts.restore_email_id ~= '' then
+      -- Find the target email and compute its page + line
+      local target_idx = 1
+      for i, row in ipairs(rows) do
+        if tostring(row.env.id) == render_opts.restore_email_id then
+          target_idx = i
+          break
+        end
+      end
+      local ps = listing_ui.effective_page_size()
+      local page = math.floor((target_idx - 1) / ps) + 1
+      local cursor_in_page = target_idx - (page - 1) * ps
+      M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
+    else
+      M.render_page(1)
+    end
+
+    -- Stamp after render_page: the edit command inside render_page may
+    -- have created a new buffer, so read the actual buffer now.
+    local listing_bufnr = vim.api.nvim_get_current_buf()
+    vim.b[listing_bufnr].himalaya_account = acct
+    vim.b[listing_bufnr].himalaya_folder = folder
+
+    -- Decide whether the enrich round-trip is needed.
+    --
+    -- Skip when:
+    --  (a) every row already has flag data (from flag_cache or
+    --      flat listing cache), OR
+    --  (b) enrich already ran and the only flagless rows are IDs
+    --      that were outside the previous enrich's 200-cap — those
+    --      same IDs would still be outside the cap on a re-fetch.
+    --
+    -- Re-enrich when:
+    --  (a) enrich has never run (enrich_ids == nil) and some rows
+    --      lack flags, OR
+    --  (b) a new ID appeared (not in flag_cache) that may now fall
+    --      within the 200-cap (e.g. a newly arrived email).
+    local needs_enrich = false
+    for _, row in ipairs(all_display_rows) do
+      if not row.env.flags then
+        if not enrich_ids or not flag_cache[tostring(row.env.id)] then
+          needs_enrich = true
+          break
+        end
+      end
+    end
+    if needs_enrich then
+      enrich_with_flags(acct, folder, listing_win, my_gen)
+    end
+  end)
+end
+
 --- Fetch threads and render.
 --- @param account? string
 --- @param opts? table  Optional: { restore_email_id = string, restore_cursor_line = number }
@@ -261,13 +401,25 @@ function M.list(account, opts)
   -- is the reading window, not the listing window.
   local listing_win = win.find_by_buftype({ 'listing', 'thread-listing' }) or vim.api.nvim_get_current_win()
 
+  local sort = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_sort or 'date desc'
+  local edges_key = folder .. '\0' .. thread_query .. '\0' .. sort
+
+  -- Cache hit: rebuild from cached edges without a network round-trip.
+  -- Same approach as toggle_reverse(), which already rebuilds from
+  -- last_edges synchronously.
+  if last_edges and last_edges_key == edges_key then
+    build_and_render(last_edges, acct, folder, sort,
+      require('himalaya.domain.email')._build_cli_query(thread_query, sort),
+      listing_win, my_gen, opts)
+    return
+  end
+
   -- Show loading indicator while fetching
   local lbt = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_buffer_type
   if lbt == 'listing' or lbt == 'thread-listing' then
     vim.wo[listing_win].winbar = '%#Comment# loading...%*'
   end
 
-  local sort = vim.b[vim.api.nvim_win_get_buf(listing_win)].himalaya_sort or 'date desc'
   local cli_qry = require('himalaya.domain.email')._build_cli_query(thread_query, sort)
   list_job = request.json({
     cmd = 'envelope thread --folder %q %s %s',
@@ -284,130 +436,7 @@ function M.list(account, opts)
     end,
     on_data = function(data)
       list_job = nil
-      last_edges = data
-      local reverse = config.get().thread_reverse
-      local rows = tree.build(data, { reverse = reverse, sort = sort })
-      tree.build_prefix(rows, { reverse = reverse })
-
-      -- Save flag data from current display rows before replacing
-      if all_display_rows then
-        for _, row in ipairs(all_display_rows) do
-          if row.env.flags then
-            flag_cache[tostring(row.env.id)] = {
-              flags = row.env.flags,
-              has_attachment = row.env.has_attachment,
-            }
-          end
-        end
-      end
-
-      -- Pre-populate flags: flag_cache first (covers most rows after
-      -- delete), then fall back to flat listing cache for any remaining.
-      for _, row in ipairs(rows) do
-        local cached = flag_cache[tostring(row.env.id)]
-        if cached then
-          row.env.flags = cached.flags
-          row.env.has_attachment = cached.has_attachment
-        end
-      end
-      local ok, cached_envs = false, nil
-      if vim.api.nvim_win_is_valid(listing_win) then
-        ok, cached_envs = pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
-      end
-      if ok and cached_envs then
-        local id_map = {}
-        for _, env in ipairs(cached_envs) do
-          id_map[tostring(env.id)] = env
-        end
-        for _, row in ipairs(rows) do
-          if not row.env.flags then
-            local flat = id_map[tostring(row.env.id)]
-            if flat and flat.flags then
-              row.env.flags = flat.flags
-              row.env.has_attachment = flat.has_attachment
-              -- Persist in flag_cache so flags survive if the flat
-              -- listing buffer is later replaced by render_page.
-              flag_cache[tostring(row.env.id)] = {
-                flags = flat.flags,
-                has_attachment = flat.has_attachment,
-              }
-            end
-          end
-        end
-      end
-
-      all_display_rows = rows
-      rebuild_id_index()
-
-      -- Seed the probe cache so flat view knows the total without probing.
-      local acct_flag_str = table.concat(account_flag(acct), ' ')
-      local cache_key = acct_flag_str .. '\0' .. folder .. '\0' .. cli_qry
-      probe.set_total(cache_key, #rows)
-
-      if not vim.api.nvim_win_is_valid(listing_win) then
-        return
-      end
-      vim.api.nvim_win_call(listing_win, function()
-        local listing_ui = require('himalaya.ui.listing')
-        if opts.restore_cursor_line then
-          -- Restore cursor to same line position (like dd in normal buffers).
-          -- Compute which page that line falls on after re-fetch.
-          local ps = listing_ui.effective_page_size()
-          local global_idx = math.min(opts.restore_cursor_line + (current_page - 1) * ps, #rows)
-          global_idx = math.max(1, global_idx)
-          local page = math.floor((global_idx - 1) / ps) + 1
-          local cursor_in_page = global_idx - (page - 1) * ps
-          M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
-        elseif opts.restore_email_id and opts.restore_email_id ~= '' then
-          -- Find the target email and compute its page + line
-          local target_idx = 1
-          for i, row in ipairs(rows) do
-            if tostring(row.env.id) == opts.restore_email_id then
-              target_idx = i
-              break
-            end
-          end
-          local ps = listing_ui.effective_page_size()
-          local page = math.floor((target_idx - 1) / ps) + 1
-          local cursor_in_page = target_idx - (page - 1) * ps
-          M.render_page(page, { restore_cursor = { cursor_in_page, 0 } })
-        else
-          M.render_page(1)
-        end
-
-        -- Stamp after render_page: the edit command inside render_page may
-        -- have created a new buffer, so read the actual buffer now.
-        local listing_bufnr = vim.api.nvim_get_current_buf()
-        vim.b[listing_bufnr].himalaya_account = acct
-        vim.b[listing_bufnr].himalaya_folder = folder
-
-        -- Decide whether the enrich round-trip is needed.
-        --
-        -- Skip when:
-        --  (a) every row already has flag data (from flag_cache or
-        --      flat listing cache), OR
-        --  (b) enrich already ran and the only flagless rows are IDs
-        --      that were outside the previous enrich's 200-cap — those
-        --      same IDs would still be outside the cap on a re-fetch.
-        --
-        -- Re-enrich when:
-        --  (a) enrich has never run (enrich_ids == nil) and some rows
-        --      lack flags, OR
-        --  (b) a new ID appeared (not in flag_cache) that may now fall
-        --      within the 200-cap (e.g. a newly arrived email).
-        local needs_enrich = false
-        for _, row in ipairs(all_display_rows) do
-          if not row.env.flags then
-            if not enrich_ids or not flag_cache[tostring(row.env.id)] then
-              needs_enrich = true
-              break
-            end
-          end
-        end
-        if needs_enrich then
-          enrich_with_flags(acct, folder, listing_win, my_gen)
-        end
-      end)
+      build_and_render(data, acct, folder, sort, cli_qry, listing_win, my_gen, opts)
     end,
   })
 end
@@ -444,12 +473,27 @@ function M.read()
 end
 
 --- Switch back to flat listing mode, preserving folder/account context.
+--- Keeps last_edges and flag_cache so that switching back to thread view
+--- can rebuild from cache instead of re-fetching (same as toggle_reverse).
 function M.toggle_to_flat()
   local listing = require('himalaya.ui.listing')
   local id = listing.get_email_id_from_line(vim.api.nvim_get_current_line())
+  -- Save flag data from current display rows into flag_cache before
+  -- discarding them, so the cache survives the round-trip.
+  if all_display_rows then
+    for _, row in ipairs(all_display_rows) do
+      if row.env.flags then
+        flag_cache[tostring(row.env.id)] = {
+          flags = row.env.flags,
+          has_attachment = row.env.has_attachment,
+        }
+      end
+    end
+  end
   all_display_rows = nil
   id_to_index = nil
-  last_edges = nil
+  -- last_edges and last_edges_key are intentionally kept so that
+  -- switching back to thread view can rebuild without a network call.
   vim.api.nvim_create_augroup('HimalayaThreadListing', { clear = true })
   require('himalaya.domain.email').list(nil, { restore_email_id = id })
 end
@@ -586,6 +630,17 @@ function M._set_state(rows, page)
   all_display_rows = rows
   rebuild_id_index()
   current_page = page
+end
+
+--- Test-only accessor to set cached edges (simulates a prior thread fetch).
+function M._set_edges(edges, key)
+  last_edges = edges
+  last_edges_key = key
+end
+
+--- Test-only accessor to check whether cached edges are present.
+function M._has_cached_edges()
+  return last_edges ~= nil
 end
 
 local is_seen = flags_util.is_seen
