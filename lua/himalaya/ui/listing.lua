@@ -150,32 +150,32 @@ function M.apply_highlights(bufnr, envelopes, opts)
       })
     end
 
-    -- Column extmarks (only for unseen lines with known flags)
+    -- Column extmarks for unseen lines (missing flags = unseen)
     local env = envelopes[i]
     local flags = env and env.flags
+    local seen = false
     if flags then
-      local seen = false
       for _, f in ipairs(flags) do
         if f == 'Seen' then
           seen = true
           break
         end
       end
-      if not seen then
-        local ranges = {}
-        ranges[1] = { 0, seps[1][1] }
-        for s = 1, expected_seps - 1 do
-          ranges[#ranges + 1] = { seps[s][2], seps[s + 1][1] }
-        end
-        ranges[#ranges + 1] = { seps[expected_seps][2], #line }
-        for j, range in ipairs(ranges) do
-          if range[2] > range[1] then
-            vim.api.nvim_buf_set_extmark(bufnr, ns, row, range[1], {
-              end_col = range[2],
-              hl_group = groups[j],
-              priority = 200,
-            })
-          end
+    end
+    if env and not seen then
+      local ranges = {}
+      ranges[1] = { 0, seps[1][1] }
+      for s = 1, expected_seps - 1 do
+        ranges[#ranges + 1] = { seps[s][2], seps[s + 1][1] }
+      end
+      ranges[#ranges + 1] = { seps[expected_seps][2], #line }
+      for j, range in ipairs(ranges) do
+        if range[2] > range[1] then
+          vim.api.nvim_buf_set_extmark(bufnr, ns, row, range[1], {
+            end_col = range[2],
+            hl_group = groups[j],
+            priority = 200,
+          })
         end
       end
     end

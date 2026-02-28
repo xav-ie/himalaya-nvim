@@ -197,16 +197,16 @@ describe('himalaya.ui.listing', function()
       assert.are.equal(4, #marks2)
     end)
 
-    it('applies 4 extmarks on nil-flags lines (separators only)', function()
+    it('applies 9 extmarks on nil-flags lines (treated as unseen)', function()
       listing.apply_highlights(buf, {
         { flags = {} },
         { flags = { 'Seen' } },
         {},
       })
       local ns = vim.api.nvim_create_namespace('himalaya_seen')
-      -- Line 3 (nil flags): 4 separators only
+      -- Line 3 (nil flags): 5 columns + 4 separators (same as unseen)
       local marks3 = vim.api.nvim_buf_get_extmarks(buf, ns, { 2, 0 }, { 2, -1 }, {})
-      assert.are.equal(4, #marks3)
+      assert.are.equal(9, #marks3)
     end)
 
     it('clears previous extmarks before applying', function()
