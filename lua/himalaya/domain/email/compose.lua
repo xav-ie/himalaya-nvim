@@ -44,15 +44,19 @@ end
 --- @param mode? string compose mode ('write', 'reply', 'reply_all', 'forward')
 local function open_write_buffer(msg, content, account, folder, reply_id, mode)
   local bufname = string.format('Himalaya/%s', msg)
-  if vim.fn.winnr('$') == 1 then
-    vim.cmd(string.format('silent! botright split %s', vim.fn.fnameescape(bufname)))
-  else
-    -- Prefer the reading window so the listing stays visible
-    local reading_win = win.find_by_name('Himalaya/read email')
-    if reading_win then
-      vim.api.nvim_set_current_win(reading_win)
-    end
+  -- Prefer the reading window so the listing stays visible
+  local reading_win = win.find_by_name('Himalaya/read email')
+  if reading_win then
+    vim.api.nvim_set_current_win(reading_win)
     vim.cmd(string.format('silent! edit %s', vim.fn.fnameescape(bufname)))
+  else
+    local listing_winid = vim.api.nvim_get_current_win()
+    local buf = vim.fn.bufnr(bufname)
+    if buf == -1 then
+      buf = vim.api.nvim_create_buf(true, false)
+      vim.api.nvim_buf_set_name(buf, bufname)
+    end
+    win.open_split(buf, listing_winid)
   end
   if account then
     vim.b.himalaya_account = account
@@ -155,8 +159,6 @@ function M.save_draft(bufnr)
   if vim.b[bufnr].himalaya_sent then
     return
   end
-  vim.cmd('redraw')
-  log.info('Save draft [OK]')
   vim.bo.modified = false
 end
 

@@ -52,4 +52,40 @@ function M.find_by_bufnr(bufnr)
   end
 end
 
+--- Resolve a split size value: fraction (0<v<=1) → portion of total, >1 → absolute.
+--- @param value number
+--- @param total number
+--- @return number
+local function resolve_split_size(value, total)
+  if value > 1 then
+    return math.floor(value)
+  else
+    return math.floor(total * value)
+  end
+end
+
+--- Open a split next to `ref_winid` using `reading_split` config, display `bufnr`.
+--- @param bufnr number  buffer to show in the new split
+--- @param ref_winid number  listing window to split relative to
+function M.open_split(bufnr, ref_winid)
+  local cfg = require('himalaya.config').get()
+  local split = cfg.reading_split or {}
+  local threshold = split.threshold or 115
+  local listing_width = vim.api.nvim_win_get_width(ref_winid)
+  local branch = listing_width >= threshold
+    and (split.over or {})
+    or (split.under or {})
+  local direction = branch.side or (listing_width >= threshold and 'right' or 'below')
+  local size = branch.size or 0.6
+
+  vim.api.nvim_open_win(bufnr, true, { split = direction, win = ref_winid })
+  if direction == 'left' or direction == 'right' then
+    vim.api.nvim_win_set_width(0, resolve_split_size(size, listing_width))
+  else
+    local listing_height = vim.api.nvim_win_get_height(ref_winid)
+    local total_height = listing_height + vim.api.nvim_win_get_height(0)
+    vim.api.nvim_win_set_height(0, resolve_split_size(size, total_height))
+  end
+end
+
 return M

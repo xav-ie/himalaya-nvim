@@ -329,6 +329,9 @@ describe('himalaya.domain.email.compose (write/reply/forward)', function()
       find_by_name = function()
         return nil
       end,
+      open_split = function(bufnr, ref_winid)
+        vim.api.nvim_open_win(bufnr, true, { split = 'right', win = ref_winid })
+      end,
     }
 
     package.loaded['himalaya.config'] = nil
