@@ -71,12 +71,20 @@ function M.open_split(bufnr, ref_winid)
   local cfg = require('himalaya.config').get()
   local split = cfg.reading_split or {}
   local threshold = split.threshold or 115
+  local default_size = split.size or 0.6
   local listing_width = vim.api.nvim_win_get_width(ref_winid)
   local branch = listing_width >= threshold
-    and (split.over or {})
-    or (split.under or {})
-  local direction = branch.side or (listing_width >= threshold and 'right' or 'below')
-  local size = branch.size or 0.6
+    and (split.over or 'right')
+    or (split.under or 'below')
+
+  local direction, size
+  if type(branch) == 'table' then
+    direction = branch.side or (listing_width >= threshold and 'right' or 'below')
+    size = branch.size or default_size
+  else
+    direction = branch
+    size = default_size
+  end
 
   vim.api.nvim_open_win(bufnr, true, { split = direction, win = ref_winid })
   if direction == 'left' or direction == 'right' then

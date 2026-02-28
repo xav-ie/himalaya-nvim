@@ -1060,14 +1060,14 @@ describe('himalaya.domain.email (extended)', function()
       assert.are.equal(win_count, #vim.api.nvim_tabpage_list_wins(0))
     end)
 
-    it('over threshold uses over.side (right)', function()
+    it('over threshold uses over direction (right)', function()
       track(make_listing_buf({ 42 }))
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
       local listing_win = vim.api.nvim_get_current_win()
       local width = vim.api.nvim_win_get_width(listing_win)
       require('himalaya.config').get().reading_split = {
         threshold = width,
-        over = { side = 'right' },
+        over = 'right',
       }
 
       email.read()
@@ -1081,14 +1081,14 @@ describe('himalaya.domain.email (extended)', function()
       assert.is_true(reading_col > listing_col)
     end)
 
-    it('under threshold uses under.side (below)', function()
+    it('under threshold uses under direction (below)', function()
       track(make_listing_buf({ 42 }))
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
       local listing_win = vim.api.nvim_get_current_win()
       local width = vim.api.nvim_win_get_width(listing_win)
       require('himalaya.config').get().reading_split = {
         threshold = width + 1,
-        under = { side = 'below' },
+        under = 'below',
       }
 
       email.read()
@@ -1108,7 +1108,7 @@ describe('himalaya.domain.email (extended)', function()
       local listing_win = vim.api.nvim_get_current_win()
       require('himalaya.config').get().reading_split = {
         threshold = 0,
-        over = { side = 'right' },
+        over = 'right',
       }
 
       email.read()
@@ -1122,13 +1122,58 @@ describe('himalaya.domain.email (extended)', function()
       assert.is_true(reading_col > listing_col)
     end)
 
-    it('fractional size for right split', function()
+    it('only threshold set uses defaults for everything else', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split = {
+        threshold = width,
+      }
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      -- defaults: over = 'right', size = 0.6
+      local wins = vim.api.nvim_tabpage_list_wins(0)
+      assert.are.equal(2, #wins)
+      local listing_col = vim.api.nvim_win_get_position(listing_win)[2]
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_col = vim.api.nvim_win_get_position(reading_win)[2]
+      assert.is_true(reading_col > listing_col)
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      local expected = math.floor(width * 0.6)
+      assert.are.equal(expected, reading_width)
+    end)
+
+    it('top-level size applies to string branches', function()
       track(make_listing_buf({ 42 }))
       vim.api.nvim_win_set_cursor(0, { 1, 0 })
       local listing_win = vim.api.nvim_get_current_win()
       local orig_width = vim.api.nvim_win_get_width(listing_win)
       require('himalaya.config').get().reading_split = {
         threshold = 0,
+        size = 0.7,
+        over = 'right',
+      }
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      local expected = math.floor(orig_width * 0.7)
+      assert.are.equal(expected, reading_width)
+    end)
+
+    it('table branch overrides top-level size', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local orig_width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split = {
+        threshold = 0,
+        size = 0.5,
         over = { side = 'right', size = 0.7 },
       }
 

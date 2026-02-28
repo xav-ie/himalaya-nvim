@@ -72,13 +72,14 @@ local defaults = {
 
   -- Reading pane split configuration.
   -- threshold: listing width at which 'over' vs 'under' is chosen.
-  -- over/under: { side = 'left'|'right'|'above'|'below', size = number }
-  --   side: where to open the reading pane (Neovim split direction)
-  --   size: 0.0–1.0 = fraction of space; >1 = absolute cols/rows
+  -- size: 0.0–1.0 = fraction of space; >1 = absolute cols/rows (shared default)
+  -- over/under: direction string ('left'|'right'|'above'|'below')
+  --   or table { side = direction, size = number } to override size per branch.
   reading_split = {
     threshold = 115,
-    over  = { side = 'right', size = 0.6 },
-    under = { side = 'below', size = 0.6 },
+    size = 0.6,
+    over  = 'right',
+    under = 'below',
   },
 
   -- Enable mock mode (no CLI binary or email account needed)
