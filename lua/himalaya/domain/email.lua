@@ -10,6 +10,18 @@ local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
 
+--- Resolve reading pane size from a ratio or absolute value.
+--- @param value number  fraction (0<v<=1) or absolute cols/rows (>1)
+--- @param total number  total available space
+--- @return number
+local function resolve_split_size(value, total)
+  if value > 1 then
+    return math.floor(value)
+  else
+    return math.floor(total * value)
+  end
+end
+
 local M = {}
 
 -- Module-local state
@@ -614,13 +626,22 @@ function M.read()
           local threshold = cfg.reading_split_threshold or 115
           local listing_width = vim.api.nvim_win_get_width(listing_winid)
           local direction = listing_width >= threshold and 'right' or 'below'
-          local ratio = cfg.reading_split_ratio or 0.6
+          local split_cfg = cfg.reading_split_ratio or 0.6
+          local h_value, v_value
+          if type(split_cfg) == 'table' then
+            h_value = split_cfg.horizontal or 0.6
+            v_value = split_cfg.vertical or 0.6
+          else
+            h_value = split_cfg
+            v_value = split_cfg
+          end
           vim.api.nvim_open_win(email_buf, true, { split = direction, win = listing_winid })
           if direction == 'right' then
-            vim.api.nvim_win_set_width(0, math.floor(listing_width * ratio))
+            vim.api.nvim_win_set_width(0, resolve_split_size(h_value, listing_width))
           else
             local listing_height = vim.api.nvim_win_get_height(listing_winid)
-            vim.api.nvim_win_set_height(0, math.floor((listing_height + vim.api.nvim_win_get_height(0)) * ratio))
+            local total_height = listing_height + vim.api.nvim_win_get_height(0)
+            vim.api.nvim_win_set_height(0, resolve_split_size(v_value, total_height))
           end
           -- Freeze listing viewport — the split shrinks its window and
           -- scrolloff would otherwise scroll it to keep the cursor centered.

@@ -1133,6 +1133,83 @@ describe('himalaya.domain.email (extended)', function()
       assert.are.equal(expected, reading_width)
     end)
 
+    it('reading_split_ratio > 1 sets absolute width for right split', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      require('himalaya.config').get().reading_split_threshold = 0
+      require('himalaya.config').get().reading_split_ratio = 30
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      assert.are.equal(30, reading_width)
+    end)
+
+    it('reading_split_ratio > 1 sets absolute height for below split', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      require('himalaya.config').get().reading_split_threshold = math.huge
+      require('himalaya.config').get().reading_split_ratio = 10
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_height = vim.api.nvim_win_get_height(reading_win)
+      assert.are.equal(10, reading_height)
+    end)
+
+    it('reading_split_ratio table uses horizontal for right split', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local orig_width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split_threshold = 0
+      require('himalaya.config').get().reading_split_ratio = { horizontal = 0.5 }
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      local expected = math.floor(orig_width * 0.5)
+      assert.are.equal(expected, reading_width)
+    end)
+
+    it('reading_split_ratio table uses vertical for below split', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local orig_height = vim.api.nvim_win_get_height(listing_win)
+      require('himalaya.config').get().reading_split_threshold = math.huge
+      require('himalaya.config').get().reading_split_ratio = { vertical = 0.4 }
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_height = vim.api.nvim_win_get_height(reading_win)
+      local total_height = vim.api.nvim_win_get_height(listing_win) + reading_height
+      local expected = math.floor(total_height * 0.4)
+      assert.are.equal(expected, reading_height)
+    end)
+
+    it('reading_split_ratio table with mixed types', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      require('himalaya.config').get().reading_split_threshold = 0
+      require('himalaya.config').get().reading_split_ratio = { horizontal = 30, vertical = 0.5 }
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      assert.are.equal(30, reading_width)
+    end)
+
     it('on_error calls probe.restart', function()
       local restarted = false
       package.loaded['himalaya.domain.email.probe'].restart = function()

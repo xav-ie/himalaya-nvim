@@ -75,7 +75,10 @@ local defaults = {
   -- Set to 0 to always split right, or math.huge to always split below.
   reading_split_threshold = 115,
 
-  -- Fraction of space given to the email reading pane (0.0–1.0).
+  -- Size of the email reading pane.
+  -- A number 0.0–1.0 is a fraction of space; >1 is absolute cols/rows.
+  -- Can also be a table: { horizontal = 80, vertical = 0.6 }
+  -- where horizontal applies to right splits and vertical to below splits.
   reading_split_ratio = 0.6,
 
   -- Enable mock mode (no CLI binary or email account needed)
