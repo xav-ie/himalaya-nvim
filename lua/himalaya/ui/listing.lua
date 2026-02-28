@@ -93,20 +93,26 @@ function M.apply_header(bufnr, header)
 end
 
 local col_groups = { 'HimalayaId', 'HimalayaFlags', 'HimalayaSubject', 'HimalayaSender', 'HimalayaDate' }
+local compact_col_groups = { 'HimalayaId', 'HimalayaSubject', 'HimalayaSender', 'HimalayaDate' }
 
 --- Apply per-column extmark highlights to unseen lines; seen/unknown lines
 --- receive separator extmarks only (default Normal text).
 --- @param bufnr number
 --- @param envelopes table[]
-function M.apply_highlights(bufnr, envelopes)
+--- @param opts? table  Optional: { flags_compacted = boolean }
+function M.apply_highlights(bufnr, envelopes, opts)
   perf.start('apply_highlights')
+  local compacted = opts and opts.flags_compacted or false
+  local expected_seps = compacted and 3 or 4
+  local groups = compacted and compact_col_groups or col_groups
+
   vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
   for i, line in ipairs(lines) do
     local row = i - 1
     local seps = find_separators(line)
-    if #seps < 4 then
+    if #seps < expected_seps then
       goto continue
     end
 
@@ -131,18 +137,17 @@ function M.apply_highlights(bufnr, envelopes)
         end
       end
       if not seen then
-        local ranges = {
-          { 0, seps[1][1] },
-          { seps[1][2], seps[2][1] },
-          { seps[2][2], seps[3][1] },
-          { seps[3][2], seps[4][1] },
-          { seps[4][2], #line },
-        }
+        local ranges = {}
+        ranges[1] = { 0, seps[1][1] }
+        for s = 1, expected_seps - 1 do
+          ranges[#ranges + 1] = { seps[s][2], seps[s + 1][1] }
+        end
+        ranges[#ranges + 1] = { seps[expected_seps][2], #line }
         for j, range in ipairs(ranges) do
           if range[2] > range[1] then
             vim.api.nvim_buf_set_extmark(bufnr, ns, row, range[1], {
               end_col = range[2],
-              hl_group = col_groups[j],
+              hl_group = groups[j],
               priority = 200,
             })
           end

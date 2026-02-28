@@ -339,4 +339,97 @@ describe('himalaya.ui.renderer', function()
       assert.is_falsy(result:find('%*'))
     end)
   end)
+
+  describe('compact_flags', function()
+    local envelopes = {
+      {
+        id = '1',
+        flags = {},
+        has_attachment = false,
+        subject = 'Test subject',
+        from = { name = 'Alice', addr = 'alice@example.com' },
+        date = '2024-01-15 09:30:00',
+      },
+    }
+
+    it('flags_compacted=false by default', function()
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout.flags_compacted)
+    end)
+
+    it('compact_flags="always" produces 3 seps, no FLGS header, wider subject', function()
+      config.setup({ compact_flags = 'always' })
+      local layout_normal = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      -- Reset and compute without compact_flags
+      config._reset()
+      local layout_default = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+
+      -- Re-enable compact_flags for assertions
+      config.setup({ compact_flags = 'always' })
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_true(layout.flags_compacted)
+
+      -- subject_w should be wider by flags_w + separator_width (3 with gutters)
+      assert.are.equal(layout_default.subject_w + layout_default.flags_w + 3, layout.subject_w)
+
+      -- Header should not contain FLGS
+      assert.is_falsy(layout.header:find('FLGS'))
+      -- Header should still contain ID, SUBJECT, FROM, DATE
+      assert.is_truthy(layout.header:find('ID'))
+      assert.is_truthy(layout.header:find('SUBJECT'))
+      assert.is_truthy(layout.header:find('FROM'))
+      assert.is_truthy(layout.header:find('DATE'))
+
+      -- Separator should have 3 crosses (not 4)
+      local cross_count = 0
+      for _ in layout.separator:gmatch('\xe2\x94\xbc') do
+        cross_count = cross_count + 1
+      end
+      assert.are.equal(3, cross_count)
+    end)
+
+    it('compact_flags=true compacts only at narrow width', function()
+      config.setup({ compact_flags = true })
+      -- Wide: should NOT compact
+      local layout_wide = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout_wide.flags_compacted)
+      assert.is_truthy(layout_wide.header:find('FLGS'))
+
+      -- Narrow: should compact
+      local layout_narrow = renderer.compute_layout(envelopes, 40, function(item)
+        return item
+      end)
+      assert.is_true(layout_narrow.flags_compacted)
+      assert.is_falsy(layout_narrow.header:find('FLGS'))
+    end)
+
+    it('render() prepends flags to subject when compacted', function()
+      config.setup({ compact_flags = 'always' })
+      local result = renderer.render(envelopes, 80)
+      assert.is_true(result.flags_compacted)
+      -- Data line should have 3 seps (4 columns)
+      local sep_count = 0
+      for _ in result.lines[1]:gmatch('\xe2\x94\x82') do
+        sep_count = sep_count + 1
+      end
+      assert.are.equal(3, sep_count)
+      -- Unseen flag '*' should appear in subject area (no separate flags column)
+      assert.is_truthy(result.lines[1]:find('%*'))
+    end)
+
+    it('render() returns flags_compacted=false when not configured', function()
+      local result = renderer.render(envelopes, 80)
+      assert.is_false(result.flags_compacted)
+    end)
+  end)
 end)

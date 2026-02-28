@@ -215,6 +215,27 @@ describe('himalaya.ui.listing', function()
       assert.are.equal(22, #marks)
     end)
 
+    it('applies correct extmarks in compact_flags mode (4 columns)', function()
+      local buf_compact = vim.api.nvim_create_buf(false, true)
+      -- 3 separators = 4 columns (no flags column)
+      vim.api.nvim_buf_set_lines(buf_compact, 0, -1, false, {
+        '  1│subj│sender│date',
+        '  2│subj│sender│date',
+      })
+      listing.apply_highlights(buf_compact, {
+        { flags = {} },
+        { flags = { 'Seen' } },
+      }, { flags_compacted = true })
+      local ns = vim.api.nvim_create_namespace('himalaya_seen')
+      -- Line 1 (unseen): 4 columns + 3 separators = 7
+      local marks1 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 0, 0 }, { 0, -1 }, {})
+      assert.are.equal(7, #marks1)
+      -- Line 2 (seen): 3 separators only
+      local marks2 = vim.api.nvim_buf_get_extmarks(buf_compact, ns, { 1, 0 }, { 1, -1 }, {})
+      assert.are.equal(3, #marks2)
+      vim.api.nvim_buf_delete(buf_compact, { force = true })
+    end)
+
     it('mark_line_as_seen removes column extmarks, keeps separators', function()
       listing.apply_highlights(buf, {
         { flags = {} },

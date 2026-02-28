@@ -92,7 +92,7 @@ local function render_listing_buffer(bufnr, envelopes)
   vim.bo[bufnr].modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_highlights(bufnr, envelopes)
+  listing.apply_highlights(bufnr, envelopes, { flags_compacted = result.flags_compacted })
   vim.bo[bufnr].modifiable = false
   return result
 end
@@ -310,7 +310,7 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
     vim.b[bufnr].himalaya_page_size = actual_ps
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_highlights(bufnr, display)
+  listing.apply_highlights(bufnr, display, { flags_compacted = result.flags_compacted })
   vim.b[bufnr].himalaya_buffer_type = 'listing'
   vim.bo[bufnr].filetype = 'himalaya-email-listing'
   vim.bo[bufnr].modified = false

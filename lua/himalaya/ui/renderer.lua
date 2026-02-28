@@ -263,32 +263,64 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     end
   end
 
+  -- Determine whether to compact flags into the subject column.
+  local compact_flags_cfg = cfg.compact_flags
+  local flags_compacted = false
+  if compact_flags_cfg == 'always' then
+    flags_compacted = true
+  elseif compact_flags_cfg == true then
+    flags_compacted = narrow
+  end
+
   local col_sep = gutters and (' ' .. BOX_V .. ' ') or BOX_V
   local leading = gutters and ' ' or ''
-  local row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
+  local sep_width = gutters and 3 or 1
 
+  if flags_compacted then
+    subject_w = subject_w + flags_w + sep_width
+  end
+
+  local row_fmt, header, separator
   local from_label = narrow and 'FR' or 'FROM'
-  local header = string.format(
-    row_fmt,
-    M.fit('ID', id_w),
-    M.fit(cfg_flags.header or 'FLGS', flags_w),
-    M.fit('SUBJECT', subject_w),
-    M.fit(from_label, from_w),
-    M.fit('DATE', date_w)
-  )
-
-  -- Horizontal separator under header
   local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
   local leading_h = gutters and string.rep(BOX_H, 1 + id_w) or string.rep(BOX_H, id_w)
-  local separator = leading_h
-    .. cross_sep
-    .. string.rep(BOX_H, flags_w)
-    .. cross_sep
-    .. string.rep(BOX_H, subject_w)
-    .. cross_sep
-    .. string.rep(BOX_H, from_w)
-    .. cross_sep
-    .. string.rep(BOX_H, date_w)
+
+  if flags_compacted then
+    row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
+    header = string.format(
+      row_fmt,
+      M.fit('ID', id_w),
+      M.fit('SUBJECT', subject_w),
+      M.fit(from_label, from_w),
+      M.fit('DATE', date_w)
+    )
+    separator = leading_h
+      .. cross_sep
+      .. string.rep(BOX_H, subject_w)
+      .. cross_sep
+      .. string.rep(BOX_H, from_w)
+      .. cross_sep
+      .. string.rep(BOX_H, date_w)
+  else
+    row_fmt = leading .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s' .. col_sep .. '%s'
+    header = string.format(
+      row_fmt,
+      M.fit('ID', id_w),
+      M.fit(cfg_flags.header or 'FLGS', flags_w),
+      M.fit('SUBJECT', subject_w),
+      M.fit(from_label, from_w),
+      M.fit('DATE', date_w)
+    )
+    separator = leading_h
+      .. cross_sep
+      .. string.rep(BOX_H, flags_w)
+      .. cross_sep
+      .. string.rep(BOX_H, subject_w)
+      .. cross_sep
+      .. string.rep(BOX_H, from_w)
+      .. cross_sep
+      .. string.rep(BOX_H, date_w)
+  end
 
   return {
     id_w = id_w,
@@ -297,6 +329,7 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     subject_w = subject_w,
     from_w = from_w,
     narrow = narrow,
+    flags_compacted = flags_compacted,
     date_fmt = date_fmt,
     row_fmt = row_fmt,
     header = header,
@@ -338,19 +371,31 @@ function M.render(envelopes, total_width, cfg)
     end
     local date = M.format_date(env.date or '', cfg, layout.date_fmt)
 
-    local line = string.format(
-      layout.row_fmt,
-      M.fit(id, layout.id_w),
-      M.fit(flags, layout.flags_w),
-      M.fit(subject, layout.subject_w),
-      M.fit(from, layout.from_w),
-      M.fit(date, layout.date_w)
-    )
+    local line
+    if layout.flags_compacted then
+      local full_subject = flags .. subject
+      line = string.format(
+        layout.row_fmt,
+        M.fit(id, layout.id_w),
+        M.fit(full_subject, layout.subject_w),
+        M.fit(from, layout.from_w),
+        M.fit(date, layout.date_w)
+      )
+    else
+      line = string.format(
+        layout.row_fmt,
+        M.fit(id, layout.id_w),
+        M.fit(flags, layout.flags_w),
+        M.fit(subject, layout.subject_w),
+        M.fit(from, layout.from_w),
+        M.fit(date, layout.date_w)
+      )
+    end
     table.insert(lines, line)
   end
 
   perf.stop('renderer.render')
-  return { header = layout.header, separator = layout.separator, lines = lines }
+  return { header = layout.header, separator = layout.separator, lines = lines, flags_compacted = layout.flags_compacted }
 end
 
 return M

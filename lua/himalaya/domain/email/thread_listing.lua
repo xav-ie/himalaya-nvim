@@ -153,7 +153,7 @@ function M.render_page(page, opts)
   for _, row in ipairs(slice) do
     envs[#envs + 1] = row.env
   end
-  listing.apply_highlights(bufnr, envs)
+  listing.apply_highlights(bufnr, envs, { flags_compacted = result.flags_compacted })
 
   vim.b.himalaya_buffer_type = 'thread-listing'
   vim.bo.filetype = 'himalaya-thread-listing'

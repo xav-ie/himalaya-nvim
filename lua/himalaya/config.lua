@@ -32,6 +32,10 @@ local defaults = {
     attachment = '@',
   },
 
+  -- Compact flags into the subject column instead of a separate column.
+  -- nil/false: never (5-column layout), true: when narrow, "always": always.
+  compact_flags = nil,
+
   -- Show vertical separators between columns
   gutters = true,
 

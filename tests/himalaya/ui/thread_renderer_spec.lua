@@ -216,5 +216,96 @@ describe('himalaya.ui.thread_renderer', function()
       -- Still uses │ separator
       assert.is_truthy(result.lines[1]:find('\xe2\x94\x82'))
     end)
+
+    describe('compact_flags', function()
+      it('produces 3 seps when compacted', function()
+        config.setup({ compact_flags = 'always' })
+        local rows = {
+          {
+            env = {
+              id = '1',
+              subject = 'Test',
+              from = { name = 'Alice' },
+              date = '2024-01-01 10:00:00+00:00',
+              flags = {},
+              has_attachment = false,
+            },
+            depth = 0,
+            is_last_child = true,
+            prefix = '',
+            thread_idx = 1,
+          },
+        }
+        local result = thread_renderer.render(rows, 80)
+        assert.is_true(result.flags_compacted)
+        local sep_count = 0
+        for _ in result.lines[1]:gmatch('\xe2\x94\x82') do
+          sep_count = sep_count + 1
+        end
+        assert.are.equal(3, sep_count)
+        -- Header should not have FLGS
+        assert.is_falsy(result.header:find('FLGS'))
+      end)
+
+      it('prepends flags before tree prefix when compacted', function()
+        config.setup({ compact_flags = 'always' })
+        local rows = {
+          {
+            env = {
+              id = '1',
+              subject = 'Root',
+              from = { name = 'Alice' },
+              date = '2024-01-01 10:00:00+00:00',
+              flags = { 'Seen' },
+              has_attachment = false,
+            },
+            depth = 0,
+            is_last_child = true,
+            prefix = '',
+            thread_idx = 1,
+          },
+          {
+            env = {
+              id = '2',
+              subject = 'Reply',
+              from = { name = 'Bob' },
+              date = '2024-01-02 10:00:00+00:00',
+              flags = {},
+              has_attachment = false,
+            },
+            depth = 1,
+            visual_depth = 1,
+            is_last_child = true,
+            prefix = '\xe2\x94\x94\xe2\x94\x80',
+            thread_idx = 1,
+          },
+        }
+        local result = thread_renderer.render(rows, 100)
+        -- Second line (unseen reply) should have * before tree prefix └─
+        -- The flags are prepended, then the tree prefix follows
+        local subject_col = result.lines[2]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+        assert.is_truthy(subject_col)
+        -- unseen flag '*' should appear before the tree connector '└'
+        local star_pos = subject_col:find('*', 1, true)
+        local tree_pos = subject_col:find('\xe2\x94\x94')
+        assert.is_truthy(star_pos)
+        assert.is_truthy(tree_pos)
+        assert.is_true(star_pos < tree_pos)
+      end)
+
+      it('returns flags_compacted=false by default', function()
+        local rows = {
+          {
+            env = { id = '1', subject = 'Test', from = { name = 'Alice' }, date = '2024-01-01 10:00:00+00:00' },
+            depth = 0,
+            is_last_child = true,
+            prefix = '',
+            thread_idx = 1,
+          },
+        }
+        local result = thread_renderer.render(rows, 80)
+        assert.is_false(result.flags_compacted)
+      end)
+    end)
   end)
 end)
