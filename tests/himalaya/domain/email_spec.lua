@@ -1116,6 +1116,23 @@ describe('himalaya.domain.email (extended)', function()
       assert.is_true(reading_col > listing_col)
     end)
 
+    it('respects reading_split_ratio for right split', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local orig_width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split_threshold = 0
+      require('himalaya.config').get().reading_split_ratio = 0.7
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_width = vim.api.nvim_win_get_width(reading_win)
+      local expected = math.floor(orig_width * 0.7)
+      assert.are.equal(expected, reading_width)
+    end)
+
     it('on_error calls probe.restart', function()
       local restarted = false
       package.loaded['himalaya.domain.email.probe'].restart = function()

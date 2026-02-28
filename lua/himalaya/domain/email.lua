@@ -604,9 +604,17 @@ function M.read()
           local email_buf = vim.api.nvim_create_buf(true, true)
           vim.api.nvim_buf_set_lines(email_buf, 0, -1, false, lines)
           local cfg = require('himalaya.config').get()
-          local threshold = cfg.reading_split_threshold or 120
-          local direction = vim.api.nvim_win_get_width(listing_winid) >= threshold and 'right' or 'below'
+          local threshold = cfg.reading_split_threshold or 115
+          local listing_width = vim.api.nvim_win_get_width(listing_winid)
+          local direction = listing_width >= threshold and 'right' or 'below'
+          local ratio = cfg.reading_split_ratio or 0.6
           vim.api.nvim_open_win(email_buf, true, { split = direction, win = listing_winid })
+          if direction == 'right' then
+            vim.api.nvim_win_set_width(0, math.floor(listing_width * ratio))
+          else
+            local listing_height = vim.api.nvim_win_get_height(listing_winid)
+            vim.api.nvim_win_set_height(0, math.floor((listing_height + vim.api.nvim_win_get_height(0)) * ratio))
+          end
           -- Freeze listing viewport — the split shrinks its window and
           -- scrolloff would otherwise scroll it to keep the cursor centered.
           if listing_view and vim.api.nvim_win_is_valid(listing_winid) then
