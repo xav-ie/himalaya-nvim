@@ -70,10 +70,11 @@ end
 --- @param probe_page number
 --- @param qry string
 --- @param bufnr number
-local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
+--- @param upper_bound? number  highest page known to be out of bounds
+local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, upper_bound)
   generation = generation + 1
   local my_gen = generation
-  saved_args = { acct_flag, folder, page_size, probe_page, qry, bufnr }
+  saved_args = { acct_flag, folder, page_size, probe_page, qry, bufnr, upper_bound }
   job = request.json({
     cmd = 'envelope list --folder %q %s --page-size %d --page %d %s',
     args = {
@@ -88,10 +89,26 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
     on_error = function()
       log.debug('[probe] on_error: probe page %d failed, gen=%d', probe_page, my_gen)
       job = nil
-      if on_cancel_cb then
-        local cb = on_cancel_cb
-        on_cancel_cb = nil
-        cb()
+      if my_gen ~= generation then
+        -- Cancelled: fire callback without retrying.
+        if on_cancel_cb then
+          local cb = on_cancel_cb
+          on_cancel_cb = nil
+          cb()
+        end
+        return
+      end
+      -- CLI error (e.g. page out of bounds): fall back to previous page,
+      -- recording this page as the upper bound so we don't double past it.
+      if probe_page > 1 then
+        log.debug('[probe] falling back to page %d (upper_bound=%d)', probe_page - 1, probe_page)
+        run_probe(acct_flag, folder, page_size, probe_page - 1, qry, bufnr, probe_page)
+      else
+        if on_cancel_cb then
+          local cb = on_cancel_cb
+          on_cancel_cb = nil
+          cb()
+        end
       end
     end,
     on_data = function(data)
@@ -107,10 +124,17 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
         return
       end
       local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
-      log.debug('[probe] on_data: page=%d #data=%d ps=%d', probe_page, #data, page_size)
+      log.debug('[probe] on_data: page=%d #data=%d ps=%d ub=%s', probe_page, #data, page_size, tostring(upper_bound))
       if #data < page_size then
         totals[cache_key] = (probe_page - 1) * page_size + #data
         log.debug('[probe] total resolved: %d', totals[cache_key])
+        job = nil
+        saved_args = nil
+      elseif upper_bound and probe_page + 1 >= upper_bound then
+        -- Full page but next page is out of bounds: total is exactly
+        -- probe_page * page_size.
+        totals[cache_key] = probe_page * page_size
+        log.debug('[probe] total resolved (at upper bound): %d', totals[cache_key])
         job = nil
         saved_args = nil
       elseif probe_page >= 10 then
@@ -119,14 +143,21 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr)
         job = nil
         saved_args = nil
       else
-        log.debug('[probe] continuing to page %d', math.min(probe_page * 2, 10))
-        run_probe(acct_flag, folder, page_size, math.min(probe_page * 2, 10), qry, bufnr)
+        local next_page
+        if upper_bound then
+          -- Linear scan upward within known bounds
+          next_page = probe_page + 1
+        else
+          next_page = math.min(probe_page * 2, 10)
+        end
+        log.debug('[probe] continuing to page %d', next_page)
+        run_probe(acct_flag, folder, page_size, next_page, qry, bufnr, upper_bound)
         return
       end
       if vim.api.nvim_buf_is_valid(bufnr) then
         local ok, page = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page')
         local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
-        log.debug('[probe] buf valid=%s, page ok=%s (%s), ps ok=%s (%s)', tostring(vim.api.nvim_buf_is_valid(bufnr)), tostring(ok), tostring(page), tostring(ok2), tostring(cur_page_size))
+        log.debug('[probe] buf valid, page ok=%s (%s), ps ok=%s (%s)', tostring(ok), tostring(page), tostring(ok2), tostring(cur_page_size))
         if ok and ok2 then
           local display_qry = qry == '' and 'all' or qry
           local new_name = string.format(
