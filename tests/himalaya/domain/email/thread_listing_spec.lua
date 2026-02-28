@@ -1059,6 +1059,8 @@ describe('himalaya.domain.email.thread_listing', function()
 
       -- Second list(): the flat cache buffer var is now gone (render_page
       -- created a new buffer), but flag_cache should still have the flags.
+      -- Clear edge cache to force a network fetch (we're testing enrich, not edge caching).
+      thread_listing._set_edges(nil, nil)
       calls = {}
       thread_listing.list()
       local second_list = calls[1]
@@ -1126,6 +1128,8 @@ describe('himalaya.domain.email.thread_listing', function()
       })
 
       -- Second list() with same edges: flag_cache covers all → no enrich
+      -- Clear edge cache to force a network fetch (we're testing enrich, not edge caching).
+      thread_listing._set_edges(nil, nil)
       calls = {}
       thread_listing.list()
       local list2 = calls[1]
@@ -1180,6 +1184,8 @@ describe('himalaya.domain.email.thread_listing', function()
 
       -- Second list(): flat cache buffer is gone, but flag_cache
       -- was seeded from flat cache → still no enrich
+      -- Clear edge cache to force a network fetch (we're testing enrich, not edge caching).
+      thread_listing._set_edges(nil, nil)
       calls = {}
       thread_listing.list()
       local list2 = calls[1]
@@ -1230,6 +1236,8 @@ describe('himalaya.domain.email.thread_listing', function()
       assert.are.equal(0, #calls) -- no enrich needed
 
       -- Second list includes a new ID 4 (not in flag_cache)
+      -- Clear edge cache to force a network fetch (we're testing enrich, not edge caching).
+      thread_listing._set_edges(nil, nil)
       calls = {}
       thread_listing.list()
       local list2 = calls[1]
