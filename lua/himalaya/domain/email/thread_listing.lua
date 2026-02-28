@@ -22,7 +22,10 @@ local list_generation = 0 -- incremented on each list(); stale callbacks bail ou
 local list_job = nil -- in-flight thread fetch job handle
 local enrich_job = nil -- in-flight enrich_with_flags job handle
 local flag_cache = {} -- maps id string → {flags, has_attachment} across re-fetches
-local enrich_ids = nil -- set of id strings returned by last enrich; nil = never enriched
+local enrich_cli_page = 0 -- last CLI page fetched by incremental enrich (0 = none)
+local enrich_exhausted = false -- true when CLI returned fewer results than batch size
+local ENRICH_BATCH_SIZE = 50
+local enrich_next_batch -- forward declaration; defined after render_page (mutual recursion)
 
 local account_flag = account_state.flag
 
@@ -62,7 +65,8 @@ function M.cleanup()
   last_edges = nil
   last_edges_key = nil
   flag_cache = {}
-  enrich_ids = nil
+  enrich_cli_page = 0
+  enrich_exhausted = false
   thread_query = ''
   current_page = 1
 end
@@ -171,28 +175,54 @@ function M.render_page(page, opts)
   else
     vim.cmd('0')
   end
+
+  -- Trigger incremental flag enrichment if this page has unknowns.
+  -- The initial enrich is started by build_and_render; subsequent batches
+  -- are triggered here as the user pages through or after each batch
+  -- re-renders and the current page still has gaps.
+  if not enrich_exhausted and not enrich_job then
+    local page_has_unknowns = false
+    for _, row in ipairs(slice) do
+      if not row.env.flags then
+        page_has_unknowns = true
+        break
+      end
+    end
+    if page_has_unknowns then
+      local buf_acct = vim.b[bufnr].himalaya_account
+      local buf_folder = vim.b[bufnr].himalaya_folder
+      if buf_acct and buf_folder then
+        local ref_win = vim.fn.bufwinid(bufnr)
+        if ref_win ~= -1 then
+          enrich_next_batch(buf_acct, buf_folder, ref_win, list_generation)
+        end
+      end
+    end
+  end
 end
 
---- Enrich display rows with flags from a secondary envelope list fetch.
---- Renders immediately, then re-renders when flag data arrives.
+--- Fetch the next batch of flags from the flat envelope list.
+--- Each call fetches one CLI page (ENRICH_BATCH_SIZE envelopes) and merges
+--- flags into all_display_rows. After re-rendering, render_page triggers
+--- the next batch if the current page still has unknowns.
 --- @param acct string
 --- @param folder string
 --- @param listing_win number  window to render in (avoids E36 if picker has focus)
 --- @param gen number  generation at time of request; bail if stale
-local function enrich_with_flags(acct, folder, listing_win, gen)
+enrich_next_batch = function(acct, folder, listing_win, gen)
   if not all_display_rows or #all_display_rows == 0 then
+    return
+  end
+  if enrich_exhausted or enrich_job then
     return
   end
   perf.count('enrich_with_flags')
 
-  -- Cap the fetch at 200 envelopes. The flat list returns the most recent
-  -- emails by date, which naturally covers the top thread pages. For large
-  -- threads (500+), emails beyond the cap show empty flags until the user
-  -- pages to them — same as the initial render before enrich completes.
-  local fetch_size = math.min(#all_display_rows, 200)
+  enrich_cli_page = enrich_cli_page + 1
+  local cli_page = enrich_cli_page
   enrich_job = request.json({
-    cmd = 'envelope list --folder %q %s --page-size %d --page 1',
-    args = { folder, account_flag(acct), fetch_size },
+    cmd = 'envelope list --folder %q %s --page-size %d --page %d',
+    args = { folder, account_flag(acct), ENRICH_BATCH_SIZE, cli_page },
     msg = 'Fetching flags',
     silent = true,
     is_stale = function()
@@ -203,15 +233,12 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
     end,
     on_data = function(envs)
       enrich_job = nil
+      if #envs < ENRICH_BATCH_SIZE then
+        enrich_exhausted = true
+      end
       local id_map = {}
       for _, env in ipairs(envs) do
         id_map[tostring(env.id)] = env
-      end
-      -- Track which IDs enrich returned so we can skip redundant
-      -- re-enrichment when only rows outside the cap lack flags.
-      enrich_ids = {}
-      for id_str, _ in pairs(id_map) do
-        enrich_ids[id_str] = true
       end
       for _, row in ipairs(all_display_rows) do
         local id_str = tostring(row.env.id)
@@ -219,15 +246,13 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
         if rich then
           row.env.flags = rich.flags
           row.env.has_attachment = rich.has_attachment
-          -- Persist enriched flags so subsequent re-fetches can
-          -- pre-populate from flag_cache and skip enrich entirely.
           flag_cache[id_str] = {
             flags = rich.flags,
             has_attachment = rich.has_attachment,
           }
         end
       end
-      flags_util.debug_flags_rows(string.format('thread:enrich complete (%d fetched)', #envs), all_display_rows)
+      flags_util.debug_flags_rows(string.format('thread:enrich batch %d (%d fetched)', cli_page, #envs), all_display_rows)
       if not vim.api.nvim_win_is_valid(listing_win) then
         return
       end
@@ -249,8 +274,13 @@ end
 --- @param my_gen number
 --- @param render_opts table  { restore_email_id?, restore_cursor_line? }
 local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win, my_gen, render_opts)
+  local new_key = folder .. '\0' .. thread_query .. '\0' .. sort
+  if last_edges_key ~= new_key then
+    enrich_cli_page = 0
+    enrich_exhausted = false
+  end
   last_edges = edges
-  last_edges_key = folder .. '\0' .. thread_query .. '\0' .. sort
+  last_edges_key = new_key
   local reverse = config.get().thread_reverse
   local rows = tree.build(edges, { reverse = reverse, sort = sort })
   tree.build_prefix(rows, { reverse = reverse })
@@ -348,31 +378,18 @@ local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win,
     vim.b[listing_bufnr].himalaya_account = acct
     vim.b[listing_bufnr].himalaya_folder = folder
 
-    -- Decide whether the enrich round-trip is needed.
-    --
-    -- Skip when:
-    --  (a) every row already has flag data (from flag_cache or
-    --      flat listing cache), OR
-    --  (b) enrich already ran and the only flagless rows are IDs
-    --      that were outside the previous enrich's 200-cap — those
-    --      same IDs would still be outside the cap on a re-fetch.
-    --
-    -- Re-enrich when:
-    --  (a) enrich has never run (enrich_ids == nil) and some rows
-    --      lack flags, OR
-    --  (b) a new ID appeared (not in flag_cache) that may now fall
-    --      within the 200-cap (e.g. a newly arrived email).
+    -- Trigger incremental flag enrichment if any rows lack flags.
     local needs_enrich = false
-    for _, row in ipairs(all_display_rows) do
-      if not row.env.flags then
-        if not enrich_ids or not flag_cache[tostring(row.env.id)] then
+    if not enrich_exhausted then
+      for _, row in ipairs(all_display_rows) do
+        if not row.env.flags then
           needs_enrich = true
           break
         end
       end
     end
     if needs_enrich then
-      enrich_with_flags(acct, folder, listing_win, my_gen)
+      enrich_next_batch(acct, folder, listing_win, my_gen)
     end
   end)
 end
