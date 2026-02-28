@@ -135,16 +135,16 @@ require('himalaya').setup({
   -- Per-account email signatures: string or { account_name = string }
   signature = nil,
 
-  -- Window width threshold for adaptive reading split direction.
-  -- When the listing window is at least this wide, split right; otherwise below.
-  -- Set to 0 to always split right, or math.huge to always split below.
-  reading_split_threshold = 115,
-
-  -- Size of the email reading pane.
-  -- A number 0.0–1.0 is a fraction of space; >1 is absolute cols/rows.
-  -- Can also be a table: { horizontal = 80, vertical = 0.6 }
-  -- where horizontal applies to right splits and vertical to below splits.
-  reading_split_ratio = 0.6,
+  -- Reading pane split configuration.
+  -- threshold: listing width at which 'over' vs 'under' is chosen.
+  -- over/under: { side = 'left'|'right'|'above'|'below', size = number }
+  --   side: where to open the reading pane (Neovim split direction)
+  --   size: 0.0–1.0 = fraction of space; >1 = absolute cols/rows
+  reading_split = {
+    threshold = 115,
+    over  = { side = 'right', size = 0.6 },
+    under = { side = 'below', size = 0.6 },
+  },
 
   -- Enable mock mode (no CLI binary or email account needed)
   mock = false,
