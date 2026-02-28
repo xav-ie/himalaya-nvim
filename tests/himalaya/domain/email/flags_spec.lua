@@ -28,8 +28,8 @@ describe('himalaya.domain.email.flags', function()
   end)
 
   describe('is_unseen', function()
-    it('returns true when flags is nil', function()
-      assert.is_true(flags.is_unseen({}))
+    it('returns false when flags is nil (unknown state)', function()
+      assert.is_false(flags.is_unseen({}))
     end)
 
     it('returns true when Seen flag is absent', function()

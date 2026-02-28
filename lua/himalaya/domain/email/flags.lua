@@ -10,13 +10,14 @@ function M.complete_list()
   return all
 end
 
---- Check whether an envelope lacks the Seen flag.
+--- Check whether an envelope is confirmed unseen (has flags but no Seen flag).
+--- Returns false when flags are nil (unknown state ≠ unseen).
 --- @param env table
 --- @return boolean
 function M.is_unseen(env)
   local flags = env.flags
   if not flags then
-    return true
+    return false
   end
   for _, f in ipairs(flags) do
     if f == 'Seen' then
