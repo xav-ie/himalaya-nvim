@@ -1,5 +1,4 @@
 local request = require('himalaya.request')
-local log = require('himalaya.log')
 
 local M = {}
 
@@ -87,7 +86,6 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
     msg = string.format('Probing page %d', probe_page),
     silent = true,
     on_error = function()
-      log.debug('[probe] on_error: probe page %d failed, gen=%d', probe_page, my_gen)
       job = nil
       if my_gen ~= generation then
         -- Cancelled: fire callback without retrying.
@@ -101,7 +99,6 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
       -- CLI error (e.g. page out of bounds): fall back to previous page,
       -- recording this page as the upper bound so we don't double past it.
       if probe_page > 1 then
-        log.debug('[probe] falling back to page %d (upper_bound=%d)', probe_page - 1, probe_page)
         run_probe(acct_flag, folder, page_size, probe_page - 1, qry, bufnr, probe_page)
       else
         if on_cancel_cb then
@@ -114,7 +111,6 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
     on_data = function(data)
       if my_gen ~= generation then
         -- Stale: process completed before kill signal arrived.
-        log.debug('[probe] on_data: STALE my_gen=%d gen=%d', my_gen, generation)
         job = nil
         if on_cancel_cb then
           local cb = on_cancel_cb
@@ -124,22 +120,18 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
         return
       end
       local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
-      log.debug('[probe] on_data: page=%d #data=%d ps=%d ub=%s', probe_page, #data, page_size, tostring(upper_bound))
       if #data < page_size then
         totals[cache_key] = (probe_page - 1) * page_size + #data
-        log.debug('[probe] total resolved: %d', totals[cache_key])
         job = nil
         saved_args = nil
       elseif upper_bound and probe_page + 1 >= upper_bound then
         -- Full page but next page is out of bounds: total is exactly
         -- probe_page * page_size.
         totals[cache_key] = probe_page * page_size
-        log.debug('[probe] total resolved (at upper bound): %d', totals[cache_key])
         job = nil
         saved_args = nil
       elseif probe_page >= 10 then
         totals[cache_key] = -(probe_page * page_size)
-        log.debug('[probe] total capped: %d+', -totals[cache_key])
         job = nil
         saved_args = nil
       else
@@ -150,14 +142,14 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
         else
           next_page = math.min(probe_page * 2, 10)
         end
-        log.debug('[probe] continuing to page %d', next_page)
+
         run_probe(acct_flag, folder, page_size, next_page, qry, bufnr, upper_bound)
         return
       end
       if vim.api.nvim_buf_is_valid(bufnr) then
         local ok, page = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page')
         local ok2, cur_page_size = pcall(vim.api.nvim_buf_get_var, bufnr, 'himalaya_page_size')
-        log.debug('[probe] buf valid, page ok=%s (%s), ps ok=%s (%s)', tostring(ok), tostring(page), tostring(ok2), tostring(cur_page_size))
+
         if ok and ok2 then
           local display_qry = qry == '' and 'all' or qry
           local new_name = string.format(
@@ -179,11 +171,9 @@ local function run_probe(acct_flag, folder, page_size, probe_page, qry, bufnr, u
             end
           end
           vim.api.nvim_buf_set_name(bufnr, new_name)
-          log.debug('[probe] buf renamed: %s', new_name)
+
           vim.cmd('redraw')
         end
-      else
-        log.debug('[probe] buf %d invalid, skipping rename', bufnr)
       end
     end,
   })
@@ -199,10 +189,7 @@ end
 function M.start(acct_flag, folder, page_size, page, qry, bufnr)
   local cache_key = acct_flag .. '\0' .. folder .. '\0' .. qry
   if not totals[cache_key] then
-    log.debug('[probe] start: probing page %d, ps=%d, bufnr=%d', page + 1, page_size, bufnr)
     run_probe(acct_flag, folder, page_size, page + 1, qry, bufnr)
-  else
-    log.debug('[probe] start: total already known (%s), skipping', tostring(totals[cache_key]))
   end
 end
 
@@ -254,7 +241,6 @@ end
 
 --- Clean up all module-local state for buffer teardown.
 function M.cleanup()
-  log.debug('[probe] cleanup called')
   M.cancel_sync()
   totals = {}
   saved_args = nil
