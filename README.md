@@ -97,11 +97,18 @@ require('himalaya').setup({
     attachment = '@',
   },
 
+  -- Compact flags into the subject column instead of a separate column.
+  -- nil/false: never (5-column layout), true: when narrow, "always": always.
+  compact_flags = true,
+
   -- Show vertical separators between columns
   gutters = true,
 
   -- Date format (strftime)
   date_format = '%Y-%m-%d %H:%M',
+
+  -- Compact date format used when the listing is too narrow for the full FROM column.
+  compact_date_format = '%m/%d',
 
   -- Start in thread view instead of flat listing
   thread_view = false,
@@ -123,6 +130,14 @@ require('himalaya').setup({
 
   -- Per-account email signatures: string or { account_name = string }
   signature = nil,
+
+  -- Window width threshold for adaptive reading split direction.
+  -- When the listing window is at least this wide, split right; otherwise below.
+  -- Set to 0 to always split right, or math.huge to always split below.
+  reading_split_threshold = 115,
+
+  -- Fraction of space given to the email reading pane (0.0–1.0).
+  reading_split_ratio = 0.6,
 
   -- Enable mock mode (no CLI binary or email account needed)
   mock = false,
