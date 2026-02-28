@@ -713,6 +713,10 @@ describe('himalaya.domain.email.thread_listing', function()
       -- Set flags on the rendered rows before next list().
       -- Access through render_page indirectly...
       -- Actually, let's just verify the second fetch works:
+
+      -- Clear cached edges so the second list() issues a network request
+      -- instead of rebuilding from cache (we want to test the on_data path).
+      thread_listing._set_edges(nil, nil)
       captured_opts = nil
       thread_listing.list()
       local edges2 = {
@@ -1120,6 +1124,234 @@ describe('himalaya.domain.email.thread_listing', function()
       assert.is_true(config.get().thread_reverse)
 
       -- Buffer should still have rendered content
+      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      assert.is_true(#lines >= 2)
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.job'] = nil
+      package.loaded['himalaya.domain.email.probe'] = nil
+    end)
+  end)
+
+  -- ----------------------------------------------------------------
+  -- edge caching across mode switches
+  -- ----------------------------------------------------------------
+  describe('edge caching', function()
+    it('toggle_to_flat preserves cached edges', function()
+      local request_calls = {}
+
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          request_calls[#request_calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.job'] = {
+        kill_and_wait = function() end,
+        run = function() end,
+      }
+      package.loaded['himalaya.domain.email.probe'] = {
+        cancel_sync = function() end,
+        set_total = function() end,
+      }
+
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      local bufnr = make_buf()
+
+      -- Populate edges via list() + on_data
+      thread_listing.list()
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+      }
+      request_calls[1].on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'Root', from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+      })
+
+      -- Cached edges should be present
+      assert.is_true(thread_listing._has_cached_edges())
+
+      -- toggle_to_flat should preserve edges
+      local email_mod = require('himalaya.domain.email')
+      local orig_list = email_mod.list
+      email_mod.list = function() end
+      thread_listing.toggle_to_flat()
+      email_mod.list = orig_list
+
+      assert.is_true(thread_listing._has_cached_edges())
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.job'] = nil
+      package.loaded['himalaya.domain.email.probe'] = nil
+    end)
+
+    it('cleanup clears cached edges', function()
+      thread_listing._set_edges({ { 'edge_data' } }, 'INBOX\0\0date desc')
+      assert.is_true(thread_listing._has_cached_edges())
+      thread_listing.cleanup()
+      assert.is_false(thread_listing._has_cached_edges())
+    end)
+
+    it('list() rebuilds from cached edges without network call', function()
+      local request_calls = {}
+
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          request_calls[#request_calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.job'] = {
+        kill_and_wait = function() end,
+        run = function() end,
+      }
+      package.loaded['himalaya.domain.email.probe'] = {
+        cancel_sync = function() end,
+        set_total = function() end,
+      }
+
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      local bufnr = make_buf()
+
+      -- First fetch populates the cache
+      thread_listing.list()
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+      }
+      local edges = {
+        {
+          { id = '0' },
+          { id = '1', subject = 'Root', from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+      }
+      request_calls[1].on_data(edges)
+
+      -- Second list() with same folder/query/sort should use cache
+      local before_count = #request_calls
+      thread_listing.list()
+      -- No new request.json call should have been made
+      assert.are.equal(before_count, #request_calls)
+      -- Buffer should still have rendered content
+      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      assert.is_true(#lines >= 1)
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.job'] = nil
+      package.loaded['himalaya.domain.email.probe'] = nil
+    end)
+
+    it('list() fetches from network when cache key differs', function()
+      local request_calls = {}
+
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          request_calls[#request_calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.job'] = {
+        kill_and_wait = function() end,
+        run = function() end,
+      }
+      package.loaded['himalaya.domain.email.probe'] = {
+        cancel_sync = function() end,
+        set_total = function() end,
+      }
+
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      local bufnr = make_buf()
+
+      -- First fetch populates the cache
+      thread_listing.list()
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+      }
+      request_calls[1].on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'Root', from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+      })
+
+      -- Change folder to invalidate cache key
+      vim.b[bufnr].himalaya_folder = 'Sent'
+      local before_count = #request_calls
+      thread_listing.list()
+      -- A new network request should have been made
+      assert.are.equal(before_count + 1, #request_calls)
+      assert.truthy(request_calls[#request_calls].cmd:find('envelope thread'))
+
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      package.loaded['himalaya.request'] = nil
+      package.loaded['himalaya.job'] = nil
+      package.loaded['himalaya.domain.email.probe'] = nil
+    end)
+
+    it('full round-trip: thread → flat → thread uses cache', function()
+      local request_calls = {}
+
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          request_calls[#request_calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.job'] = {
+        kill_and_wait = function() end,
+        run = function() end,
+      }
+      package.loaded['himalaya.domain.email.probe'] = {
+        cancel_sync = function() end,
+        set_total = function() end,
+      }
+
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      local bufnr = make_buf()
+
+      -- 1. Initial thread fetch
+      thread_listing.list()
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+        { id = '2', flags = { 'Seen' }, has_attachment = false },
+      }
+      request_calls[1].on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'Root', from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '1', subject = 'Root', from = { name = 'A' }, date = '2024-01-01 10:00:00+00:00' },
+          { id = '2', subject = 'Reply', from = { name = 'B' }, date = '2024-01-02 10:00:00+00:00' },
+          1,
+        },
+      })
+
+      -- 2. Toggle to flat (preserves edges)
+      local email_mod = require('himalaya.domain.email')
+      local orig_list = email_mod.list
+      email_mod.list = function() end
+      thread_listing.toggle_to_flat()
+      email_mod.list = orig_list
+
+      -- 3. Toggle back to thread — should rebuild from cache, no new request
+      local before_count = #request_calls
+      thread_listing.list()
+      assert.are.equal(before_count, #request_calls)
+
+      -- Buffer should have rendered content from cached edges
       local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
       assert.is_true(#lines >= 2)
 
