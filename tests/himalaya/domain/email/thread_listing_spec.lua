@@ -631,6 +631,7 @@ describe('himalaya.domain.email.thread_listing', function()
       }
       package.loaded['himalaya.domain.email.probe'] = {
         cancel_sync = function() end,
+        set_total = function() end,
       }
 
       package.loaded['himalaya.domain.email.thread_listing'] = nil
@@ -1032,6 +1033,7 @@ describe('himalaya.domain.email.thread_listing', function()
       }
       package.loaded['himalaya.domain.email.probe'] = {
         cancel_sync = function() end,
+        set_total = function() end,
       }
 
       package.loaded['himalaya.domain.email.thread_listing'] = nil
@@ -1080,6 +1082,7 @@ describe('himalaya.domain.email.thread_listing', function()
       }
       package.loaded['himalaya.domain.email.probe'] = {
         cancel_sync = function() end,
+        set_total = function() end,
       }
 
       package.loaded['himalaya.domain.email.thread_listing'] = nil

@@ -318,6 +318,11 @@ function M.list(account, opts)
       all_display_rows = rows
       rebuild_id_index()
 
+      -- Seed the probe cache so flat view knows the total without probing.
+      local acct_flag_str = table.concat(account_flag(acct), ' ')
+      local cache_key = acct_flag_str .. '\0' .. folder .. '\0' .. cli_qry
+      probe.set_total(cache_key, #rows)
+
       if not vim.api.nvim_win_is_valid(listing_win) then
         return
       end

@@ -34,6 +34,14 @@ function M.total_count(cache_key)
   return total
 end
 
+--- Set the exact total envelope count for a cache key.
+--- Used by thread listing to seed the cache so flat view skips probing.
+--- @param cache_key string
+--- @param total number
+function M.set_total(cache_key, total)
+  totals[cache_key] = total
+end
+
 --- Track context changes (no longer wipes totals — entries are keyed by
 --- (acct, folder, query) and persist across folder/account switches).
 --- @param acct_flag string
