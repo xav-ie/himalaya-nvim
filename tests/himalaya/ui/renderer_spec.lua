@@ -274,6 +274,32 @@ describe('himalaya.ui.renderer', function()
       assert.is_false(layout.narrow)
     end)
 
+    it('uses compact_date_format and reclaims width when narrow', function()
+      config.get().compact_date_format = '%m/%d'
+      local envelopes = {
+        { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },
+      }
+      local layout = renderer.compute_layout(envelopes, 40, function(item)
+        return item
+      end)
+      assert.is_true(layout.narrow)
+      assert.are.equal(config.get().compact_date_format, layout.date_fmt)
+      -- compact '%m/%d' = 5 chars, normal '%Y-%m-%d %H:%M' = 16 chars
+      assert.are.equal(5, layout.date_w)
+    end)
+
+    it('returns normal date_fmt when not narrow', function()
+      config.get().compact_date_format = '%m/%d'
+      local envelopes = {
+        { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },
+      }
+      local layout = renderer.compute_layout(envelopes, 80, function(item)
+        return item
+      end)
+      assert.is_false(layout.narrow)
+      assert.are.equal(config.get().date_format, layout.date_fmt)
+    end)
+
     it('uses FR header label when narrow', function()
       local envelopes = {
         { id = '1', flags = {}, subject = 'Test', from = { name = 'Alice' }, date = '2024-01-15 09:30:00' },

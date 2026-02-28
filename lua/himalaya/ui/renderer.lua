@@ -97,10 +97,11 @@ end
 --- Returns the raw string when no date_format is configured.
 --- @param raw string
 --- @param cfg? table  optional config (defaults to config.get())
+--- @param fmt_override? string  explicit strftime format (overrides cfg)
 --- @return string
-function M.format_date(raw, cfg)
+function M.format_date(raw, cfg, fmt_override)
   perf.count('format_date')
-  local fmt = (cfg or config.get()).date_format
+  local fmt = fmt_override or (cfg or config.get()).date_format
   if not fmt or raw == '' then
     return raw
   end
@@ -232,10 +233,34 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
   local narrow = false
   local NARROW_FROM_W = 2
   local NARROW_THRESHOLD = 12
+  local date_fmt = cfg.date_format
   if from_w < NARROW_THRESHOLD then
     narrow = true
     subject_w = subject_w + from_w - NARROW_FROM_W
     from_w = NARROW_FROM_W
+
+    -- Switch to compact date format and reclaim the saved width for subject.
+    local compact_fmt = cfg.compact_date_format
+    if compact_fmt then
+      local compact_date_w = 4
+      for _, item in ipairs(items) do
+        local env = get_env_fn(item)
+        local raw = tostring(env.date or '')
+        if raw ~= '' then
+          local len = #M.format_date(raw, cfg, compact_fmt)
+          if len > compact_date_w then
+            compact_date_w = len
+          end
+          break
+        end
+      end
+      local saved = date_w - compact_date_w
+      if saved > 0 then
+        subject_w = subject_w + saved
+        date_w = compact_date_w
+        date_fmt = compact_fmt
+      end
+    end
   end
 
   local col_sep = gutters and (' ' .. BOX_V .. ' ') or BOX_V
@@ -272,6 +297,7 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     subject_w = subject_w,
     from_w = from_w,
     narrow = narrow,
+    date_fmt = date_fmt,
     row_fmt = row_fmt,
     header = header,
     separator = separator,
@@ -310,7 +336,7 @@ function M.render(envelopes, total_width, cfg)
         from = format_from_fn(env.from[1])
       end
     end
-    local date = M.format_date(env.date or '', cfg)
+    local date = M.format_date(env.date or '', cfg, layout.date_fmt)
 
     local line = string.format(
       layout.row_fmt,

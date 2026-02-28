@@ -38,6 +38,9 @@ local defaults = {
   -- Date format (strftime)
   date_format = '%Y-%m-%d %H:%M',
 
+  -- Compact date format used when the listing is too narrow for the full FROM column.
+  compact_date_format = '%m/%d',
+
   -- Start in thread view instead of flat listing
   thread_view = false,
 

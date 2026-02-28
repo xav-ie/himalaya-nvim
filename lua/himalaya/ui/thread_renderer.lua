@@ -46,7 +46,7 @@ function M.render(display_rows, total_width, cfg)
       end
     end
 
-    local date = renderer.format_date(env.date or '', cfg)
+    local date = renderer.format_date(env.date or '', cfg, layout.date_fmt)
 
     local line = string.format(
       layout.row_fmt,
