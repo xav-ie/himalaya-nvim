@@ -1060,6 +1060,62 @@ describe('himalaya.domain.email (extended)', function()
       assert.are.equal(win_count, #vim.api.nvim_tabpage_list_wins(0))
     end)
 
+    it('splits right when window width >= threshold', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      -- Ensure listing window is wide enough
+      local width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split_threshold = width
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local wins = vim.api.nvim_tabpage_list_wins(0)
+      assert.are.equal(2, #wins)
+      -- A right split creates a window to the right (different column)
+      local listing_col = vim.api.nvim_win_get_position(listing_win)[2]
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_col = vim.api.nvim_win_get_position(reading_win)[2]
+      assert.is_true(reading_col > listing_col)
+    end)
+
+    it('splits below when window width < threshold', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      local width = vim.api.nvim_win_get_width(listing_win)
+      require('himalaya.config').get().reading_split_threshold = width + 1
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local wins = vim.api.nvim_tabpage_list_wins(0)
+      assert.are.equal(2, #wins)
+      -- A below split creates a window at same column but different row
+      local listing_row = vim.api.nvim_win_get_position(listing_win)[1]
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_row = vim.api.nvim_win_get_position(reading_win)[1]
+      assert.is_true(reading_row > listing_row)
+    end)
+
+    it('always splits right when threshold is 0', function()
+      track(make_listing_buf({ 42 }))
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      local listing_win = vim.api.nvim_get_current_win()
+      require('himalaya.config').get().reading_split_threshold = 0
+
+      email.read()
+      captured_plain.on_data('Subject: Test\n\nHello world\n')
+
+      local wins = vim.api.nvim_tabpage_list_wins(0)
+      assert.are.equal(2, #wins)
+      local listing_col = vim.api.nvim_win_get_position(listing_win)[2]
+      local reading_win = vim.api.nvim_get_current_win()
+      local reading_col = vim.api.nvim_win_get_position(reading_win)[2]
+      assert.is_true(reading_col > listing_col)
+    end)
+
     it('on_error calls probe.restart', function()
       local restarted = false
       package.loaded['himalaya.domain.email.probe'].restart = function()
