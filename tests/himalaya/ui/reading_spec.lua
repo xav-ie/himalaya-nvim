@@ -168,8 +168,7 @@ describe('himalaya.ui.reading', function()
     end)
 
     after_each(function()
-      -- Close extra split first
-      if listing_winid and vim.api.nvim_win_is_valid(listing_winid) then
+      if listing_winid and vim.api.nvim_win_is_valid(listing_winid) and #vim.api.nvim_list_wins() > 1 then
         vim.api.nvim_win_close(listing_winid, true)
       end
       if listing_bufnr and vim.api.nvim_buf_is_valid(listing_bufnr) then
