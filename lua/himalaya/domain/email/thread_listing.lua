@@ -4,7 +4,6 @@ local account_state = require('himalaya.state.account')
 local tree = require('himalaya.domain.email.tree')
 local probe = require('himalaya.domain.email.probe')
 local flags_util = require('himalaya.domain.email.flags')
-local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
 local log = require('himalaya.log')
@@ -20,11 +19,7 @@ local thread_query = '' -- search query for thread mode
 local current_page = 1
 local list_generation = 0 -- incremented on each list(); stale callbacks bail out
 local list_job = nil -- in-flight thread fetch job handle
-local enrich_job = nil -- in-flight enrich_with_flags job handle
 local flag_cache = {} -- maps id string → {flags, has_attachment} across re-fetches
-local enrich_cli_page = 0 -- last CLI page fetched by incremental enrich (0 = none)
-local enrich_exhausted = false -- true when CLI returned fewer results than batch size
-local enrich_next_batch -- forward declaration; defined after render_page (mutual recursion)
 
 local account_flag = account_state.flag
 
@@ -50,10 +45,6 @@ function M.cancel_jobs()
     job.kill_and_wait(list_job)
     list_job = nil
   end
-  if enrich_job then
-    job.kill_and_wait(enrich_job)
-    enrich_job = nil
-  end
 end
 
 --- Clean up all module-local state for buffer teardown.
@@ -64,8 +55,6 @@ function M.cleanup()
   last_edges = nil
   last_edges_key = nil
   flag_cache = {}
-  enrich_cli_page = 0
-  enrich_exhausted = false
   thread_query = ''
   current_page = 1
 end
@@ -175,98 +164,10 @@ function M.render_page(page, opts)
     vim.cmd('0')
   end
 
-  -- Trigger incremental flag enrichment if this page has unknowns.
-  -- The initial enrich is started by build_and_render; subsequent batches
-  -- are triggered here as the user pages through or after each batch
-  -- re-renders and the current page still has gaps.
-  if not enrich_exhausted and not enrich_job then
-    local page_has_unknowns = false
-    for _, row in ipairs(slice) do
-      if not row.env.flags then
-        page_has_unknowns = true
-        break
-      end
-    end
-    if page_has_unknowns then
-      local buf_acct = vim.b[bufnr].himalaya_account
-      local buf_folder = vim.b[bufnr].himalaya_folder
-      if buf_acct and buf_folder then
-        local ref_win = vim.fn.bufwinid(bufnr)
-        if ref_win ~= -1 then
-          enrich_next_batch(buf_acct, buf_folder, ref_win, list_generation)
-        end
-      end
-    end
-  end
 end
 
---- Fetch the next batch of flags from the flat envelope list.
---- Each call fetches page_size * 2 envelopes (matching the flat listing's
---- doubled-fetch strategy) and merges flags into all_display_rows. After
---- re-rendering, render_page triggers the next batch if the current page
---- still has unknowns.
---- @param acct string
---- @param folder string
---- @param listing_win number  window to render in (avoids E36 if picker has focus)
---- @param gen number  generation at time of request; bail if stale
-enrich_next_batch = function(acct, folder, listing_win, gen)
-  if not all_display_rows or #all_display_rows == 0 then
-    return
-  end
-  if enrich_exhausted or enrich_job then
-    return
-  end
-  perf.count('enrich_with_flags')
-
-  local listing = require('himalaya.ui.listing')
-  local batch_size = listing.effective_page_size() * 2
-  enrich_cli_page = enrich_cli_page + 1
-  local cli_page = enrich_cli_page
-  enrich_job = request.json({
-    cmd = 'envelope list --folder %q %s --page-size %d --page %d',
-    args = { folder, account_flag(acct), batch_size, cli_page },
-    msg = 'Fetching flags',
-    silent = true,
-    is_stale = function()
-      return gen ~= list_generation
-    end,
-    on_error = function()
-      enrich_job = nil
-    end,
-    on_data = function(envs)
-      enrich_job = nil
-      if #envs < batch_size then
-        enrich_exhausted = true
-      end
-      local id_map = {}
-      for _, env in ipairs(envs) do
-        id_map[tostring(env.id)] = env
-      end
-      for _, row in ipairs(all_display_rows) do
-        local id_str = tostring(row.env.id)
-        local rich = id_map[id_str]
-        if rich then
-          row.env.flags = rich.flags
-          row.env.has_attachment = rich.has_attachment
-          flag_cache[id_str] = {
-            flags = rich.flags,
-            has_attachment = rich.has_attachment,
-          }
-        end
-      end
-      flags_util.debug_flags_rows(string.format('thread:enrich batch %d (%d fetched)', cli_page, #envs), all_display_rows)
-      if not vim.api.nvim_win_is_valid(listing_win) then
-        return
-      end
-      vim.api.nvim_win_call(listing_win, function()
-        M.render_page(current_page, { restore_cursor = vim.api.nvim_win_get_cursor(listing_win) })
-      end)
-    end,
-  })
-end
-
---- Build display rows from edges, apply cached flags, render, and optionally
---- enrich.  Shared by the network callback in M.list() and the cache-hit path.
+--- Build display rows from edges, apply cached flags, and render.
+--- Shared by the network callback in M.list() and the cache-hit path.
 --- @param edges table       raw edge data from CLI or cache
 --- @param acct string
 --- @param folder string
@@ -277,10 +178,6 @@ end
 --- @param render_opts table  { restore_email_id?, restore_cursor_line? }
 local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win, my_gen, render_opts)
   local new_key = folder .. '\0' .. thread_query .. '\0' .. sort
-  if last_edges_key ~= new_key then
-    enrich_cli_page = 0
-    enrich_exhausted = false
-  end
   last_edges = edges
   last_edges_key = new_key
   local reverse = config.get().thread_reverse
@@ -299,38 +196,13 @@ local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win,
     end
   end
 
-  -- Pre-populate flags: flag_cache first (covers most rows after
-  -- delete), then fall back to flat listing cache for any remaining.
+  -- Pre-populate flags from flag_cache (covers optimistic mutations
+  -- and preserves flags across toggle_reverse rebuilds).
   for _, row in ipairs(rows) do
     local cached = flag_cache[tostring(row.env.id)]
     if cached then
       row.env.flags = cached.flags
       row.env.has_attachment = cached.has_attachment
-    end
-  end
-  local ok, cached_envs = false, nil
-  if vim.api.nvim_win_is_valid(listing_win) then
-    ok, cached_envs = pcall(vim.api.nvim_buf_get_var, vim.api.nvim_win_get_buf(listing_win), 'himalaya_envelopes')
-  end
-  if ok and cached_envs then
-    local id_map = {}
-    for _, env in ipairs(cached_envs) do
-      id_map[tostring(env.id)] = env
-    end
-    for _, row in ipairs(rows) do
-      if not row.env.flags then
-        local flat = id_map[tostring(row.env.id)]
-        if flat and flat.flags then
-          row.env.flags = flat.flags
-          row.env.has_attachment = flat.has_attachment
-          -- Persist in flag_cache so flags survive if the flat
-          -- listing buffer is later replaced by render_page.
-          flag_cache[tostring(row.env.id)] = {
-            flags = flat.flags,
-            has_attachment = flat.has_attachment,
-          }
-        end
-      end
     end
   end
 
@@ -379,20 +251,6 @@ local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win,
     local listing_bufnr = vim.api.nvim_get_current_buf()
     vim.b[listing_bufnr].himalaya_account = acct
     vim.b[listing_bufnr].himalaya_folder = folder
-
-    -- Trigger incremental flag enrichment if any rows lack flags.
-    local needs_enrich = false
-    if not enrich_exhausted then
-      for _, row in ipairs(all_display_rows) do
-        if not row.env.flags then
-          needs_enrich = true
-          break
-        end
-      end
-    end
-    if needs_enrich then
-      enrich_next_batch(acct, folder, listing_win, my_gen)
-    end
   end)
 end
 
@@ -650,7 +508,7 @@ end
 --- Used by the sync module to avoid database lock contention.
 --- @return boolean
 function M.is_busy()
-  return list_job ~= nil or enrich_job ~= nil
+  return list_job ~= nil
 end
 
 --- Test-only accessor to set module-local state.
