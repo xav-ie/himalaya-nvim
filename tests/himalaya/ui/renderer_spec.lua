@@ -413,8 +413,9 @@ describe('himalaya.ui.renderer', function()
       assert.is_falsy(layout_narrow.header:find('FLGS'))
     end)
 
-    it('render() prepends flags to subject when compacted', function()
+    it('render() prepends flags directly before subject when compacted', function()
       config.setup({ compact_flags = 'always' })
+      -- Unseen envelope: flag '*' should appear directly before subject
       local result = renderer.render(envelopes, 80)
       assert.is_true(result.flags_compacted)
       -- Data line should have 3 seps (4 columns)
@@ -423,13 +424,58 @@ describe('himalaya.ui.renderer', function()
         sep_count = sep_count + 1
       end
       assert.are.equal(3, sep_count)
-      -- Unseen flag '*' should appear in subject area (no separate flags column)
-      assert.is_truthy(result.lines[1]:find('%*'))
+      -- Subject column should start with '*Test' (flag directly before subject)
+      local subject_col = result.lines[1]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+      assert.is_truthy(subject_col)
+      assert.is_truthy(subject_col:match('^%s?%*Test'))
+    end)
+
+    it('render() seen email has no flag padding in subject when compacted', function()
+      config.setup({ compact_flags = 'always' })
+      local seen_envs = {
+        {
+          id = '1',
+          flags = { 'Seen' },
+          has_attachment = false,
+          subject = 'Test subject',
+          from = { name = 'Alice', addr = 'alice@example.com' },
+          date = '2024-01-15 09:30:00',
+        },
+      }
+      local result = renderer.render(seen_envs, 80)
+      -- Subject column should start with 'Test' immediately (no leading spaces for flags)
+      local subject_col = result.lines[1]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+      assert.is_truthy(subject_col)
+      assert.is_truthy(subject_col:match('^%s?Test'))
     end)
 
     it('render() returns flags_compacted=false when not configured', function()
       local result = renderer.render(envelopes, 80)
       assert.is_false(result.flags_compacted)
+    end)
+  end)
+
+  describe('format_flags_compact', function()
+    it('returns only active flag characters', function()
+      assert.are.equal('*', renderer.format_flags_compact({ flags = {} }))
+    end)
+
+    it('returns empty string for seen email with no special flags', function()
+      assert.are.equal('', renderer.format_flags_compact({ flags = { 'Seen' } }))
+    end)
+
+    it('returns all active flags concatenated', function()
+      assert.are.equal(
+        '!*R@',
+        renderer.format_flags_compact({
+          flags = { 'Answered', 'Flagged' },
+          has_attachment = true,
+        })
+      )
+    end)
+
+    it('returns only flagged symbol when only flagged', function()
+      assert.are.equal('!', renderer.format_flags_compact({ flags = { 'Seen', 'Flagged' } }))
     end)
   end)
 end)

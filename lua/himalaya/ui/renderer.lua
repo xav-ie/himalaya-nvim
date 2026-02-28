@@ -48,6 +48,45 @@ function M.format_flags(envelope, cfg)
   return table.concat(parts)
 end
 
+--- Like format_flags but only emits active flag characters (no padding).
+--- Used in compact_flags mode so seen emails waste zero columns.
+--- @param envelope table
+--- @param cfg? table  optional config (defaults to config.get())
+--- @return string
+function M.format_flags_compact(envelope, cfg)
+  local cfg_flags = (cfg or config.get()).flags
+  local raw = envelope.flags or {}
+  local seen, answered, flagged = false, false, false
+
+  for _, f in ipairs(raw) do
+    if f == 'Seen' then
+      seen = true
+    end
+    if f == 'Answered' then
+      answered = true
+    end
+    if f == 'Flagged' then
+      flagged = true
+    end
+  end
+
+  local active = {
+    flagged = flagged,
+    unseen = not seen,
+    answered = answered,
+    attachment = envelope.has_attachment and true or false,
+  }
+
+  local parts = {}
+  for _, key in ipairs(FLAG_ORDER) do
+    local sym = cfg_flags[key]
+    if type(sym) == 'string' and active[key] then
+      parts[#parts + 1] = sym
+    end
+  end
+  return table.concat(parts)
+end
+
 --- Prefer `.name`, fall back to `.addr`.
 --- @param from table|nil
 --- @return string
@@ -373,11 +412,11 @@ function M.render(envelopes, total_width, cfg)
 
     local line
     if layout.flags_compacted then
-      local full_subject = flags .. subject
+      local compact_flags = M.format_flags_compact(env, cfg)
       line = string.format(
         layout.row_fmt,
         M.fit(id, layout.id_w),
-        M.fit(full_subject, layout.subject_w),
+        M.fit(compact_flags .. subject, layout.subject_w),
         M.fit(from, layout.from_w),
         M.fit(date, layout.date_w)
       )

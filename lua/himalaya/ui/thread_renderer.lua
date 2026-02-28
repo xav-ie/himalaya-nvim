@@ -43,8 +43,8 @@ function M.render(display_rows, total_width, cfg)
 
     local line
     if layout.flags_compacted then
-      local flags_str = env.flags and renderer.format_flags(env, cfg) or empty_flags
-      local flags_dw = layout.flags_w
+      local flags_str = env.flags and renderer.format_flags_compact(env, cfg) or ''
+      local flags_dw = not flags_str:find('[\128-\255]') and #flags_str or vim.fn.strdisplaywidth(flags_str)
       local subject_space = layout.subject_w - flags_dw - prefix_dw
       local full_subject
       if subject_space <= 0 then

@@ -281,8 +281,12 @@ describe('himalaya.ui.thread_renderer', function()
           },
         }
         local result = thread_renderer.render(rows, 100)
-        -- Second line (unseen reply) should have * before tree prefix └─
-        -- The flags are prepended, then the tree prefix follows
+        -- First line (seen root): subject should start with 'Root' (no flag padding)
+        local root_col = result.lines[1]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
+        assert.is_truthy(root_col)
+        assert.is_truthy(root_col:match('^%s?Root'))
+
+        -- Second line (unseen reply) should have * directly before tree prefix └─
         local subject_col = result.lines[2]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
         assert.is_truthy(subject_col)
         -- unseen flag '*' should appear before the tree connector '└'
