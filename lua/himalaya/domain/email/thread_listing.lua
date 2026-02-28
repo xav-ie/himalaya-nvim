@@ -24,7 +24,6 @@ local enrich_job = nil -- in-flight enrich_with_flags job handle
 local flag_cache = {} -- maps id string → {flags, has_attachment} across re-fetches
 local enrich_cli_page = 0 -- last CLI page fetched by incremental enrich (0 = none)
 local enrich_exhausted = false -- true when CLI returned fewer results than batch size
-local ENRICH_BATCH_SIZE = 50
 local enrich_next_batch -- forward declaration; defined after render_page (mutual recursion)
 
 local account_flag = account_state.flag
@@ -202,9 +201,10 @@ function M.render_page(page, opts)
 end
 
 --- Fetch the next batch of flags from the flat envelope list.
---- Each call fetches one CLI page (ENRICH_BATCH_SIZE envelopes) and merges
---- flags into all_display_rows. After re-rendering, render_page triggers
---- the next batch if the current page still has unknowns.
+--- Each call fetches page_size * 2 envelopes (matching the flat listing's
+--- doubled-fetch strategy) and merges flags into all_display_rows. After
+--- re-rendering, render_page triggers the next batch if the current page
+--- still has unknowns.
 --- @param acct string
 --- @param folder string
 --- @param listing_win number  window to render in (avoids E36 if picker has focus)
@@ -218,11 +218,13 @@ enrich_next_batch = function(acct, folder, listing_win, gen)
   end
   perf.count('enrich_with_flags')
 
+  local listing = require('himalaya.ui.listing')
+  local batch_size = listing.effective_page_size() * 2
   enrich_cli_page = enrich_cli_page + 1
   local cli_page = enrich_cli_page
   enrich_job = request.json({
     cmd = 'envelope list --folder %q %s --page-size %d --page %d',
-    args = { folder, account_flag(acct), ENRICH_BATCH_SIZE, cli_page },
+    args = { folder, account_flag(acct), batch_size, cli_page },
     msg = 'Fetching flags',
     silent = true,
     is_stale = function()
@@ -233,7 +235,7 @@ enrich_next_batch = function(acct, folder, listing_win, gen)
     end,
     on_data = function(envs)
       enrich_job = nil
-      if #envs < ENRICH_BATCH_SIZE then
+      if #envs < batch_size then
         enrich_exhausted = true
       end
       local id_map = {}
