@@ -319,6 +319,15 @@ function M.compute_layout(items, total_width, get_env_fn, cfg)
     subject_w = subject_w + flags_w + sep_width
   end
 
+  -- Safety: the remaining-clamp can inflate the layout beyond total_width
+  -- at very narrow widths.  Shrink subject_w to absorb any overflow.
+  local actual_overhead = flags_compacted and (gutters and 10 or 3) or (gutters and 13 or 4)
+  local actual_fixed = flags_compacted and (id_w + date_w + from_w) or (id_w + flags_w + date_w + from_w)
+  local max_subject = total_width - actual_overhead - actual_fixed
+  if subject_w > max_subject then
+    subject_w = math.max(1, max_subject)
+  end
+
   local row_fmt, header, separator
   local from_label = narrow and 'FR' or 'FROM'
   local cross_sep = gutters and (BOX_H .. BOX_CROSS .. BOX_H) or BOX_CROSS
