@@ -62,7 +62,7 @@ local defaults = {
   -- Window width threshold for adaptive reading split direction.
   -- When the listing window is at least this wide, split right; otherwise below.
   -- Set to 0 to always split right, or math.huge to always split below.
-  reading_split_threshold = 120,
+  reading_split_threshold = 115,
 
   -- Enable mock mode (no CLI binary or email account needed)
   mock = false,
