@@ -286,15 +286,15 @@ describe('himalaya.ui.thread_renderer', function()
         assert.is_truthy(root_col)
         assert.is_truthy(root_col:match('^%s?Root'))
 
-        -- Second line (unseen reply) should have * directly before tree prefix └─
+        -- Second line (unseen reply) should have * after tree prefix └─, directly before subject
         local subject_col = result.lines[2]:match('\xe2\x94\x82(.-)' .. '\xe2\x94\x82')
         assert.is_truthy(subject_col)
-        -- unseen flag '*' should appear before the tree connector '└'
+        -- tree connector '└' should appear before unseen flag '*'
         local star_pos = subject_col:find('*', 1, true)
         local tree_pos = subject_col:find('\xe2\x94\x94')
         assert.is_truthy(star_pos)
         assert.is_truthy(tree_pos)
-        assert.is_true(star_pos < tree_pos)
+        assert.is_true(tree_pos < star_pos)
       end)
 
       it('returns flags_compacted=false by default', function()

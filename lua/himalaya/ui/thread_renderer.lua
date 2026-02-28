@@ -48,9 +48,9 @@ function M.render(display_rows, total_width, cfg)
       local subject_space = layout.subject_w - flags_dw - prefix_dw
       local full_subject
       if subject_space <= 0 then
-        full_subject = renderer.fit(flags_str .. prefix, layout.subject_w)
+        full_subject = renderer.fit(prefix .. flags_str, layout.subject_w)
       else
-        full_subject = flags_str .. prefix .. renderer.fit(env.subject or '', subject_space)
+        full_subject = prefix .. flags_str .. renderer.fit(env.subject or '', subject_space)
       end
       line = string.format(
         layout.row_fmt,
