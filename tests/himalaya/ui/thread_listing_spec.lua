@@ -1,3 +1,5 @@
+local spy = require('luassert.spy')
+
 describe('himalaya.ui.thread_listing', function()
   local thread_listing
   local define_spy, shared_spy

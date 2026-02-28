@@ -1,3 +1,5 @@
+local spy = require('luassert.spy')
+
 describe('himalaya', function()
   local himalaya
 

@@ -8,9 +8,9 @@ function M.detect()
     return cfg.folder_picker
   end
 
-  if pcall(require, 'telescope') then
+  if package.loaded['telescope'] then
     return 'telescope'
-  elseif pcall(require, 'fzf-lua') then
+  elseif package.loaded['fzf-lua'] then
     return 'fzflua'
   elseif vim.fn.exists('*fzf#run') == 1 then
     return 'fzf'
