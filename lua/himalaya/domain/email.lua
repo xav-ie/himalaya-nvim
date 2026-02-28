@@ -258,6 +258,8 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
   local bufcmd = in_listing_buffer() and 'file' or 'edit'
   local new_offset = fetch_offset or ((page - 1) * pg_size)
   local page_data = paging.fetch_page_slice(data, page, pg_size, new_offset)
+  flags_util.debug_flags(string.format('on_list_with:cli page=%d', page), data)
+  flags_util.debug_flags(string.format('on_list_with:display page=%d', page), page_data)
   update_listing_title(folder, qry, page, total_str, bufcmd, count_unseen(page_data), sort)
   -- Re-read bufnr: when bufcmd was 'edit', the command above created a new
   -- buffer in the window.  All subsequent buffer-variable writes must target
@@ -1183,6 +1185,7 @@ function M.resize_listing()
     local acct_flag_str = table.concat(account_flag(vim.b.himalaya_account or ''), ' ')
     local cache_key = acct_flag_str .. '\0' .. folder_name .. '\0' .. build_cli_query(buf_query, buf_sort)
     local total_str = probe.total_pages_str(cache_key, new_page_size)
+    flags_util.debug_flags(string.format('resize:display page=%d', new_page), display_envelopes)
     update_listing_title(folder_name, buf_query, new_page, total_str, nil, count_unseen(display_envelopes), buf_sort)
 
     render_listing_buffer(bufnr, display_envelopes)

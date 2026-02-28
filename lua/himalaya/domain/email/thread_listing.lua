@@ -110,6 +110,8 @@ function M.render_page(page, opts)
     slice[#slice + 1] = all_display_rows[i]
   end
 
+  flags_util.debug_flags_rows(string.format('thread:render_page page=%d', page), slice)
+
   local folder = vim.b.himalaya_folder or 'INBOX'
   local display_query = thread_query == '' and 'all' or thread_query
   local buftype = vim.b.himalaya_buffer_type == 'thread-listing' and 'file' or 'edit'
@@ -225,6 +227,7 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
           }
         end
       end
+      flags_util.debug_flags_rows(string.format('thread:enrich complete (%d fetched)', #envs), all_display_rows)
       if not vim.api.nvim_win_is_valid(listing_win) then
         return
       end
@@ -301,6 +304,7 @@ local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win,
 
   all_display_rows = rows
   rebuild_id_index()
+  flags_util.debug_flags_rows('thread:build_and_render after cache fill', rows)
 
   -- Seed the probe cache so flat view knows the total without probing.
   local acct_flag_str = table.concat(account_flag(acct), ' ')

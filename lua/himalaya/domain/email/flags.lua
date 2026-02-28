@@ -60,4 +60,49 @@ function M.count_unseen_rows(rows)
   return n
 end
 
+--- Log a per-page flag summary when vim.g.himalaya_debug is set.
+--- @param label string  caller context (e.g. 'on_list_with:page_data')
+--- @param envelopes table[]  flat envelope list (each has .flags or nil)
+function M.debug_flags(label, envelopes)
+  if not vim.g.himalaya_debug then
+    return
+  end
+  local total = #envelopes
+  local nil_flags, unseen, seen = 0, 0, 0
+  for _, env in ipairs(envelopes) do
+    if not env.flags then
+      nil_flags = nil_flags + 1
+    else
+      local has_seen = false
+      for _, f in ipairs(env.flags) do
+        if f == 'Seen' then
+          has_seen = true
+          break
+        end
+      end
+      if has_seen then
+        seen = seen + 1
+      else
+        unseen = unseen + 1
+      end
+    end
+  end
+  local log = require('himalaya.log')
+  log.debug('[flags] %s: total=%d seen=%d unseen=%d unknown=%d', label, total, seen, unseen, nil_flags)
+end
+
+--- Like debug_flags but for display rows (each row has .env).
+--- @param label string
+--- @param rows table[]
+function M.debug_flags_rows(label, rows)
+  if not vim.g.himalaya_debug then
+    return
+  end
+  local envs = {}
+  for _, row in ipairs(rows) do
+    envs[#envs + 1] = row.env
+  end
+  M.debug_flags(label, envs)
+end
+
 return M
