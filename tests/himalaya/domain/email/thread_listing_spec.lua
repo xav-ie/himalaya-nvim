@@ -1011,6 +1011,241 @@ describe('himalaya.domain.email.thread_listing', function()
         },
       })
     end)
+
+    it('flat cache flags are persisted to flag_cache across re-fetches', function()
+      -- Track all request.json calls
+      local calls = {}
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          calls[#calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+      bufnr = make_buf()
+
+      -- Seed flat cache on the listing buffer
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+        { id = '2', flags = { 'Flagged' }, has_attachment = true },
+      }
+
+      -- First list(): flat cache should cover all rows, no enrich needed
+      thread_listing.list()
+      local first_list = calls[1]
+      calls = {}
+      first_list.on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '2', subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00+00:00' },
+          0,
+        },
+      })
+      -- No enrich should have been called
+      assert.are.equal(0, #calls)
+
+      -- Second list(): the flat cache buffer var is now gone (render_page
+      -- created a new buffer), but flag_cache should still have the flags.
+      calls = {}
+      thread_listing.list()
+      local second_list = calls[1]
+      calls = {}
+      second_list.on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '2', subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00+00:00' },
+          0,
+        },
+      })
+      -- flag_cache should still cover all rows — no enrich
+      assert.are.equal(0, #calls)
+    end)
+
+    it('skips redundant enrich on re-fetch after enrich covered all rows', function()
+      -- First list + enrich covers all IDs. Second list with the same
+      -- edges should skip enrich because flag_cache already has everything.
+      local calls = {}
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          calls[#calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+      bufnr = make_buf()
+
+      local edges = {
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-02 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '2', subject = 'B', from = { name = 'Y' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+      }
+
+      -- First list(): no flags → enrich is called
+      thread_listing.list()
+      local list1 = calls[1]
+      calls = {}
+      list1.on_data(edges)
+      assert.are.equal(1, #calls)
+      assert.truthy(calls[1].cmd:find('envelope list'))
+
+      -- Simulate enrich returning flags for both IDs
+      local enrich1 = calls[1]
+      calls = {}
+      enrich1.on_data({
+        { id = '1', flags = { 'Seen' }, has_attachment = false, subject = 'A', from = { name = 'X' }, date = '2024-01-02 10:00:00+00:00' },
+        { id = '2', flags = {}, has_attachment = false, subject = 'B', from = { name = 'Y' }, date = '2024-01-01 10:00:00+00:00' },
+      })
+
+      -- Second list() with same edges: flag_cache covers all → no enrich
+      calls = {}
+      thread_listing.list()
+      local list2 = calls[1]
+      calls = {}
+      list2.on_data(edges)
+      assert.are.equal(0, #calls)
+    end)
+
+    it('skips enrich on re-fetch when flag_cache fully covers all rows', function()
+      -- When all rows' IDs are in flag_cache (all enriched or flat-cached),
+      -- no enrich call is needed even if some rows still lack flags in
+      -- the raw edges.
+      local calls = {}
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          calls[#calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+      bufnr = make_buf()
+
+      -- Seed flat cache to cover all IDs
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+        { id = '2', flags = { 'Flagged' }, has_attachment = true },
+      }
+
+      local edges = {
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '2', subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00+00:00' },
+          0,
+        },
+      }
+
+      -- First list(): flags from flat cache → no enrich
+      thread_listing.list()
+      local list1 = calls[1]
+      calls = {}
+      list1.on_data(edges)
+      assert.are.equal(0, #calls) -- no enrich
+
+      -- Second list(): flat cache buffer is gone, but flag_cache
+      -- was seeded from flat cache → still no enrich
+      calls = {}
+      thread_listing.list()
+      local list2 = calls[1]
+      calls = {}
+      list2.on_data(edges)
+      assert.are.equal(0, #calls) -- no enrich on re-fetch either
+    end)
+
+    it('calls enrich when new unseen IDs appear after prior enrich', function()
+      -- After an enrich that covered IDs 1-2, a new ID 4 appears
+      -- that was never in flag_cache. Enrich should be re-triggered.
+      local calls = {}
+      package.loaded['himalaya.request'] = {
+        json = function(opts)
+          calls[#calls + 1] = opts
+          return { kill = function() end }
+        end,
+      }
+      package.loaded['himalaya.domain.email.thread_listing'] = nil
+      thread_listing = require('himalaya.domain.email.thread_listing')
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+      bufnr = make_buf()
+
+      -- Seed flat cache with IDs 1 and 2 only
+      vim.b[bufnr].himalaya_envelopes = {
+        { id = '1', flags = { 'Seen' }, has_attachment = false },
+        { id = '2', flags = {}, has_attachment = false },
+      }
+
+      -- First list with IDs 1,2 — fully covered by flat cache
+      thread_listing.list()
+      local list1 = calls[1]
+      calls = {}
+      list1.on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '2', subject = 'B', from = { name = 'Y' }, date = '2024-01-02 10:00:00+00:00' },
+          0,
+        },
+      })
+      assert.are.equal(0, #calls) -- no enrich needed
+
+      -- Second list includes a new ID 4 (not in flag_cache)
+      calls = {}
+      thread_listing.list()
+      local list2 = calls[1]
+      calls = {}
+      list2.on_data({
+        {
+          { id = '0' },
+          { id = '1', subject = 'A', from = { name = 'X' }, date = '2024-01-01 10:00:00+00:00' },
+          0,
+        },
+        {
+          { id = '0' },
+          { id = '4', subject = 'D', from = { name = 'W' }, date = '2024-01-04 10:00:00+00:00' },
+          0,
+        },
+      })
+      -- ID 4 is not in flag_cache → enrich should be called
+      assert.are.equal(1, #calls)
+      assert.truthy(calls[1].cmd:find('envelope list'))
+    end)
   end)
 
   -- ----------------------------------------------------------------

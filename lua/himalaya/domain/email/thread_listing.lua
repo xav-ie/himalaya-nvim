@@ -21,6 +21,7 @@ local list_generation = 0 -- incremented on each list(); stale callbacks bail ou
 local list_job = nil -- in-flight thread fetch job handle
 local enrich_job = nil -- in-flight enrich_with_flags job handle
 local flag_cache = {} -- maps id string → {flags, has_attachment} across re-fetches
+local enrich_ids = nil -- set of id strings returned by last enrich; nil = never enriched
 
 local account_flag = account_state.flag
 
@@ -59,6 +60,7 @@ function M.cleanup()
   id_to_index = nil
   last_edges = nil
   flag_cache = {}
+  enrich_ids = nil
   thread_query = ''
   current_page = 1
 end
@@ -200,11 +202,24 @@ local function enrich_with_flags(acct, folder, listing_win, gen)
       for _, env in ipairs(envs) do
         id_map[tostring(env.id)] = env
       end
+      -- Track which IDs enrich returned so we can skip redundant
+      -- re-enrichment when only rows outside the cap lack flags.
+      enrich_ids = {}
+      for id_str, _ in pairs(id_map) do
+        enrich_ids[id_str] = true
+      end
       for _, row in ipairs(all_display_rows) do
-        local rich = id_map[tostring(row.env.id)]
+        local id_str = tostring(row.env.id)
+        local rich = id_map[id_str]
         if rich then
           row.env.flags = rich.flags
           row.env.has_attachment = rich.has_attachment
+          -- Persist enriched flags so subsequent re-fetches can
+          -- pre-populate from flag_cache and skip enrich entirely.
+          flag_cache[id_str] = {
+            flags = rich.flags,
+            has_attachment = rich.has_attachment,
+          }
         end
       end
       if not vim.api.nvim_win_is_valid(listing_win) then
@@ -307,9 +322,15 @@ function M.list(account, opts)
         for _, row in ipairs(rows) do
           if not row.env.flags then
             local flat = id_map[tostring(row.env.id)]
-            if flat then
+            if flat and flat.flags then
               row.env.flags = flat.flags
               row.env.has_attachment = flat.has_attachment
+              -- Persist in flag_cache so flags survive if the flat
+              -- listing buffer is later replaced by render_page.
+              flag_cache[tostring(row.env.id)] = {
+                flags = flat.flags,
+                has_attachment = flat.has_attachment,
+              }
             end
           end
         end
@@ -360,15 +381,30 @@ function M.list(account, opts)
         vim.b[listing_bufnr].himalaya_account = acct
         vim.b[listing_bufnr].himalaya_folder = folder
 
-        -- Skip the enrich round-trip if all rows already have flag data
-        local all_have_flags = true
+        -- Decide whether the enrich round-trip is needed.
+        --
+        -- Skip when:
+        --  (a) every row already has flag data (from flag_cache or
+        --      flat listing cache), OR
+        --  (b) enrich already ran and the only flagless rows are IDs
+        --      that were outside the previous enrich's 200-cap — those
+        --      same IDs would still be outside the cap on a re-fetch.
+        --
+        -- Re-enrich when:
+        --  (a) enrich has never run (enrich_ids == nil) and some rows
+        --      lack flags, OR
+        --  (b) a new ID appeared (not in flag_cache) that may now fall
+        --      within the 200-cap (e.g. a newly arrived email).
+        local needs_enrich = false
         for _, row in ipairs(all_display_rows) do
           if not row.env.flags then
-            all_have_flags = false
-            break
+            if not enrich_ids or not flag_cache[tostring(row.env.id)] then
+              needs_enrich = true
+              break
+            end
           end
         end
-        if not all_have_flags then
+        if needs_enrich then
           enrich_with_flags(acct, folder, listing_win, my_gen)
         end
       end)
