@@ -243,7 +243,11 @@ function M.poll()
           vim.bo[bufnr].modifiable = true
           vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
           listing.apply_header(bufnr, result.header)
-          listing.apply_highlights(bufnr, data, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+          listing.apply_highlights(
+            bufnr,
+            data,
+            { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted }
+          )
           vim.b[bufnr].himalaya_line_ids = result.ids
           vim.bo[bufnr].modifiable = false
           vim.b[bufnr].himalaya_envelopes = data

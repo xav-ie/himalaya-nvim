@@ -147,7 +147,11 @@ function M.render_page(page, opts)
   for _, row in ipairs(slice) do
     envs[#envs + 1] = row.env
   end
-  listing.apply_highlights(bufnr, envs, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  listing.apply_highlights(
+    bufnr,
+    envs,
+    { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted }
+  )
   vim.b[bufnr].himalaya_line_ids = result.ids
 
   vim.b.himalaya_buffer_type = 'thread-listing'
@@ -163,7 +167,6 @@ function M.render_page(page, opts)
   else
     vim.cmd('0')
   end
-
 end
 
 --- Build display rows from edges, apply cached flags, and render.
@@ -176,7 +179,7 @@ end
 --- @param listing_win number
 --- @param my_gen number
 --- @param render_opts table  { restore_email_id?, restore_cursor_line? }
-local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win, my_gen, render_opts)
+local function build_and_render(edges, acct, folder, sort, cli_qry, listing_win, _my_gen, render_opts)
   local new_key = folder .. '\0' .. thread_query .. '\0' .. sort
   last_edges = edges
   last_edges_key = new_key
@@ -290,9 +293,16 @@ function M.list(account, opts)
   -- Same approach as toggle_reverse(), which already rebuilds from
   -- last_edges synchronously.
   if last_edges and last_edges_key == edges_key then
-    build_and_render(last_edges, acct, folder, sort,
+    build_and_render(
+      last_edges,
+      acct,
+      folder,
+      sort,
       require('himalaya.domain.email')._build_cli_query(thread_query, sort),
-      listing_win, my_gen, opts)
+      listing_win,
+      my_gen,
+      opts
+    )
     return
   end
 

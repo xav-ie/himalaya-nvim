@@ -73,9 +73,7 @@ function M.open_split(bufnr, ref_winid)
   local threshold = split.threshold or 115
   local default_size = split.size or 0.6
   local listing_width = vim.api.nvim_win_get_width(ref_winid)
-  local branch = listing_width >= threshold
-    and (split.over or 'right')
-    or (split.under or 'below')
+  local branch = listing_width >= threshold and (split.over or 'right') or (split.under or 'below')
 
   local direction, size
   if type(branch) == 'table' then

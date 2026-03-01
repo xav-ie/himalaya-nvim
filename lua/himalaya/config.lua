@@ -78,7 +78,7 @@ local defaults = {
   reading_split = {
     threshold = 115,
     size = 0.6,
-    over  = 'right',
+    over = 'right',
     under = 'below',
   },
 

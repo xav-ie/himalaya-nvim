@@ -46,8 +46,8 @@ describe('himalaya.domain.email.flags', function()
   end)
 
   describe('is_seen', function()
-    it('returns false when flags is nil', function()
-      assert.is_false(flags.is_seen({}))
+    it('returns true when flags is nil (unknown treated as not-unseen)', function()
+      assert.is_true(flags.is_seen({}))
     end)
 
     it('returns true when Seen flag is present', function()
@@ -63,11 +63,48 @@ describe('himalaya.domain.email.flags', function()
         {},
         { flags = { 'Seen', 'Flagged' } },
       }
-      assert.equals(2, flags.count_unseen(envelopes))
+      assert.equals(1, flags.count_unseen(envelopes))
     end)
 
     it('returns 0 for empty list', function()
       assert.equals(0, flags.count_unseen({}))
+    end)
+  end)
+
+  describe('debug_flags', function()
+    after_each(function()
+      vim.g.himalaya_debug = nil
+    end)
+
+    it('is a no-op when himalaya_debug is unset', function()
+      flags.debug_flags('test', { { flags = { 'Seen' } } })
+    end)
+
+    it('logs seen, unseen, and unknown counts', function()
+      vim.g.himalaya_debug = true
+      flags.debug_flags('test', {
+        { flags = { 'Seen' } },
+        { flags = { 'Answered' } },
+        {},
+      })
+    end)
+  end)
+
+  describe('debug_flags_rows', function()
+    after_each(function()
+      vim.g.himalaya_debug = nil
+    end)
+
+    it('is a no-op when himalaya_debug is unset', function()
+      flags.debug_flags_rows('test', { { env = { flags = { 'Seen' } } } })
+    end)
+
+    it('extracts envs from rows and logs', function()
+      vim.g.himalaya_debug = true
+      flags.debug_flags_rows('test', {
+        { env = { flags = { 'Seen' } } },
+        { env = {} },
+      })
     end)
   end)
 
@@ -79,7 +116,7 @@ describe('himalaya.domain.email.flags', function()
         { env = {} },
         { env = { flags = { 'Seen', 'Flagged' } } },
       }
-      assert.equals(2, flags.count_unseen_rows(rows))
+      assert.equals(1, flags.count_unseen_rows(rows))
     end)
 
     it('returns 0 for empty list', function()

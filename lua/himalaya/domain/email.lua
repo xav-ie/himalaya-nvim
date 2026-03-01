@@ -10,7 +10,6 @@ local perf = require('himalaya.perf')
 local job = require('himalaya.job')
 local win = require('himalaya.ui.win')
 
-
 local M = {}
 
 -- Module-local state
@@ -98,7 +97,11 @@ local function render_listing_buffer(bufnr, envelopes)
   vim.bo[bufnr].modifiable = true
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
   listing.apply_header(bufnr, result.header)
-  listing.apply_highlights(bufnr, envelopes, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  listing.apply_highlights(
+    bufnr,
+    envelopes,
+    { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted }
+  )
   vim.b[bufnr].himalaya_line_ids = result.ids
   vim.bo[bufnr].modifiable = false
   return result
@@ -319,7 +322,11 @@ local function on_list_with(account, folder, page, pg_size, qry, sort, data, fet
     vim.b[bufnr].himalaya_page_size = actual_ps
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, result.lines)
-  listing.apply_highlights(bufnr, display, { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted })
+  listing.apply_highlights(
+    bufnr,
+    display,
+    { flags_compacted = result.flags_compacted, ids_compacted = result.ids_compacted }
+  )
   vim.b[bufnr].himalaya_line_ids = result.ids
   vim.b[bufnr].himalaya_buffer_type = 'listing'
   vim.bo[bufnr].filetype = 'himalaya-email-listing'
@@ -1178,7 +1185,7 @@ function M.resize_listing()
     vim.b.himalaya_page_size = new_page_size
 
     -- Render
-    local bufnr = vim.api.nvim_get_current_buf()
+    bufnr = vim.api.nvim_get_current_buf()
     local folder_name = vim.b.himalaya_folder or 'INBOX'
     local buf_query = vim.b.himalaya_query or ''
     local buf_sort = vim.b.himalaya_sort or 'date desc'

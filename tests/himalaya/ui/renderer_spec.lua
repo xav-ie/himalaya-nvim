@@ -361,7 +361,7 @@ describe('himalaya.ui.renderer', function()
 
     it('compact_flags="always" produces 3 seps, no FLGS header, wider subject', function()
       config.setup({ compact_flags = 'always' })
-      local layout_normal = renderer.compute_layout(envelopes, 80, function(item)
+      local _ = renderer.compute_layout(envelopes, 80, function(item)
         return item
       end)
       -- Reset and compute without compact_flags

@@ -290,6 +290,7 @@ describe('himalaya.domain.email (extended)', function()
       is_seen = real_flags.is_seen,
       count_unseen = real_flags.count_unseen,
       count_unseen_rows = real_flags.count_unseen_rows,
+      debug_flags = real_flags.debug_flags,
     }
     package.loaded['himalaya.domain.folder'] = {
       open_picker = function(cb)
@@ -1269,7 +1270,7 @@ describe('himalaya.domain.email (extended)', function()
       local width = vim.api.nvim_win_get_width(listing_win)
       require('himalaya.config').get().reading_split = {
         threshold = width + 1,
-        over  = { side = 'right', size = 0.6 },
+        over = { side = 'right', size = 0.6 },
         under = { side = 'right', size = 0.4 },
       }
 
